@@ -1,6 +1,6 @@
 # AI Runtime Platform — Architecture
 
-**Baseline:** 0.2 · 20 September 2026 · **Jenis:** rancangan, bukan implementasi yang telah diuji.
+**Baseline arsitektur:** 0.2 · **Jenis:** rancangan target. Implementasi M0 lokal dibatasi pada [Contract Lab](../milestones/M0.md); diagram di bawah bukan klaim seluruh platform telah berjalan.
 
 Dokumen ini menjabarkan kebutuhan produk dan keputusan aktif pada [ADR](../adr/README.md). Pemetaan topik, klarifikasi operasional, spesifikasi, dan gate tersedia di [decision traceability](../reviews/RECONCILIATION.md); riwayat review bukan dependency implementasi. Istilah MUST/WAJIB berarti requirement baseline, bukan bukti bahwa requirement sudah terpenuhi.
 
@@ -136,4 +136,4 @@ Gunakan per-app identity, least privilege, approved package digests, egress allo
 
 [PLAN.md](../PLAN.md) mendefinisikan work packages; [ROADMAP.md](../ROADMAP.md) milestones dan dependency. Phase 2 membuktikan OpenRouter dan Direct Anthropic pada common capability. OpenRouter tetap boleh primary per profile. Claude adalah runtime pertama; Codex dan Gemini menyusul dengan compatibility tests.
 
-Semua implementation phases **belum dikerjakan** dalam perubahan dokumentasi ini. [ADR index](../adr/README.md), [open decisions](../decisions/OPEN-QUESTIONS.md), [test gates](../testing/ACCEPTANCE.md), dan [validation record](../reviews/VALIDATION.md) membedakan keputusan desain, pertanyaan terbuka, serta bukti yang benar-benar tersedia.
+M0 telah memiliki vertical slice FE/BE/PostgreSQL untuk contract checks sesuai [ADR-0015](../adr/0015-testable-milestone-slices.md). Implementasi AI execution, accounting produksi, serta P1 dan fase lanjut **belum dikerjakan**; hasil uji lab tidak menutup gate produksi. [ADR index](../adr/README.md), [open decisions](../decisions/OPEN-QUESTIONS.md), [test gates](../testing/ACCEPTANCE.md), dan [validation record](../reviews/VALIDATION.md) membedakan keputusan desain, pertanyaan terbuka, serta bukti yang benar-benar tersedia.

@@ -2,6 +2,10 @@
 
 **Design contract v1 — baseline 0.2; belum merupakan server/API yang sudah tersedia.** Owner requirement: [ADR-0001](../adr/0001-application-ownership.md), [ADR-0002](../adr/0002-managed-envelope.md). JSON berikut ilustratif tetapi harus valid; nilai profile/artifact adalah identifier contoh, bukan resource yang sudah dibuat.
 
+## Implemented scope in M0
+
+Local Contract Lab berjalan di `/api/m0/*`, terpisah dari semua endpoint execution `/v1/*` di bawah. [M0 OpenAPI](../../contracts/m0.openapi.json) menjelaskan endpoint lab aktif; [planned execution OpenAPI](../../contracts/execution-v1.planned.openapi.json) mencakup submission, snapshot, cancel dan stream envelope sebagai draft saja. List, usage, capabilities dan artifacts belum diekspor sebagai operations pada draft ini. [Shared schemas](../../contracts/schemas.json) dan [panduan M0](../development/M0.md) melengkapi batas validation-only.
+
 ## 1. Transport dan identitas
 
 HTTPS wajib di deployment produksi. Service credential ber-scope atau delegated user token divalidasi oleh platform. Tenant/application/actor diturunkan dari token dan binding server. Body tidak dapat mengganti identity. Browser secara default memakai app BFF; no provider key di client.

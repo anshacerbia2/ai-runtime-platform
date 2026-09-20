@@ -1,6 +1,6 @@
 # AI Runtime Platform — Roadmap
 
-**Baseline 0.2 · 20 September 2026.** Roadmap berbasis dependency dan gate, bukan janji tanggal. Tidak ada implementasi runtime yang dilakukan dalam pembaruan dokumentasi ini.
+**Baseline 0.2 · 20 September 2026.** Roadmap berbasis dependency dan gate, bukan janji tanggal. M0 sudah mempunyai frontend, API validasi dan persistence PostgreSQL lokal; runtime AI, gateway, dan ledger produksi belum diimplementasikan. Lihat [M0](milestones/M0.md).
 
 ## North star
 
@@ -10,7 +10,7 @@ Satu kontrak AI execution yang melayani direct chat, structured calls, dan agent
 
 | Milestone | Outcome | Dependency | Exit evidence | Status |
 | --- | --- | --- | --- | --- |
-| M0 — Contract baseline | API, state, usage, stream, profile, tool schemas disepakati | Review docs | P0 review + blocking decisions resolved | PLANNED; documentation draft available |
+| M0 — Contract baseline | API, state, usage, stream, profile, tool schemas disepakati | Review docs | P0 review + blocking decisions resolved | IN PROGRESS; contract lab runnable, formal review pending |
 | M1 — Durable foundation | Identity, idempotency, reservation/ledger, execution/outbox | M0 | Admission/crash/isolation tests | PLANNED |
 | M2 — Direct & Aggregator Gateway | OpenRouter-first + Direct Anthropic proof; chat/structured/stream | M1 | Adapter conformance and restricted routing tests | PLANNED |
 | M3 — Claude Agent Runtime | Isolated managed execution, lease/fencing, tools, artifacts | M1 + shared M2 contracts | Agent, cancellation, orphan, tool safety tests | PLANNED |

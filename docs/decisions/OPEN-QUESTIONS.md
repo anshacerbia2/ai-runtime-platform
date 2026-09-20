@@ -1,10 +1,10 @@
 # Open Decisions dan Residual Risk Register
 
-**Baseline 0.2.** [ADR](../adr/README.md) mencatat keputusan aktif; pilihan deployment dan bukti berikut belum ditetapkan. Tidak diisi dengan angka/asumsi seolah disetujui. Status semua OPEN sampai owner memberi keputusan/evidence; peran disebut, individu belum ditetapkan.
+**Baseline 0.2.** [ADR](../adr/README.md) mencatat keputusan aktif; pilihan deployment dan bukti berikut belum ditetapkan. Tidak diisi dengan angka/asumsi seolah disetujui. Pilihan stack M0 dicatat pada O01; keputusan lain tetap OPEN sampai owner memberi keputusan/evidence. Peran disebut, individu belum ditetapkan.
 
 | ID | Keputusan yang diperlukan | Candidate / boundary | Owner role | Deadline gate |
 | --- | --- | --- | --- | --- |
-| O01 | Implementation language, versions, API schema tooling | TypeScript candidate untuk reuse; pinned supported versions | Engineering | P0 |
+| O01 | Implementation language, versions, API schema tooling | CHOSEN FOR M0: TypeScript + React/Vite + Fastify + Zod + PostgreSQL, pinned lockfile; [ADR-0015](../adr/0015-testable-milestone-slices.md). Production/version policy review remains separate | Engineering | M0 local choice recorded |
 | O02 | Hosting, region, AZ, backups, RPO/RTO, on-call | No cloud or region implicitly selected | Platform operations | P3.5 |
 | O03 | Sandbox tech, Redis topology/epoch detection, external queue | Hardened containers/gVisor/microVM reviewed; PG work authority | Security + runtime | P3 |
 | O04 | SLO windows/numbers, cap values, failure timing delta | ADR parameter candidates only; per-workload budgets | Operations + app owners | P3.5 |

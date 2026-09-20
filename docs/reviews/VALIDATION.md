@@ -87,3 +87,8 @@ Hasil pemeliharaan: 25 dokumen diperbarui. Pemindaian seluruh Markdown terhadap 
 ## 7. Pemeriksaan sebelum commit reorganisasi ADR
 
 51 dokumen Markdown dan 360 tautan relatif diperiksa ulang melalui terminal: tidak ada target hilang atau rujukan ke file review yang sudah dihapus. Fenced blocks seimbang. Pemeriksaan ini menggantikan keterbatasan akses terminal pada langkah sebelumnya, bukan klaim pengujian runtime atau render ulang.
+
+
+## 8. Implementasi M0 lokal
+
+Catatan baseline dokumentasi di atas bersifat historis. M0 sekarang menambahkan kode FE/BE, PostgreSQL, schema export dan tests. Hasil aktual dan batas verifikasi ada pada [milestone M0](../milestones/M0.md). Tes runtime/platform produksi tetap NOT RUN; lokal Contract Lab tidak mengesahkan implementasi gateway, agent, financial ledger atau sandbox.

@@ -1,8 +1,8 @@
 # AI Runtime Platform — Implementation Plan
 
-**Baseline 0.2 · 20 September 2026 · Semua pekerjaan implementasi di bawah: PLANNED.**
+**Arsitektur baseline 0.2; M0 technical slice tersedia dalam 0.3.0-m0.** P0 review closure tetap IN PROGRESS; P1–P7 masih PLANNED. [M0 evidence](milestones/M0.md) dan [panduan lokal](development/M0.md).
 
-Dokumen ini menjelaskan urutan kerja, dependency, deliverable, dan gate. Pembaruan Markdown bukan implementasi service, migration database, SDK, test suite, atau deployment. Rujukan keputusan: [ADR](adr/README.md). Gambaran sistem: [Architecture](architecture/ARCHITECTURE.md). Pemetaan keputusan ke spesifikasi/gate: [decision traceability](reviews/RECONCILIATION.md).
+Dokumen ini menjelaskan urutan kerja, dependency, deliverable, dan gate. M0 menambahkan Contract Lab FE/BE/DB sesuai [ADR-0015](adr/0015-testable-milestone-slices.md); ini bukan implementasi gateway/agent/ledger produksi. Deliverable di bawah tetap dibedakan dari demonstrasi lokal. Rujukan keputusan: [ADR](adr/README.md). Gambaran sistem: [Architecture](architecture/ARCHITECTURE.md). Pemetaan keputusan ke spesifikasi/gate: [decision traceability](reviews/RECONCILIATION.md).
 
 ## 1. Batas pekerjaan
 
@@ -13,6 +13,8 @@ Tidak termasuk saat ini: business-job database bersama, universal agent translat
 ## 2. Urutan dan work packages
 
 ### P0 — Contract dan decision closure
+
+**Status:** runnable lab tersedia; formal contract/reviewer closure belum selesai. Shared schemas dan validation history nyata dapat dicoba dari UI tanpa membuat AI execution. Setiap fase berikutnya harus menyertakan demo FE + BE + DB, recipe uji, serta batas fitur yang masih planned. Detail scope P0.1–P0.5: [M0](milestones/M0.md).
 
 **Dependency:** baseline dokumentasi ini. **Penanggung jawab peran:** platform architect + app owners + security/accounting reviewers; individu belum ditetapkan.
 

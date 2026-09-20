@@ -20,6 +20,7 @@
 | [ADR-0012](0012-deployment-dispatch.md) | Modular control plane dan durable dispatch | [DEPLOYMENT](../operations/DEPLOYMENT.md) |
 | [ADR-0013](0013-evolution-gates.md) | Reliability gate sebelum production migration | [ACCEPTANCE](../testing/ACCEPTANCE.md) |
 | [ADR-0014](0014-artifacts-sessions.md) | Immutable artifact promotion dan scoped sessions | [ARTIFACTS-SESSIONS](../contracts/ARTIFACTS-SESSIONS.md) |
+| [ADR-0015](0015-testable-milestone-slices.md) | Testable milestone slices dan local Contract Lab | [M0](../milestones/M0.md) |
 
 ## Otoritas dan traceability
 

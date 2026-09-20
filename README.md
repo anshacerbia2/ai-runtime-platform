@@ -2,7 +2,16 @@
 
 Shared AI execution platform untuk aplikasi yang membutuhkan direct chat, structured inference, atau agent/tools. **App owns business workflow; platform owns AI execution.**
 
-**Documentation baseline:** 0.2 · 20 September 2026. Repository ini saat ini berisi rancangan dan keputusan arsitektur. Tidak ada service, adapter, database migration, atau deployment yang diimplementasikan oleh pembaruan dokumentasi ini.
+**M0 Contract Lab · 0.3.0-m0.** Frontend, backend, dan PostgreSQL lokal tersedia untuk mencoba kontrak dan menyimpan riwayat validasi. Belum ada panggilan AI, agent, atau billing. Arsitektur target tetap baseline 0.2; M1 dan fase berikutnya belum diimplementasikan.
+
+## Coba lokal
+
+```powershell
+npm ci
+npm run dev
+```
+
+Buka `http://127.0.0.1:4310`. Node 24 dan PostgreSQL binaries diperlukan; bootstrap memakai cluster khusus proyek ini. [Panduan M0](docs/development/M0.md) menjelaskan port, database, cara uji, dan penghentian. [Status/evidence M0](docs/milestones/M0.md) memisahkan slice teknis dari review kontrak yang masih terbuka.
 
 ## Mulai membaca
 
@@ -13,7 +22,7 @@ Shared AI execution platform untuk aplikasi yang membutuhkan direct chat, struct
 | Kontrak integrasi aplikasi | [API](docs/contracts/API.md) |
 | Seluruh dokumen dan reading paths | [Documentation index](docs/INDEX.md) |
 | Visual alur normal dan kegagalan | [Diagram catalogue](docs/diagrams/README.md) |
-| Keputusan arsitektur, alternatif, dan konsekuensi | [14 ADR](docs/adr/README.md) |
+| Keputusan arsitektur, alternatif, dan konsekuensi | [15 ADR](docs/adr/README.md) |
 | Pemetaan keputusan ke spesifikasi dan pengujian | [Decision traceability](docs/reviews/RECONCILIATION.md) |
 | Pengujian produksi yang masih harus dibuktikan | [Acceptance gates](docs/testing/ACCEPTANCE.md) |
 

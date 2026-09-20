@@ -1,6 +1,6 @@
 # Documentation Index
 
-**Baseline 0.2 · 20 September 2026.** Entry point: [README](../README.md). Scope is documentation only, not a shipped runtime. [ADR](adr/README.md) is the active architectural decision reference.
+**Baseline 0.2 · 20 September 2026.** Entry point: [README](../README.md). Scope now includes the local M0 Contract Lab; full AI runtime remains planned. [ADR](adr/README.md) is the active architectural decision reference.
 
 ## Authority and traceability
 
@@ -80,3 +80,10 @@ App integrators: Architecture -> API -> profile/tool/artifact contracts -> appli
 ## Status conventions
 
 Adopted in documentation means a baseline design choice, not implementation proof. PLANNED and NOT RUN refer to future implementation. ADR review and implementation verification remain separate; open requirements retain owners and closure gates instead of fabricated production values. Repointing references does not close pending reviews or create new approval.
+
+
+## Runnable M0
+
+- [Local setup, ports, data and manual tests](development/M0.md)
+- [M0 scope and verification evidence](milestones/M0.md)
+- [ADR-0015: milestone vertical slices](adr/0015-testable-milestone-slices.md)
