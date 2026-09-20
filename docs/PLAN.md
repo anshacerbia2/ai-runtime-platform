@@ -2,7 +2,7 @@
 
 **Baseline 0.2 · 20 September 2026 · Semua pekerjaan implementasi di bawah: PLANNED.**
 
-Dokumen ini menjelaskan urutan kerja, dependency, deliverable, dan gate. Pembaruan Markdown bukan implementasi service, migration database, SDK, test suite, atau deployment. Dasar keputusan: [Architecture](ARCHITECTURE.md), [ADR](docs/adr/README.md), dan [rekonsiliasi audit](docs/reviews/RECONCILIATION.md).
+Dokumen ini menjelaskan urutan kerja, dependency, deliverable, dan gate. Pembaruan Markdown bukan implementasi service, migration database, SDK, test suite, atau deployment. Rujukan keputusan: [ADR](adr/README.md). Gambaran sistem: [Architecture](architecture/ARCHITECTURE.md). Pemetaan keputusan ke spesifikasi/gate: [decision traceability](reviews/RECONCILIATION.md).
 
 ## 1. Batas pekerjaan
 
@@ -24,7 +24,7 @@ Tidak termasuk saat ini: business-job database bersama, universal agent translat
 | P0.4 | Threat model dan data classification | Credential mode, sandbox, retention, egress disetujui untuk workload pilot |
 | P0.5 | Close blocking open decisions | Owner, target, environment, gate parameters tercatat |
 
-**Exit:** review kontrak selesai; ADR amendments ditinjau; tidak ada P0 blocker di [open decisions](docs/decisions/OPEN-QUESTIONS.md). Kontrak bukan dianggap lulus hanya karena contoh JSON dapat diparse.
+**Exit:** review kontrak dan ADR baseline selesai; tidak ada P0 blocker di [open decisions](decisions/OPEN-QUESTIONS.md). Kontrak bukan dianggap lulus hanya karena contoh JSON dapat diparse.
 
 ### P1 — Durable control plane dan accounting foundation
 
@@ -58,11 +58,11 @@ Stateful tool hanya tersedia jika receiver idempotency/status contract tervalida
 
 **Dependency:** P1–P3 selesai pada build kandidat yang sama. **Status sekarang:** BLOCKED — belum ada runtime dan bukti test.
 
-Jalankan seluruh [acceptance catalogue](docs/testing/ACCEPTANCE.md) sesuai applicable capability. Setiap test mempunyai build/image digest, fixture, parameter, expected result, actual result, trace/evidence ID, reviewer, dan tanggal. Semua safety tests wajib pass; N/A membutuhkan alasan dan persetujuan scope, bukan digunakan untuk melewati fitur yang dipakai pilot.
+Jalankan seluruh [acceptance catalogue](testing/ACCEPTANCE.md) sesuai applicable capability. Setiap test mempunyai build/image digest, fixture, parameter, expected result, actual result, trace/evidence ID, reviewer, dan tanggal. Semua safety tests wajib pass; N/A membutuhkan alasan dan persetujuan scope, bukan digunakan untuk melewati fitur yang dipakai pilot.
 
-Gate mencakup lima skenario principal (worker chaos, SSE, budget race, late usage, sandbox) dan koreksi review: compare-renew, Redis loss, ordinary exit, completion-before-settlement, settlement crash, multi-turn budget, duplicate/cumulative evidence, external ambiguity, authorization, rollback, dan data deletion.
+Gate mengikuti [ADR-0013](adr/0013-evolution-gates.md): worker chaos, SSE, budget race, late usage, sandbox, compare-renew, Redis loss, ordinary exit, completion-before-settlement, settlement crash, multi-turn budget, duplicate/cumulative evidence, external ambiguity, authorization, rollback, dan data deletion.
 
-**Exit:** gate report ditandatangani owner platform, app pilot, security, operations. Target SLO/retention/overage terkalibrasi; runbooks dan rollback rehearsed. Principal sign-off dokumen tidak menggantikan gate evidence.
+**Exit:** gate report ditandatangani owner platform, app pilot, security, operations. Target SLO/retention/overage terkalibrasi; runbooks dan rollback rehearsed. Status adopted pada ADR tidak menggantikan gate evidence.
 
 ### P4 — Migrasi aplikasi bertahap
 
@@ -72,7 +72,7 @@ Urutan pilot: direct-chat/simple-inference nonproduksi untuk menguji agnosticism
 
 Setiap migrasi: inventaris contract/secrets, capture quality baseline, map process/step, canary traffic, limits, usage reconciliation, observability, rollback ke jalur lama, lalu decommission setelah masa evaluasi. Shadow test mutasi dilarang; inference shadow memerlukan budget/data approval.
 
-**Exit:** owner app menerima quality/latency/cost-per-accepted-output, isolation, failure behavior, dan rollback. Business job tetap di aplikasi. Lihat [APPLICATIONS](docs/migration/APPLICATIONS.md).
+**Exit:** owner app menerima quality/latency/cost-per-accepted-output, isolation, failure behavior, dan rollback. Business job tetap di aplikasi. Lihat [APPLICATIONS](migration/APPLICATIONS.md).
 
 ### P5 — Codex runtime adapter
 

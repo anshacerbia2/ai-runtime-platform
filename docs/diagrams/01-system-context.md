@@ -1,6 +1,6 @@
 # D01–D03 — Context, Containers, dan Components
 
-**Authored baseline 0.2 views.** Diagram bukan deployment existing. Boundary otoritatif: [BOUNDARIES](../architecture/BOUNDARIES.md); overview: [ARCHITECTURE](../../ARCHITECTURE.md).
+**Authored baseline 0.2 views.** Diagram bukan deployment existing. Boundary otoritatif: [BOUNDARIES](../architecture/BOUNDARIES.md); overview: [ARCHITECTURE](../architecture/ARCHITECTURE.md).
 
 ## D01 — System context
 

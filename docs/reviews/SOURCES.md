@@ -1,22 +1,23 @@
 # Source dan Evidence Register
 
-**Baseline date:** 20 September 2026. Source-derived requirements, authored design amendments, dan externally verified facts dipisahkan. Link dokumentasi resmi adalah referensi kemampuan/protokol, bukan sertifikasi deployment platform.
+**Baseline date:** 20 September 2026. Kebutuhan produk, keputusan dalam ADR, dan referensi publik dipisahkan. Referensi resmi di bawah dipertahankan dari baseline sebelumnya; tidak diverifikasi ulang pada pemeliharaan tautan ini dan bukan sertifikasi deployment platform.
 
-## Project sources
+## Project sources dan decision authority
 
 | ID | Source | Scope / provenance |
 | --- | --- | --- |
-| SRC-U | Kebutuhan user dalam percakapan ini | Agnostic platform; app owns job; direct chat; OpenRouter awal; runtime Claude/Codex/Gemini; plugin dan audit |
-| SRC-P | [AUDIT.md](../../AUDIT.md), principal final sign-off | Local source terbaru dibaca via RDC; preserved unchanged; lihat bagian 1–5 |
-| SRC-R | Review terakhir dalam percakapan | Empat koreksi correctness; diterjemahkan menjadi M01–M10, bukan teks principal |
+| SRC-U | Kebutuhan user dalam percakapan ini | Agnostic platform; app owns job; direct chat; OpenRouter awal; runtime Claude/Codex/Gemini; plugin dan audit penggunaan |
+| SRC-ADR | [Architecture Decision Records](../adr/README.md) | Rujukan aktif keputusan, alternatif, konsekuensi, dan verification; bukan bukti implementasi |
+| SRC-R | Riwayat review dalam percakapan dan Git | Latar penyusunan baseline; keputusan yang berlaku dibaca langsung dari ADR, dengan [peta traceability](RECONCILIATION.md) |
 | SRC-B | Git commit `376d435bf43589784b1f1a5d76f88be33b233365` | Original ARCHITECTURE/PLAN/ROADMAP; bukan current implementation |
 
 Hash original ARCHITECTURE.md: `661b7dc0a9c4a7528d0f783424267ff6fbc563a9e6b0cdb0fcb99c3202a84751`.
 Hash original PLAN.md: `31d3b09b11d42d0d4a1dda5692ab4564db32e3263788cbbbe74cd5eb1d1515b6`.
 Hash original ROADMAP.md: `7ea9e3355b0f04c142e14585bcbc9dadbc4739a6cc8b091d3ee64a312fe9d720`.
-Hash principal AUDIT.md: `1472b33761ceb4267b2784b7d4e7ea2111ee0f2c7ddef9c3e52351992158a46c`.
 
-## Public primary references checked during documentation update
+Hash tersebut hanya mengidentifikasi baseline historis pada commit di atas, bukan pemeriksaan integritas file aktif saat ini. Arsip review yang dihapus tidak lagi menjadi dependency navigasi atau sumber aturan aktif.
+
+## Public primary references retained from baseline 0.2
 
 | ID | Primary source | Factual point supported; limits |
 | --- | --- | --- |
@@ -37,4 +38,4 @@ No current model prices, production availability figures, latency numbers, organ
 
 ## Documentation authority
 
-Architecture explains decisions; contracts/data/reliability define operational semantics; ADR records rationale and trade-offs; diagrams visualize those documents; acceptance catalogue defines future proof. Historical source AUDIT.md is not rewritten to match corrections. Validation record reports only checks actually performed.
+[ADR](../adr/README.md) records the active decisions and rationale. Architecture explains the system; contracts/data/reliability define operational semantics; diagrams visualize those documents; acceptance catalogue defines future proof. The traceability register is an index, not a separate authority. Validation records distinguish prior checks from current maintenance; historical approval is not inferred for changed revisions.

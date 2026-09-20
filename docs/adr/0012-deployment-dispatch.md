@@ -2,14 +2,12 @@
 
 **Tanggal:** 20 September 2026  
 **Status:** adopted for documentation baseline 0.2; implementation NOT VERIFIED.  
-**Dasar:** Elaborasi baseline; M07/M09. Amendments terhadap principal tetap membutuhkan disposition O11; ini bukan signature baru principal.
+**Dasar:** application boundary [ADR-0001](0001-application-ownership.md) dan durable data authority [ADR-0003](0003-tiered-storage.md). Review baseline tetap dilacak melalui O11.
 
 ## Context
-
 Shared platform needs reliable delivery without building many microservices or a business workflow engine. Dual-write queue/state can lose work.
 
 ## Decision
-
 Modular control plane plus separate agent workers; PG work/assignment/outbox authority; optional external broker as delivery optimization with idempotent consumer. Direct gateway pool not long-agent queue. Redis hot layer and object/secret stores isolated. Interactive/batch/agent capacity budgets separated.
 
 ## Alternatives considered
@@ -28,4 +26,4 @@ G09/G22/G23/G24; [DEPLOYMENT](../operations/DEPLOYMENT.md).
 
 Extract services/broker when isolation/scaling evidence justifies; preserve state/outbox/admission contracts.
 
-Provenance: [reconciliation register](../reviews/RECONCILIATION.md). Decision gaps: [OPEN-QUESTIONS](../decisions/OPEN-QUESTIONS.md).
+Navigasi keputusan: [ADR index](README.md). Peta pendukung: [traceability](../reviews/RECONCILIATION.md). Decision gaps: [OPEN-QUESTIONS](../decisions/OPEN-QUESTIONS.md).

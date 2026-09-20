@@ -1,6 +1,6 @@
 # Batas Produk, Actor, dan Kepemilikan
 
-**Rancangan baseline 0.2.** Dasar: kebutuhan user dalam percakapan serta [Architecture](../../ARCHITECTURE.md). Mapping aplikasi di bawah adalah target integrasi, bukan klaim bahwa repo aplikasi sudah dimigrasikan.
+**Rancangan baseline 0.2.** Dasar: kebutuhan user dalam percakapan serta [Architecture](ARCHITECTURE.md). Mapping aplikasi di bawah adalah target integrasi, bukan klaim bahwa repo aplikasi sudah dimigrasikan.
 
 ## Actor dan authority
 

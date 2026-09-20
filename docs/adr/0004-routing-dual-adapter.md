@@ -2,14 +2,12 @@
 
 **Tanggal:** 20 September 2026  
 **Status:** adopted for documentation baseline 0.2; implementation NOT VERIFIED.  
-**Dasar:** P03/P08. Amendments terhadap principal tetap membutuhkan disposition O11; ini bukan signature baru principal.
+**Dasar:** kebutuhan OpenRouter-first dan validasi kontrak [ADR-0002](0002-managed-envelope.md) melalui adapter kedua. Review baseline tetap dilacak melalui O11.
 
 ## Context
-
-User memilih OpenRouter awal, sementara principal meminta pembuktian interface melalui direct adapter. Menentukan primary route berbeda dari memverifikasi abstraksi.
+User memilih OpenRouter awal; pembuktian interface juga memerlukan direct adapter. Menentukan primary route berbeda dari memverifikasi abstraksi.
 
 ## Decision
-
 Implementasikan OpenRouter lebih dahulu dan Direct Anthropic proof pada Phase 2. Default/alternate routes per profile; OpenRouter boleh primary. Proof mencakup shared capability, error, stream, usage. Operational failover memerlukan test terpisah dan policy/data/quality equivalence. Codex runtime tidak disamakan dengan OpenAI inference provider.
 
 ## Alternatives considered
@@ -28,4 +26,4 @@ G03/G16/G17; [PROFILES-ADAPTERS](../contracts/PROFILES-ADAPTERS.md).
 
 Tambah provider ketika data/availability/latency/workload membuktikan kebutuhan; jangan silently change primary for existing execution.
 
-Provenance: [reconciliation register](../reviews/RECONCILIATION.md). Decision gaps: [OPEN-QUESTIONS](../decisions/OPEN-QUESTIONS.md).
+Navigasi keputusan: [ADR index](README.md). Peta pendukung: [traceability](../reviews/RECONCILIATION.md). Decision gaps: [OPEN-QUESTIONS](../decisions/OPEN-QUESTIONS.md).

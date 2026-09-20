@@ -2,34 +2,35 @@
 
 **Tanggal:** 20 September 2026 · **Baseline:** 0.2 · **Lingkup:** dokumentasi, bukan runtime implementation.
 
-## 1. Pemeriksaan yang dilakukan
+Bagian 1–4 mempertahankan hasil validasi baseline awal; bagian 5 merekam relokasi terdahulu. Hasil tersebut bukan klaim pengujian ulang saat pemeliharaan rujukan ADR pada bagian 6. Keputusan aktif dirujuk melalui [ADR](../adr/README.md).
 
-| Check | Result | Scope / limitation |
+## 1. Pemeriksaan baseline awal — catatan historis
+
+| Check | Recorded result | Scope / limitation |
 | --- | --- | --- |
-| Markdown target set | 51 files prepared: 3 existing source docs updated, 48 new docs | AUDIT.md excluded from writes |
-| Relative links | 252 targets checked; 0 missing | File targets checked; no external link availability guarantee |
-| UTF-8 encoding | PASS: Unicode punctuation verified after readback | All authored Markdown stored as UTF-8 without BOM |
+| Markdown target set | 51 authored files prepared: 3 existing source docs updated, 48 new docs | Lingkup penulisan baseline saat itu |
+| Relative links | 252 targets checked; 0 missing | Historical file-target check; not the current link count |
+| UTF-8 encoding | PASS: Unicode punctuation verified after readback | Authored baseline Markdown stored as UTF-8 without BOM |
 | Fenced code blocks | Balanced in every authored document | Does not compile illustrative TypeScript/pseudocode |
-| JSON examples | 7 valid JSON examples | Shape semantics reviewed in contract; not an implemented API validator |
+| JSON examples | 7 valid JSON examples | Not an implemented API validator |
 | ADR structure | 14 ADRs contain context, decision, alternatives, consequences, verification, evolution | Adopted design is not implementation proof |
 | Gate references | G01–G25 references checked against catalogue | All implementation gates NOT RUN |
-| Mermaid parse/render | 24 of 24 passed with Mermaid 11.12.2 and Chromium 144.0.7559.96 | Offline in-memory renderer, not a guarantee of identical layout in every Markdown viewer |
-| Visual spot-check | Chat sequence, public-state flow, and ERD inspected | Not a pixel-by-pixel review of all possible viewport sizes |
-| Exact source match | Diagram source manifest SHA-256 matched between remote draft and renderer | Digest recorded below |
-| Local write/readback | PASS: 51 Markdown files written and SHA-256 readback matched | Includes updated validation record; no application/runtime files changed |
-| Principal audit integrity | PASS: unchanged byte-for-byte | SHA-256 matches preserved source below |
-| Git publication | Separate post-validation step, explicitly requested by user | See repository history and final delivery message for actual commit/push result; runtime gates remain NOT RUN |
+| Mermaid parse/render | 24 of 24 passed with Mermaid 11.12.2 and Chromium 144.0.7559.96 | Historical offline render, not a guarantee of identical layout in every viewer |
+| Visual spot-check | Chat sequence, public-state flow, and ERD inspected | Not a pixel-by-pixel review of every viewport |
+| Exact source match | Diagram source manifest SHA-256 matched between remote draft and renderer | Historical digest recorded below |
+| Local write/readback | PASS: 51 authored Markdown files written and SHA-256 readback matched | Baseline check, not a new hash check during reference maintenance |
+| Git publication | Separate post-validation step, explicitly requested at the time | See repository history; runtime gates remain NOT RUN |
 
-One Mermaid sequence label initially failed because its semicolon was interpreted as a statement separator. The label was corrected and all 24 diagrams were reparsed and rendered successfully. Earlier renderer navigation attempts were unavailable in the validation environment; final successful checks used installed Mermaid modules loaded entirely in memory, without navigating to external services or installing dependencies in the user's repository.
+One Mermaid sequence label initially failed because its semicolon was interpreted as a statement separator. The label was corrected and all 24 diagrams were reparsed and rendered successfully. The successful baseline checks used installed Mermaid modules loaded in memory, without adding renderer dependencies to the user's repository. No fresh render is claimed by retaining this historical record.
 
-## 2. Render source manifest
+## 2. Historical render source manifest
 
-Combined ordered diagram source digest:
+Combined ordered diagram source digest recorded at baseline:
 `5c189ad1346c52c6b714fa9a8bb0196c6a37faeb50ab21e1e39e40d832f37ddc`.
 
-| Document | Diagram index in file | Parse/render | Source SHA-256 prefix |
+| Document | Diagram index in file | Historical parse/render | Source SHA-256 prefix |
 | --- | --- | --- | --- |
-| [ARCHITECTURE.md](../../ARCHITECTURE.md) | 1 | PASS | `f8be6d7ea75584c2` |
+| [ARCHITECTURE.md](../architecture/ARCHITECTURE.md) | 1 | PASS | `f8be6d7ea75584c2` |
 | [docs/diagrams/01-system-context.md](../diagrams/01-system-context.md) | 1 | PASS | `255f6481a51d10e3` |
 | [docs/diagrams/01-system-context.md](../diagrams/01-system-context.md) | 2 | PASS | `1b7f0c5a6b5c123c` |
 | [docs/diagrams/01-system-context.md](../diagrams/01-system-context.md) | 3 | PASS | `36a492b2afbf020f` |
@@ -54,18 +55,35 @@ Combined ordered diagram source digest:
 | [docs/diagrams/08-evolution-migration.md](../diagrams/08-evolution-migration.md) | 1 | PASS | `ac067a6414e67617` |
 | [docs/diagrams/08-evolution-migration.md](../diagrams/08-evolution-migration.md) | 2 | PASS | `dafa005cc912b465` |
 
-## 3. Preserved source and scope
+## 3. Scope dan rujukan aktif
 
-Expected preserved principal [AUDIT.md](../../AUDIT.md) SHA-256:
-`1472b33761ceb4267b2784b7d4e7ea2111ee0f2c7ddef9c3e52351992158a46c`.
+Baseline awal menggunakan Git commit `376d435bf43589784b1f1a5d76f88be33b233365` sebagai pembanding. Hash diagram di atas adalah catatan baseline, bukan pemeriksaan ulang file aktif. Keputusan saat ini dibaca dari [ADR](../adr/README.md); pemetaan ke spesifikasi/gate ada di [RECONCILIATION](RECONCILIATION.md), referensi pendukung di [SOURCES](SOURCES.md).
 
-Source baseline Git commit before this documentation update:
-`376d435bf43589784b1f1a5d76f88be33b233365`.
-
-Only Markdown documentation is included in this repository change. Validation helpers and renderer dependencies were not added to this repository. Source provenance and amendments are described in [RECONCILIATION](RECONCILIATION.md) and [SOURCES](SOURCES.md).
+Only Markdown documentation is included in this change. Validation helpers and renderer dependencies were not added to the repository. Riwayat sumber yang telah dihapus tetap merupakan sejarah Git, bukan file yang harus tersedia untuk validasi atau navigasi aktif.
 
 ## 4. Checks not performed or not implied
 
 No app/runtime code was implemented or executed; no provider calls were made as product tests; no database migrations, load tests, sandbox attack tests, billing reconciliation, failover drill, deployment, or production cutover was performed. G01–G25 remain **NOT RUN**. P3.5 remains blocked pending actual implementation evidence.
 
-Relative-link and diagram validation does not certify contracts, compliance, capacity, timing SLOs, security containment, or financial completeness. The [open decision register](../decisions/OPEN-QUESTIONS.md) explicitly retains requirements needing owner decisions. Principal's historical approval is not a new approval of the authored amendments.
+Relative-link and diagram validation does not certify contracts, compliance, capacity, timing SLOs, security containment, or financial completeness. [Open decisions](../decisions/OPEN-QUESTIONS.md) retain owner decisions and baseline review. Changing references to ADR does not grant approval of an unreviewed revision.
+
+## 5. Relokasi dokumentasi — catatan historis, 20 September 2026
+
+`PLAN.md`, `ROADMAP.md`, dan `CHANGELOG.md` dipindahkan ke `docs/`. `ARCHITECTURE.md` sudah dipindahkan oleh user ke `docs/architecture/ARCHITECTURE.md`; tautan masuk dan tautan relatif di dalamnya disesuaikan. README tetap di root.
+
+Pada pemeriksaan relokasi terdahulu: 51 dokumen aktif dan satu sumber review historis tersedia; 252 tautan relatif diperiksa dengan kecocokan kapitalisasi, tanpa target hilang. Sebanyak 46 tujuan tautan disesuaikan. Fenced blocks, 24 diagram Mermaid, dan 7 contoh JSON tetap sama; JSON diparse ulang saat itu. Diagram tidak dirender ulang pada relokasi.
+
+Sumber review historis masih dibiarkan utuh pada langkah relokasi tersebut dan kemudian dihapus oleh user. Pernyataan historis ini tidak menyatakan file tersebut masih tersedia sekarang. Pekerjaan relokasi tidak mengubah keputusan arsitektur, kontrak eksekusi, kode runtime, Git index, commit, atau push.
+
+## 6. Pemeliharaan rujukan ADR — 20 September 2026
+
+Rujukan keputusan aktif dipindahkan ke 14 ADR, dengan konteks mandiri, cross-reference, dan peta keputusan ke spesifikasi/gate. Sumber historis yang dihapus tidak dibuat ulang. Catatan integritas sumber yang tidak lagi tersedia tidak digunakan sebagai syarat validasi aktif. Audit penggunaan token tetap merupakan fungsi platform.
+
+Pemeliharaan dilakukan melalui operasi baca/tulis file dan pencarian konten. Pemeriksaan scripted hash/link checker serta render ulang tidak dijalankan karena akses terminal tidak tersedia pada sesi ini. Hasil validasi baseline di bagian 1–5 tidak dipresentasikan sebagai pengujian baru. Tidak ada commit atau push pada pekerjaan ini.
+
+Hasil pemeliharaan: 25 dokumen diperbarui. Pemindaian seluruh Markdown terhadap nama sumber review yang dihapus, identifier sumber lama, dan frasa navigasi lama menghasilkan 0 kecocokan. Readback README, indeks ADR, arsitektur, bagian akhir plan, dan catatan validasi mengonfirmasi struktur utuh. Target ADR pada navigasi cocok dengan file yang tersedia. Pemeriksaan ini tidak menggantikan automated link checker, hash verification, atau runtime gate.
+
+
+## 7. Pemeriksaan sebelum commit reorganisasi ADR
+
+51 dokumen Markdown dan 360 tautan relatif diperiksa ulang melalui terminal: tidak ada target hilang atau rujukan ke file review yang sudah dihapus. Fenced blocks seimbang. Pemeriksaan ini menggantikan keterbatasan akses terminal pada langkah sebelumnya, bukan klaim pengujian runtime atau render ulang.

@@ -1,19 +1,19 @@
 # Documentation Index
 
-**Baseline 0.2 · 20 September 2026.** Entry point: [README](../README.md). Scope is documentation only, not a shipped runtime. [AUDIT.md](../AUDIT.md) remains the unchanged historical principal source.
+**Baseline 0.2 · 20 September 2026.** Entry point: [README](../README.md). Scope is documentation only, not a shipped runtime. [ADR](adr/README.md) is the active architectural decision reference.
 
-## Authority and provenance
+## Authority and traceability
 
-Architecture explains the system; detailed contracts/data/reliability pages define operational semantics; ADRs explain decisions/trade-offs; diagrams visualize them; acceptance documents define future evidence. Amendments versus principal are explicit in [RECONCILIATION](reviews/RECONCILIATION.md). No historical sign-off is silently rewritten.
+ADRs record decisions and trade-offs; architecture explains the system; detailed contracts/data/reliability pages define operational semantics; diagrams visualize them; acceptance documents define future evidence. [RECONCILIATION](reviews/RECONCILIATION.md) maps baseline topics and clarifications to ADRs, specifications, and gates. Prior review history remains in Git, not a required source file for current navigation.
 
 ## Overview
 
 | Document | Purpose |
 | --- | --- |
-| [ARCHITECTURE.md](../ARCHITECTURE.md) | AI Runtime Platform — Architecture |
-| [PLAN.md](../PLAN.md) | AI Runtime Platform — Implementation Plan |
-| [ROADMAP.md](../ROADMAP.md) | AI Runtime Platform — Roadmap |
-| [CHANGELOG.md](../CHANGELOG.md) | Changelog |
+| [ARCHITECTURE.md](architecture/ARCHITECTURE.md) | AI Runtime Platform — Architecture |
+| [PLAN.md](PLAN.md) | AI Runtime Platform — Implementation Plan |
+| [ROADMAP.md](ROADMAP.md) | AI Runtime Platform — Roadmap |
+| [CHANGELOG.md](CHANGELOG.md) | Changelog |
 
 ## Architecture and vocabulary
 
@@ -57,7 +57,7 @@ Architecture explains the system; detailed contracts/data/reliability pages defi
 | --- | --- |
 | [docs/testing/ACCEPTANCE.md](testing/ACCEPTANCE.md) | Acceptance, Conformance, dan Production Gate Catalogue |
 | [docs/decisions/OPEN-QUESTIONS.md](decisions/OPEN-QUESTIONS.md) | Open Decisions dan Residual Risk Register |
-| [docs/reviews/RECONCILIATION.md](reviews/RECONCILIATION.md) | Reconciliation — Principal Sign-Off dan Baseline 0.2 |
+| [docs/reviews/RECONCILIATION.md](reviews/RECONCILIATION.md) | ADR Traceability — Baseline 0.2 |
 | [docs/reviews/SOURCES.md](reviews/SOURCES.md) | Source dan Evidence Register |
 | [docs/reviews/VALIDATION.md](reviews/VALIDATION.md) | Documentation Validation Record |
 
@@ -65,7 +65,7 @@ Architecture explains the system; detailed contracts/data/reliability pages defi
 
 | Document | Purpose |
 | --- | --- |
-| [docs/adr/README.md](adr/README.md) | Architecture Decision Records |
+| [docs/adr/README.md](adr/README.md) | Architecture Decision Records — keputusan aktif dan spesifikasi terkait |
 
 ## Visual catalogue
 
@@ -75,8 +75,8 @@ Architecture explains the system; detailed contracts/data/reliability pages defi
 
 ## Recommended reading
 
-App integrators: Architecture -> API -> profile/tool/artifact contracts -> application migration. Platform implementers: Architecture -> ADRs -> lifecycle/recovery/accounting -> data/deployment -> gates. Security/accounting reviewers: reconciliation -> relevant ADRs -> detailed controls -> acceptance and open decisions. Diagram catalogue provides flow-specific entry points.
+App integrators: Architecture -> API -> profile/tool/artifact contracts -> application migration. Platform implementers: Architecture -> ADRs -> lifecycle/recovery/accounting -> data/deployment -> gates. Security/accounting reviewers: relevant ADRs -> detailed controls -> acceptance and open decisions. Traceability and diagram catalogues provide topic-specific entry points.
 
 ## Status conventions
 
-Adopted in documentation means a baseline design choice, not implementation proof. PLANNED and NOT RUN refer to future implementation. Source claims remain attributed to their source; authored corrections are marked as amendments. Open requirements are listed with owners and closure gates instead of fabricated production values.
+Adopted in documentation means a baseline design choice, not implementation proof. PLANNED and NOT RUN refer to future implementation. ADR review and implementation verification remain separate; open requirements retain owners and closure gates instead of fabricated production values. Repointing references does not close pending reviews or create new approval.

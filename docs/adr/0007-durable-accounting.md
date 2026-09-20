@@ -2,14 +2,12 @@
 
 **Tanggal:** 20 September 2026  
 **Status:** adopted for documentation baseline 0.2; implementation NOT VERIFIED.  
-**Dasar:** P02 reserve-execute-settle; M02/M05/M06. Amendments terhadap principal tetap membutuhkan disposition O11; ini bukan signature baru principal.
+**Dasar:** durable accounting authority dan reserve–execute–settle, mengikuti [ADR-0003](0003-tiered-storage.md). Review baseline tetap dilacak melalui O11.
 
 ## Context
-
 Redis decrement lalu reject dapat mengubah denied balance; release Redis sebelum PG ledger memiliki crash/duplicate-credit gap. Single token-pair estimate tidak mencakup multi-turn agent.
 
 ## Decision
-
 PG transaction owns budget accounts/holds/admission/idempotency/outbox. Rejection no balance mutation. Settlement/adjustment/hold release/outbox committed together; Redis revisioned projection only. Use fixed monetary units, canonical invocation evidence, multi-scope atomic checks. Whole-run envelope atau enforceable tranches cover retries/turns/tools; incomplete exposure remains held/pending.
 
 ## Alternatives considered
@@ -28,4 +26,4 @@ G07/G08/G09/G15/G25; [ACCOUNTING](../data/ACCOUNTING.md).
 
 Optimasi tidak boleh menghilangkan durable-before-dispatch dan idempotent adjustment; topology baru membutuhkan crash/property tests.
 
-Provenance: [reconciliation register](../reviews/RECONCILIATION.md). Decision gaps: [OPEN-QUESTIONS](../decisions/OPEN-QUESTIONS.md).
+Navigasi keputusan: [ADR index](README.md). Peta pendukung: [traceability](../reviews/RECONCILIATION.md). Decision gaps: [OPEN-QUESTIONS](../decisions/OPEN-QUESTIONS.md).

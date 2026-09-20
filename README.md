@@ -8,14 +8,16 @@ Shared AI execution platform untuk aplikasi yang membutuhkan direct chat, struct
 
 | Kebutuhan | Dokumen |
 | --- | --- |
-| Konsep, boundary, komponen, invariant | [ARCHITECTURE.md](ARCHITECTURE.md) |
-| Urutan implementasi dan gate | [PLAN.md](PLAN.md) dan [ROADMAP.md](ROADMAP.md) |
+| Konsep, boundary, komponen, invariant | [ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md) |
+| Urutan implementasi dan gate | [PLAN.md](docs/PLAN.md) dan [ROADMAP.md](docs/ROADMAP.md) |
 | Kontrak integrasi aplikasi | [API](docs/contracts/API.md) |
 | Seluruh dokumen dan reading paths | [Documentation index](docs/INDEX.md) |
 | Visual alur normal dan kegagalan | [Diagram catalogue](docs/diagrams/README.md) |
-| Alasan, alternatif, dan konsekuensi keputusan | [14 ADR](docs/adr/README.md) |
-| Perubahan terhadap audit principal | [Reconciliation register](docs/reviews/RECONCILIATION.md) |
+| Keputusan arsitektur, alternatif, dan konsekuensi | [14 ADR](docs/adr/README.md) |
+| Pemetaan keputusan ke spesifikasi dan pengujian | [Decision traceability](docs/reviews/RECONCILIATION.md) |
 | Pengujian produksi yang masih harus dibuktikan | [Acceptance gates](docs/testing/ACCEPTANCE.md) |
+
+Dokumen perencanaan dan changelog berada di `docs/`; arsitektur utama berada di `docs/architecture/ARCHITECTURE.md`. `README.md` tetap menjadi pintu masuk repository.
 
 ## Mental model
 
@@ -40,8 +42,8 @@ OpenRouter-first dengan pembuktian Direct Anthropic adapter pada Phase 2; primar
 
 Completion tidak menunggu settlement. Reservasi durable dibuat sebelum dispatch; penolakan tidak mengurangi saldo. Lease renewal tidak membangkitkan key yang hilang. Late usage dapat direkonsiliasi tanpa memberi worker lama authority kembali. Stateful tool retry memerlukan receiver-supported operation key/status semantics.
 
-## Status dan provenance
+## Status dan otoritas dokumentasi
 
-[AUDIT.md](AUDIT.md) adalah principal final sign-off yang dipertahankan tanpa perubahan. Koreksi operasional setelah review dipisahkan sebagai amendments; tidak diklaim telah ditandatangani kembali oleh principal. [Open decisions](docs/decisions/OPEN-QUESTIONS.md) mencatat requirement deployment/data/credential/SLO yang belum ditetapkan.
+[ADR](docs/adr/README.md) menjadi rujukan keputusan arsitektur yang aktif. Kontrak dan spesifikasi merinci pelaksanaannya; [decision traceability](docs/reviews/RECONCILIATION.md) memetakan keputusan ke dokumen dan gate. Riwayat review tersimpan dalam Git, bukan prasyarat membaca desain saat ini. [Open decisions](docs/decisions/OPEN-QUESTIONS.md) mencatat requirement deployment/data/credential/SLO dan review yang belum selesai.
 
-Document checks dilaporkan di [VALIDATION](docs/reviews/VALIDATION.md). Gate G01–G25 adalah requirement pengujian masa implementasi dan belum dijalankan; rendering diagram bukan bukti distributed-system correctness. Riwayat perubahan: [CHANGELOG](CHANGELOG.md).
+Document checks dilaporkan di [VALIDATION](docs/reviews/VALIDATION.md). Gate G01–G25 adalah requirement pengujian masa implementasi dan belum dijalankan; rendering diagram bukan bukti distributed-system correctness. Riwayat perubahan: [CHANGELOG](docs/CHANGELOG.md).

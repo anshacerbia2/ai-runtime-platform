@@ -2,14 +2,12 @@
 
 **Tanggal:** 20 September 2026  
 **Status:** adopted for documentation baseline 0.2; implementation NOT VERIFIED.  
-**Dasar:** P01; elaborasi baseline. Amendments terhadap principal tetap membutuhkan disposition O11; ini bukan signature baru principal.
+**Dasar:** pemisahan lifecycle generik dan harness milik aplikasi, mengikuti [ADR-0001](0001-application-ownership.md). Review baseline tetap dilacak melalui O11.
 
 ## Context
-
 Claude/Codex/Gemini berbeda dalam tools, sessions, approvals, dan usage granularity. Vendor-neutral HTTP tidak menjamin prompt behavior identik.
 
 ## Decision
-
 Common contract menormalkan lifecycle/context/results/errors/usage. App-owned cognitive harness dipaketkan immutable; profile memisahkan runtime, model, provider, credential, tools, dan data policy. Compatibility dibuktikan per tuple/profile revision. Unsupported requirement ditolak sebelum dispatch. Direct inference tidak menjalankan agent loop tanpa permintaan.
 
 ## Alternatives considered
@@ -28,4 +26,4 @@ G03/G16/G20; [PROFILES-ADAPTERS](../contracts/PROFILES-ADAPTERS.md).
 
 Capability baru memakai schema version dan compatibility suite; breaking semantics memerlukan ADR baru.
 
-Provenance: [reconciliation register](../reviews/RECONCILIATION.md). Decision gaps: [OPEN-QUESTIONS](../decisions/OPEN-QUESTIONS.md).
+Navigasi keputusan: [ADR index](README.md). Peta pendukung: [traceability](../reviews/RECONCILIATION.md). Decision gaps: [OPEN-QUESTIONS](../decisions/OPEN-QUESTIONS.md).

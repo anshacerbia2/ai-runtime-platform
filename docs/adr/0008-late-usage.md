@@ -2,14 +2,12 @@
 
 **Tanggal:** 20 September 2026  
 **Status:** adopted for documentation baseline 0.2; implementation NOT VERIFIED.  
-**Dasar:** P04; M04. Amendments terhadap principal tetap membutuhkan disposition O11; ini bukan signature baru principal.
+**Dasar:** pemisahan state authority [ADR-0005](0005-leases-fencing.md) dari verifikasi dan settlement [ADR-0007](0007-durable-accounting.md). Review baseline tetap dilacak melalui O11.
 
 ## Context
-
 Stale worker tidak boleh mengubah outcome, tetapi mungkin memiliki valid usage. Fifteen-minute cutoff melindungi fast path, bukan menentukan kebenaran biaya.
 
 ## Decision
-
 Evidence intake independent of authority. Candidate 15m fast verification window; older evidence bounded quarantine/audit review. Verify attribution/source/completeness, dedup updates, permit authorized idempotent adjustment afterward. SETTLED_FROM_ORPHAN dipetakan ke settlement plus provenance, bukan otomatis trusted financial status.
 
 ## Alternatives considered
@@ -28,4 +26,4 @@ G12/G15; [ACCOUNTING](../data/ACCOUNTING.md).
 
 Window/intake policy configurable sesuai threat/retention; accounting evidence rules tetap explicit.
 
-Provenance: [reconciliation register](../reviews/RECONCILIATION.md). Decision gaps: [OPEN-QUESTIONS](../decisions/OPEN-QUESTIONS.md).
+Navigasi keputusan: [ADR index](README.md). Peta pendukung: [traceability](../reviews/RECONCILIATION.md). Decision gaps: [OPEN-QUESTIONS](../decisions/OPEN-QUESTIONS.md).

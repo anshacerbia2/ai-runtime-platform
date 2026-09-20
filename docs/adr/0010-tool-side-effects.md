@@ -2,14 +2,12 @@
 
 **Tanggal:** 20 September 2026  
 **Status:** adopted for documentation baseline 0.2; implementation NOT VERIFIED.  
-**Dasar:** P07; M10. Amendments terhadap principal tetap membutuhkan disposition O11; ini bukan signature baru principal.
+**Dasar:** application-owned workflow [ADR-0001](0001-application-ownership.md) dan pemisahan external outcome [ADR-0006](0006-orthogonal-state.md). Review baseline tetap dilacak melalui O11.
 
 ## Context
-
 Sandbox stop tidak membuktikan remote action batal. Per-attempt new key memungkinkan duplicate business mutation.
 
 ## Decision
-
 Persist logical operation identity/input digest before invoke; same operation reuses stable key across attempts. Receiver implements dedup/status with adequate retention; UNKNOWN not no-effect. Mutating tools without this contract not allowed in autonomous retry profile. Domain publish/compensation normally stays app-owned. MCP only protocol adapter.
 
 ## Alternatives considered
@@ -28,4 +26,4 @@ G13/G14/G18; [TOOLS-PLUGINS](../contracts/TOOLS-PLUGINS.md).
 
 New tool needs intent/receipt/idempotency/security tests; exactly-once label cannot replace evidence.
 
-Provenance: [reconciliation register](../reviews/RECONCILIATION.md). Decision gaps: [OPEN-QUESTIONS](../decisions/OPEN-QUESTIONS.md).
+Navigasi keputusan: [ADR index](README.md). Peta pendukung: [traceability](../reviews/RECONCILIATION.md). Decision gaps: [OPEN-QUESTIONS](../decisions/OPEN-QUESTIONS.md).

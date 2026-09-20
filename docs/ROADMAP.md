@@ -22,11 +22,11 @@ Satu kontrak AI execution yang melayani direct chat, structured calls, dan agent
 
 ## Decisions retained
 
-OpenRouter may remain primary per profile. A direct adapter proof does not automatically enable failover. Codex is an agent-runtime target, not another label for an inference API. Redis handles hot streams/heartbeat; authoritative reservations and settlement use durable transactions. Completion and accounting stay independent.
+Keputusan aktif dirujuk melalui [ADR](adr/README.md). OpenRouter may remain primary per profile. A direct adapter proof does not automatically enable failover. Codex is an agent-runtime target, not another label for an inference API. Redis handles hot streams/heartbeat; authoritative reservations and settlement use durable transactions. Completion and accounting stay independent.
 
 ## Readiness is not inferred
 
-Principal review accepted the architectural direction. The [reconciliation register](docs/reviews/RECONCILIATION.md) records operational amendments and gaps. There are no passed implementation gates, deployment metrics, finalized production SLOs, or approved retention policies merely because the documentation exists.
+ADR records the adopted design; the [decision traceability register](reviews/RECONCILIATION.md) maps decisions to operational specifications and gates. There are no passed implementation gates, deployment metrics, finalized production SLOs, or approved retention policies merely because the documentation exists. Pending ADR review remains tracked separately.
 
 ## Success measures
 
@@ -40,10 +40,10 @@ Principal review accepted the architectural direction. The [reconciliation regis
 | Recovery | Detection, termination, external reconciliation, and financial settlement timed separately |
 | Operations | Tested rollback, restore, credential rotation, retention/deletion |
 
-Numbers must name test environment, baseline, measurement window, and owner. Candidate heartbeat 5s/TTL 15s/reaper 5s comes from principal; detection timing includes scheduling/network delay, not a universal deterministic guarantee.
+Numbers must name test environment, baseline, measurement window, and owner. Candidate heartbeat 5s/TTL 15s/reaper 5s follows [ADR-0005](adr/0005-leases-fencing.md) and the [parameter register](operations/SLO-CAPACITY.md); detection timing includes scheduling/network delay, not a universal deterministic guarantee.
 
 ## Release sequence
 
 Nonproduction examples -> applicable conformance tests -> gate -> limited production canary -> app owner acceptance -> wider rollout. Provider/runtime upgrade repeats affected tests. New capabilities do not inherit blanket production approval from old ones.
 
-Detailed work packages: [PLAN](PLAN.md). Test catalogue: [ACCEPTANCE](docs/testing/ACCEPTANCE.md). Open deployment/product choices: [OPEN-QUESTIONS](docs/decisions/OPEN-QUESTIONS.md). Visual dependency flow: [evolution diagrams](docs/diagrams/08-evolution-migration.md).
+Detailed work packages: [PLAN](PLAN.md). Test catalogue: [ACCEPTANCE](testing/ACCEPTANCE.md). Open deployment/product choices: [OPEN-QUESTIONS](decisions/OPEN-QUESTIONS.md). Visual dependency flow: [evolution diagrams](diagrams/08-evolution-migration.md).

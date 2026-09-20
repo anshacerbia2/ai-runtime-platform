@@ -1,6 +1,6 @@
 # D22–D23 — Implementation Dependencies dan Migration
 
-**Authored plan visualization.** All implementation milestones remain PLANNED; P3.5 currently BLOCKED pending implementation evidence. Canonical source: [PLAN](../../PLAN.md), [ROADMAP](../../ROADMAP.md).
+**Authored plan visualization.** All implementation milestones remain PLANNED; P3.5 currently BLOCKED pending implementation evidence. Canonical source: [PLAN](../PLAN.md), [ROADMAP](../ROADMAP.md).
 
 ## D22 — Dependency and readiness flow
 
