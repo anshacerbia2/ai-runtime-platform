@@ -1,281 +1,139 @@
 # AI Runtime Platform — Architecture
 
-## Purpose
-AI Runtime Platform is a shared, provider-agnostic and runtime-agnostic platform for applications that need AI capabilities.
+**Baseline:** 0.2 · 20 September 2026 · **Jenis:** rancangan, bukan implementasi yang telah diuji.
 
-It supports:
-- direct chat / completion;
-- structured generation;
-- agent execution;
-- tool / plugin execution;
-- usage, token, and cost auditing.
+Dokumen ini menyinkronkan kebutuhan produk, principal final sign-off, dan koreksi operasional pada review terakhir. [AUDIT.md](AUDIT.md) dipertahankan sebagai sumber historis; perbedaannya dicatat eksplisit dalam [rekonsiliasi](docs/reviews/RECONCILIATION.md). Istilah MUST/WAJIB berarti requirement baseline, bukan bukti bahwa requirement sudah terpenuhi.
 
-## Core Principle
-> The application owns the job and business workflow. The AI Runtime Platform owns AI execution.
+## 1. Tujuan dan batas produk
 
-Applications send AI work plus correlation context. The platform executes it, returns normalized results/events, and records usage. The platform must not become the business workflow engine for every application.
+> Aplikasi memiliki business job, workflow, instruksi domain, dan penerimaan hasil. Platform memiliki AI execution, kebijakan eksekusi, serta audit penggunaan.
 
-## High-Level Model
-```text
-Application
-  |
-  | prompt/input + context + requested capability
-  v
-AI Runtime Platform
-  +-- Model Gateway
-  |     +-- OpenRouter
-  |     +-- future direct providers
-  +-- Agent Runtime
-  |     +-- Claude
-  |     +-- Codex
-  |     +-- Gemini
-  |     +-- tools/plugins
-  +-- Usage Ledger / Audit
-  |
-  v
-Normalized result / events
+Platform melayani direct chat, generation terstruktur, dan agent dengan tools/plugins melalui kontrak bersama. `process_id`, `step_id`, dan `conversation_id` bersifat opsional; tidak ada business job palsu untuk direct chat. Setiap request yang diterima tetap mempunyai identitas aplikasi terautentikasi dan `execution_id` untuk audit.
 
-Application decides what happens next.
+Agnostic berarti lifecycle dan kontrak publik tidak terikat vendor. Bukan berarti semua runtime identik, semua model memiliki kemampuan sama, atau sesi bisa dipindah lintas runtime tanpa evaluasi. `Provider`, `model`, `runtime`, `credential_binding`, dan `harness_version` adalah konsep berbeda.
+
+## 2. Konteks dan komponen
+
+```mermaid
+flowchart TB
+    APP[Application backends or trusted chat client] --> API[AI Runtime API]
+    API --> AUTH[Identity and policy enforcement]
+    AUTH --> ADM[Durable admission and idempotency]
+    ADM --> ROUTE[Capability and profile routing]
+    ROUTE --> GW[Model Gateway]
+    ROUTE --> DIS[Durable execution dispatcher]
+    GW --> OR[OpenRouter adapter]
+    GW --> DIRECT[Direct Anthropic adapter]
+    DIS --> WORK[Agent workers]
+    WORK --> RT[Claude then Codex and Gemini]
+    RT --> TOOL[Approved tools and isolated sandbox]
+    ADM --> PG[(PostgreSQL system of record)]
+    DIS --> PG
+    WORK --> HOT[(Redis lease and replay tier)]
+    GW --> HOT
+    API --> HOT
+    GW --> USAGE[Usage ingestion and reconciliation]
+    WORK --> USAGE
+    USAGE --> PG
+    TOOL --> OBJ[(Object storage)]
 ```
 
-## Application Ownership
-Each application remains responsible for:
-- business jobs and state;
-- workflow sequencing;
-- domain validation;
-- business retries;
-- final acceptance of AI output;
-- publication or other domain side effects.
+Gambar adalah logical view, bukan izin aplikasi mengakses storage atau provider langsung. API/worker services melakukan akses sesuai trust boundary. Lihat [katalog diagram](docs/diagrams/README.md) untuk konteks, deployment, flow, state machine, dan ERD lengkap.
 
-Examples:
-- Scribe owns document-generation jobs and publication flow.
-- Farexlate owns translation / verify / repair flow.
-- RAG applications own retrieval and domain authorization.
-- A direct-chat application may have no long-running job at all.
+| Komponen | Tanggung jawab | Bukan tanggung jawab |
+| --- | --- | --- |
+| AI Runtime API | Auth, validasi kontrak, status, cancel, stream, artifact access | Domain workflow aplikasi |
+| Policy/profile service | Profile immutable, binding model/runtime/tools, batas penggunaan | Mengubah instruksi domain tanpa versi/persetujuan owner |
+| Admission/accounting | Idempotency, reservasi durable, settlement, audit | Menjamin tagihan tepat pada nominal dolar tertentu |
+| Model Gateway | Direct inference, stream normalisasi, routing, usage capture | Agent loop yang tidak diminta |
+| Dispatcher/worker supervisor | Durable assignment, fenced authority, recovery, sandbox lifecycle | Retry bisnis atau menganggap lease hilang berarti side effect batal |
+| Runtime adapter | Terjemahan lifecycle dan capability runtime | Portabilitas perilaku tanpa acceptance test |
+| Tool broker | Otorisasi operasi, idempotency, status inquiry | Publikasi bisnis tanpa mandat aplikasi |
+| Event relay | Fan-out dan replay berretensi terbatas | Sumber status/biaya yang otoritatif |
 
-## Platform Responsibilities
-The platform owns:
-- application authentication and authorization;
-- stable AI execution contracts;
-- provider and runtime adapters;
-- execution policy and routing;
-- credentials to AI providers;
-- runtime execution lifecycle;
-- normalized streaming events;
-- token / usage capture and cost attribution;
-- audit records;
-- tool / plugin permissions.
+## 3. Managed Execution Envelope
 
-## Capability-Oriented Contract
-Applications request a capability, not a vendor implementation.
+Envelope mempunyai common context, capability, typed input, execution profile, batas yang diizinkan, dan correlation ID. Cognitive harness (prompt, skill, template, domain tools) dimiliki app/team. Platform menyimpan atau menjalankannya sebagai paket immutable yang disetujui, bukan mengambil alih domain.
 
-Initial capabilities:
-- `chat`
-- `generate`
-- `structured_generate`
-- `agent_execute`
+Profile memisahkan runtime engine dari model policy dan provider binding. Contoh `scribe-doc-v2` dapat menunjuk Claude runtime dengan paket Scribe tertentu; profile `chat-default` menunjuk gateway tanpa plugin dan tanpa sandbox agent. Caller dapat menurunkan batas yang diizinkan, tidak menaikkan izin lewat body request.
 
-Future capabilities may include `embed`, `rerank`, `vision`, and `transcribe`.
+Kontrak publik lengkap berada di [API](docs/contracts/API.md); profile dan adapter di [PROFILES-ADAPTERS](docs/contracts/PROFILES-ADAPTERS.md). Endpoint facade `POST /v1/chat` dan `POST /v1/generate` memakai pipeline admission/audit yang sama dengan `POST /v1/executions`; direct calls tidak wajib antre di agent queue.
 
-## Model Gateway
-Used for workloads that only need model inference.
+## 4. Boundary ownership
 
-Initial path:
-```text
-Application -> AI Runtime API -> Model Gateway -> OpenRouter
-```
+Business retries, review, validation, retrieval ACL, publication, glossary, dan domain state tetap di aplikasi. Platform dapat melakukan bounded infrastructure retry yang dinyatakan profile dan aman terhadap side effect. Satu retry menciptakan attempt baru; tidak mengubah business job menjadi sukses.
 
-Responsibilities:
-- request/response normalization;
-- streaming;
-- structured output;
-- provider error normalization;
-- usage extraction;
-- timeout handling.
+Direct-chat UI melalui backend/BFF secara default. Akses client langsung hanya dengan token delegated berumur pendek dan scope terbatas; provider key maupun service credential tidak boleh masuk browser. `application_id`/tenant tidak dipercaya dari request body. Detail actor, trust boundary, serta integrasi platform lain ada di [BOUNDARIES](docs/architecture/BOUNDARIES.md).
 
-Direct inference must not be forced through an agent runtime.
+## 5. Data dan authority
 
-## Agent Runtime
-Used when work requires an agent execution environment, tools, plugins, workspace access, or multi-step autonomous execution.
+| Tier | Data | Aturan baseline |
+| --- | --- | --- |
+| PostgreSQL | Executions, attempts, generation, control events, cancel intents, profiles, reservations, usage observations/ledger, outbox | Durable correctness authority; transaksi diskrit, bukan satu row per token atau heartbeat periodik |
+| Redis | Lease TTL, coordination epoch projection, replay stream, fan-out, rate windows, cache budget | Data panas; cache tidak boleh menjadi satu-satunya sumber kebenaran financial reservation |
+| Object storage | Input/output artifacts, manifest, checkpoint, transcript jika policy mengizinkan | Scoped access, checksum, retention, cleanup, tidak terbuka lintas tenant |
 
-Runtime adapters:
-- Claude;
-- Codex;
-- Gemini.
+**Amendment penting:** reservasi dan settlement finansial otoritatif berada dalam transaksi PostgreSQL; Redis menjadi projection/fast rejection, bukan Redis-decrement lalu ledger-write yang terpisah. Ini memperjelas atomicity dan recovery, bukan memindahkan heartbeat ke database. Lihat [ADR-0007](docs/adr/0007-durable-accounting.md).
 
-Conceptual adapter:
-```text
-AgentRuntimeAdapter
-  start()
-  streamEvents()
-  cancel()
-  getResult()
-  getUsage()
-```
+Final result dan manifest tidak dibentuk hanya dari replay buffer; worker/gateway memfinalisasi output secara independen. Hilangnya Redis boleh menghilangkan delta di luar jaminan replay, tetapi tidak boleh menghapus keputusan admission, cancel, atau ledger yang sudah committed.
 
-The implementation can be CLI-, SDK-, or API-based without changing the application contract.
+## 6. Lifecycle yang tidak mencampur fakta
 
-## Tool / Plugin Layer
-Tools/plugins are execution capabilities, not business workflows.
+Public execution status: `ACCEPTED`, `QUEUED`, `RUNNING`, `CANCEL_REQUESTED`, `RECONCILING`, `COMPLETED`, `FAILED`, `CANCELLED`, `TIMED_OUT`. Detail reason/result revision terpisah. Attempt mempertahankan empat dimensi: authority, local compute, external operations, accounting.
 
-The platform controls approved capability versions, runtime compatibility, permissions, and exposure to an execution. A plugin is not assumed to behave identically across Claude, Codex, and Gemini; compatibility must be explicit and tested.
+`COMPLETED` berarti hasil execution sudah difinalisasi sesuai kontrak platform; bukan domain acceptance dan bukan billing selesai. Kombinasi `COMPLETED + external NONE + accounting PENDING_RECONCILIATION` valid. Direct inference memakai compute `NOT_APPLICABLE`; kegagalan normal tidak membutuhkan SIGKILL. Setelah finalisasi, authority dapat `RELEASED` tanpa mengubah hasil terminal.
 
-## Shared Execution Context
-```text
-application
-  -> process/job (optional)
-      -> step (optional)
-          -> execution
-              -> attempt
-                  -> model/tool invocation
-```
+State model, precondition, race cancel-versus-complete, dan kombinasi valid ada di [EXECUTION-LIFECYCLE](docs/contracts/EXECUTION-LIFECYCLE.md). Mutasi eksternal yang ambigu ditandai `FAILED` dengan reason `EXTERNAL_OUTCOME_UNKNOWN`, bukan dianggap tidak pernah terjadi.
 
-Simple direct chat may only need:
-```text
-application -> conversation -> execution
-```
+## 7. Worker lease dan recovery
 
-## Conceptual Request
-```json
-{
-  "context": {
-    "process_id": "job-123",
-    "step_id": "generate-document"
-  },
-  "capability": "agent_execute",
-  "input": {
-    "prompt": "..."
-  },
-  "execution": {
-    "profile": "scribe-document-generation"
-  }
-}
-```
+Durable assignment mengalokasikan generation monotonic di PostgreSQL. Supervisor menerbitkan lease Redis untuk assignment itu; worker tidak bebas membuat ulang lease. Renewal atomik memeriksa existence, owner, generation, dan coordination epoch; key hilang atau mismatch menyebabkan renewal gagal, bukan `SET` baru.
 
-Application identity is derived from authenticated credentials, not trusted from body fields.
+Heartbeat default kandidat 5 detik, TTL 15 detik, reconciler interval 5 detik berasal dari principal; nilainya bukan hasil pengukuran produksi. Tidak ada periodic `UPDATE last_heartbeat` ke PostgreSQL. Commit status/result dilakukan control plane dengan pemeriksaan assignment/generation dan CAS terhadap state; late usage melewati jalur evidence terpisah.
 
-## Execution Profiles
-Applications should normally reference server-managed profiles instead of sending unrestricted runtime/provider/tool configuration.
+Lease expiry adalah failure signal. Authority final ditentukan oleh durable state transition, bukan klaim bahwa dua datastore diperbarui atomik. Quarantine merevokasi generation sebelum reassignment; worker lama ditolak setelah fence durable. TTL loss, Redis failover, network partition, dan race finalization dibahas di [OWNERSHIP-RECOVERY](docs/reliability/OWNERSHIP-RECOVERY.md).
 
-Example:
-```text
-scribe-document-generation
-  capability: agent_execute
-  allowed runtimes: [claude, codex]
-  allowed tools: [...]
-  model policy: ...
-  runtime limits: ...
-```
+## 8. Pengendalian biaya dan audit
 
-## API Shape
-Initial logical operations:
-```text
-POST /v1/chat
-POST /v1/generate
-POST /v1/executions
-GET  /v1/executions/{execution_id}
-GET  /v1/executions/{execution_id}/events
-POST /v1/executions/{execution_id}/cancel
-```
+Setiap accepted execution mempunyai reservation atau keputusan admission bebas-biaya yang tercatat. Budget memperhitungkan posted charge serta outstanding hold semua request concurrent. Penolakan tidak mengurangi balance/hold. Settlement dan adjustment idempotent; pelaporan usage tidak memerlukan active ownership.
 
-Exact schemas may evolve. The invariant is that application contracts stay independent from provider/runtime contracts.
+Bedakan observed tokens, estimated cost, provider-reported cost, measurement completeness, verification, dan settlement. `unknown` bukan nol. Failed/retried calls tetap termasuk biaya; summary parent tidak dijumlahkan lagi dengan child invocation yang sama.
 
-## Usage Ledger
-Every execution must be attributable to the application context that caused it.
+Late-worker window kandidat 15 menit mengatur jalur verifikasi otomatis, bukan batas kebenaran biaya. Evidence lebih tua dikarantina, dapat diverifikasi dan menghasilkan adjustment ledger. Detail envelope multi-turn, partial settlement, reservation release, source precedence, dan crash matrix ada di [ACCOUNTING](docs/data/ACCOUNTING.md).
 
-Capture where available:
-- application_id;
-- process_id / job_id;
-- step_id;
-- conversation_id;
-- execution_id;
-- attempt_id;
-- provider;
-- resolved model;
-- runtime;
-- input/output/cache tokens;
-- provider-reported cost;
-- estimated cost;
-- measurement status;
-- timestamps;
-- outcome.
+## 9. Streaming, tools, artifact, dan sesi
 
-> Unknown usage is not zero usage.
+SSE menggunakan cursor opaque dengan execution/attempt/stream epoch. Replay dalam window 10 menit kandidat dan byte cap yang dinyatakan; cursor hilang memberi `410 STREAM_RESUME_EXPIRED` plus authorized snapshot endpoint. Reconnect tidak membuat inference baru. Durable lifecycle events dipisah dari live deltas.
 
-Observed usage, estimated cost, and provider-reported cost must remain distinguishable.
+Stateful tools membutuhkan stable logical-operation key, request digest, receiver-supported idempotency, dan status lookup. Tool mutasi tanpa kontrak tersebut tidak diizinkan pada autonomous retry profiles; side effect dapat dikembalikan ke aplikasi. MCP opsional sebagai protocol adapter, bukan pengganti authorization atau sandbox.
 
-## Execution Semantics
-### Idempotency
-The same logical request with the same idempotency key must not accidentally create duplicate logical executions. Internal retries are recorded as separate attempts.
+Business conversation dimiliki aplikasi. Runtime session opsional, tenant-scoped, single-writer, terikat runtime/profile version; cross-runtime resume tidak dijanjikan. Artifact memakai immutable manifests dan commit result yang fenced. Lihat [EVENTS](docs/contracts/EVENTS-STREAMING.md), [TOOLS](docs/contracts/TOOLS-PLUGINS.md), dan [ARTIFACTS](docs/contracts/ARTIFACTS-SESSIONS.md).
 
-### Streaming
-Normalized events may include:
-- `execution.started`
-- `model.started`
-- `model.delta`
-- `tool.started`
-- `tool.completed`
-- `usage.updated`
-- `execution.completed`
-- `execution.failed`
-- `execution.cancelled`
+## 10. Security dan deployment
 
-### Cancellation
-```text
-running -> cancel_requested -> cancelled
-```
+Mulai dari modular control plane, gateway process/pool, isolated agent worker pool, PostgreSQL, Redis, object store, serta secret store. Runtime yang mengeksekusi kode tidak dijalankan di proses API. Kebutuhan container sandbox/gVisor/microVM diputuskan melalui threat model; direktori per job bukan sandbox.
 
-Client disconnect does not automatically mean execution cancellation.
+Gunakan per-app identity, least privilege, approved package digests, egress allowlist, no host socket/mount secrets, no metadata service access, scoped provider credentials, resource quotas, dan redacted logs. Pools interactive, batch, agent dipisahkan untuk admission/concurrency. Jumlah replica, HA Redis, cloud, RPO/RTO, retention, dan SLO produksi belum ditetapkan oleh sumber; tracked decision diperlukan.
 
-## Security Boundaries
-Minimum requirements:
-- identity per calling application;
-- no single shared caller credential for all applications;
-- server-side authorization of execution profiles;
-- provider credentials hidden from applications;
-- least-privilege tool/plugin permissions;
-- isolated agent workspaces;
-- controlled environment variables and network access;
-- application/tenant-scoped artifacts;
-- auditable execution history.
+## 11. Invariant baseline
 
-Agent execution requires a stronger isolation boundary than direct model inference.
+| ID | Invariant | Spesifikasi utama |
+| --- | --- | --- |
+| INV-01 | Workflow/domain acceptance tetap di aplikasi | BOUNDARIES |
+| INV-02 | Chat tidak membutuhkan business job/plugin | API |
+| INV-03 | Identity dan policy ditegakkan server-side | SECURITY |
+| INV-04 | Satu logical submission, attempts eksplisit | API, LIFECYCLE |
+| INV-05 | Worker lama tidak memenangkan state setelah fence | OWNERSHIP-RECOVERY |
+| INV-06 | Local stop tidak membuktikan external outcome | LIFECYCLE, TOOLS |
+| INV-07 | Rejected admission tidak mengubah budget | ACCOUNTING |
+| INV-08 | Unknown usage tidak menjadi zero; evidence tidak double-counted | ACCOUNTING |
+| INV-09 | Result completion terpisah dari settlement | LIFECYCLE |
+| INV-10 | SSE replay terbatas dan tidak membuat attempt baru | EVENTS |
+| INV-11 | Secret/artifact/session tidak bocor antar-app/tenant | SECURITY |
+| INV-12 | Production migration menunggu gate evidence | ACCEPTANCE |
 
-## Persistence
-Initial durable entities:
-- applications;
-- execution_profiles;
-- executions;
-- execution_attempts;
-- usage_records;
-- execution_events;
-- capability_versions;
-- artifact metadata/references.
+## 12. Evolusi dan status
 
-PostgreSQL is the preferred initial system of record. Large artifacts belong in object storage.
+[PLAN.md](PLAN.md) mendefinisikan work packages; [ROADMAP.md](ROADMAP.md) milestones dan dependency. Phase 2 membuktikan OpenRouter dan Direct Anthropic pada common capability. OpenRouter tetap boleh primary per profile. Claude adalah runtime pertama; Codex dan Gemini menyusul dengan compatibility tests.
 
-## Deployment Shape
-Do not begin with unnecessary microservices.
-
-```text
-AI Runtime API / Control Plane
-  +-- Model Gateway
-  +-- Policy / Usage modules
-  +-- Agent Worker(s)
-        +-- Claude adapter
-        +-- Codex adapter
-        +-- Gemini adapter
-```
-
-Agent workers may be isolated from the API/control plane because their security and resource profile is different.
-
-## Architectural Invariants
-1. Application owns business workflow.
-2. Platform owns AI execution.
-3. Direct inference does not require an agent.
-4. Provider/runtime details stay behind adapters.
-5. Platform contracts are capability-oriented.
-6. Every execution is auditable.
-7. Every provider/runtime must pass the same contract tests.
-8. Security policy is enforced server-side.
-9. New capabilities evolve without breaking existing application integrations.
+Semua implementation phases **belum dikerjakan** dalam perubahan dokumentasi ini. [ADR index](docs/adr/README.md), [open decisions](docs/decisions/OPEN-QUESTIONS.md), [test gates](docs/testing/ACCEPTANCE.md), dan [validation record](docs/reviews/VALIDATION.md) membedakan keputusan desain, pertanyaan terbuka, serta bukti yang benar-benar tersedia.

@@ -1,144 +1,97 @@
-# AI Runtime Platform — Plan
+# AI Runtime Platform — Implementation Plan
 
-## Goal
-Build a shared AI execution platform that can serve existing and future applications without coupling them to a specific model provider or agent runtime.
+**Baseline 0.2 · 20 September 2026 · Semua pekerjaan implementasi di bawah: PLANNED.**
 
-The first usable version must support:
-- direct AI access through OpenRouter;
-- Claude-based agent execution;
-- shared execution context;
-- per-application/process usage auditing;
-- stable contracts that allow Codex and Gemini to be added later.
+Dokumen ini menjelaskan urutan kerja, dependency, deliverable, dan gate. Pembaruan Markdown bukan implementasi service, migration database, SDK, test suite, atau deployment. Dasar keputusan: [Architecture](ARCHITECTURE.md), [ADR](docs/adr/README.md), dan [rekonsiliasi audit](docs/reviews/RECONCILIATION.md).
 
-## Non-Goals
-The platform will not:
-- own application business workflows;
-- replace application job state;
-- become a generic workflow engine;
-- force every AI request through an agent;
-- support every provider/runtime in the first release;
-- standardize every plugin format prematurely.
+## 1. Batas pekerjaan
 
-## Phase 0 — Contract First
-Define the smallest stable concepts before implementation.
+Produk: AI execution bersama, bukan business workflow engine. Scope awal: direct chat/generate/structured generation; OpenRouter + pembuktian satu direct provider; Claude runtime; durable audit/admission; plugin dan artifact contract; reliability/security sebelum migrasi produksi.
 
-Deliverables:
-- execution context model;
-- capability model;
-- execution/result/error contracts;
-- event contract;
-- usage record contract;
-- idempotency semantics;
-- cancellation semantics;
-- execution-profile model.
+Tidak termasuk saat ini: business-job database bersama, universal agent translator, cross-runtime live session migration, semua provider, full plugin marketplace, distributed workflow engine baru, atau autonomous model selection tanpa evaluasi.
 
-Exit criteria:
-- Scribe agent execution can be expressed without Claude-specific fields.
-- A direct-chat app can be expressed without inventing a fake job.
-- Farexlate-style AI steps can be expressed without agent semantics.
+## 2. Urutan dan work packages
 
-## Phase 1 — Control Plane Foundation
-Deliverables:
-- application identity;
-- authorization;
-- execution profiles;
-- execution persistence;
-- attempt persistence;
-- usage ledger;
-- normalized status model;
-- basic audit queries.
+### P0 — Contract dan decision closure
 
-Preferred initial persistence: PostgreSQL.
+**Dependency:** baseline dokumentasi ini. **Penanggung jawab peran:** platform architect + app owners + security/accounting reviewers; individu belum ditetapkan.
 
-Exit criteria:
-- every execution has an immutable `execution_id`;
-- every attempt is traceable;
-- unknown usage is represented as unknown, never silently as zero.
+| WP | Deliverable implementasi berikutnya | Acceptance |
+| --- | --- | --- |
+| P0.1 | Machine-readable API schema dari kontrak Markdown | Chat tanpa process/plugin, Scribe agent, structured result dapat diekspresikan |
+| P0.2 | State/error/event schema, compatibility policy | Enum dan transition selaras; completion tidak menunggu settlement |
+| P0.3 | Profile/tool/adapter conformance contracts | Unsupported capability ditolak sebelum dispatch |
+| P0.4 | Threat model dan data classification | Credential mode, sandbox, retention, egress disetujui untuk workload pilot |
+| P0.5 | Close blocking open decisions | Owner, target, environment, gate parameters tercatat |
 
-## Phase 2 — Model Gateway + OpenRouter
-Deliverables:
-- OpenRouter adapter;
-- chat;
-- generate;
-- structured generation;
-- streaming;
-- normalized provider errors;
-- usage capture;
-- model/provider resolution metadata.
+**Exit:** review kontrak selesai; ADR amendments ditinjau; tidak ada P0 blocker di [open decisions](docs/decisions/OPEN-QUESTIONS.md). Kontrak bukan dianggap lulus hanya karena contoh JSON dapat diparse.
 
-Exit criteria:
-- an app can perform direct chat without knowing OpenRouter details;
-- structured generation uses the same shared platform;
-- usage is attributable to application/process context.
+### P1 — Durable control plane dan accounting foundation
 
-## Phase 3 — Claude Agent Runtime
-Evolve the existing Claude Runner into the first Agent Runtime adapter.
+**Dependency:** P0. **Owner roles:** platform backend + storage/security.
 
-Deliverables:
-- Claude runtime adapter;
-- isolated execution workspace;
-- event normalization;
-- cancellation;
-- runtime timeout / limits;
-- plugin/tool policy;
-- durable execution state;
-- usage capture.
+Bangun authentication/authorization per aplikasi, profile registry/version snapshot, idempotency record, execution/attempt state, budget account/reservation/observation/ledger, durable cancel intent, outbox/inbox, audit query, artifact metadata. Implementasi awal memilih PostgreSQL sebagai correctness authority, Redis untuk hot tier. Budget transaction memeriksa semua scope dalam urutan lock stabil; rejected reservation tidak mengubah pool.
 
-Exit criteria:
-- Scribe keeps its ownership model:
-  `job in Scribe -> prompt + job id to platform -> result back to Scribe`;
-- platform restart or stream disconnect does not silently redefine business job state;
-- provider/runtime credentials are not exposed to Scribe.
+**Exit:** G01, G02, G07, G08, G09, G15 pada test catalogue lulus di test environment. Replay command idempotent, crash injection tidak menghasilkan free dispatch atau duplicate credit. Machine schema/migrations dan versioning review tersedia. Ledger dapat menjelaskan held, posted, pending, overage tanpa mengubah unknown menjadi zero.
 
-## Phase 4 — Migrate First Applications
-Recommended order:
-1. Scribe agent path;
-2. one simple direct-inference workload;
-3. Farexlate-style inference;
-4. selected RAG model calls.
+### P2 — Direct & Aggregator Gateway MVP
 
-For each migration:
-- preserve application workflow;
-- keep rollback path;
-- compare output quality;
-- compare latency;
-- compare usage/cost;
-- verify idempotency and failure behavior.
+**Dependency:** P1. **Owner roles:** gateway + app pilot owners.
 
-## Phase 5 — Codex Runtime Adapter
-Deliverables:
-- adapter;
-- event mapping;
-- tool/plugin compatibility matrix;
-- usage mapping;
-- runtime acceptance tests.
+Implementasikan OpenRouterAdapter terlebih dahulu, lalu DirectAnthropicAdapter untuk membuktikan common interface pada chat, streaming, dan structured generation yang keduanya benar-benar mendukung. Runtime Codex tidak disamakan dengan OpenAI provider API. Routing primary/fallback ditentukan profile; OpenRouter tetap dapat primary.
 
-Exit criteria:
-- application contract requires no Codex-specific change;
-- at least one real workload passes the same acceptance criteria used for Claude.
+Tambahkan per-app/pool concurrency, rate limits, token/output bounds, deadline, circuit breaker, restricted routing/data policy, provider request ID capture, usage extraction, explicit retry attempts, serta resumable stream contract. Direct path tidak masuk long-agent queue; tetap memakai durable admission dan status finalization.
 
-## Phase 6 — Gemini Runtime Adapter
-Deliverables and exit criteria mirror Codex.
+**Exit:** G03, G10, G11, G16, G17, G21, G22 lulus dengan fake adapter untuk failure injection dan live smoke test terotorisasi untuk mapping provider. Dual adapter bukan bukti failover sampai skenario failover diuji. Tidak ada automatic fallback setelah partial output tanpa new-attempt/reset semantics.
 
-## Phase 7 — Hardening
-Focus areas:
-- worker isolation;
-- concurrency controls;
-- quotas/budgets;
-- provider fallback policy;
-- execution reconciliation;
-- artifact access boundaries;
-- tenant isolation;
-- usage reconciliation;
-- operational dashboards;
-- SLOs and alerts.
+### P3 — Claude Agent Runtime MVP
 
-## Engineering Principles
-- Contract-first, implementation-second.
-- Prefer modular control plane before microservices.
-- Extract services only when scaling or isolation requires it.
-- Keep adapters thin.
-- Keep application domain logic outside the platform.
-- Treat usage accounting as product data, not only observability.
-- Add runtime/provider support only with contract and acceptance tests.
-- Preserve rollback paths during migrations.
+**Dependency:** P1; P2 common contracts. **Owner roles:** runtime + security + Scribe owner.
+
+Ekstrak boundary Claude runner, bukan memindahkan workflow Scribe. Implementasikan worker supervisor, assignment generation, compare-and-renew Redis lease, Redis recovery epoch, bounded dispatch, sandbox, scoped credential injection, package digest validation, tool broker, artifact manifest, runtime session scope, cancellation propagation, late usage ingestion, serta orphan quarantine.
+
+Stateful tool hanya tersedia jika receiver idempotency/status contract tervalidasi. Prototype read-only/script artifact path terlebih dahulu; final publish tetap di app. Budget multi-turn memakai envelope penuh atau authorized tranche, tidak hanya satu output-token limit.
+
+**Exit:** G04, G05, G06, G12, G13, G14, G18, G19, G20 lulus pada runtime harness. Bukti penghentian process tree, stale-writer rejection, serta partial/unknown usage tersedia. No-host-secrets dan egress tests tidak boleh ditunda ke production.
+
+### P3.5 — Core Reliability & Security Gate
+
+**Dependency:** P1–P3 selesai pada build kandidat yang sama. **Status sekarang:** BLOCKED — belum ada runtime dan bukti test.
+
+Jalankan seluruh [acceptance catalogue](docs/testing/ACCEPTANCE.md) sesuai applicable capability. Setiap test mempunyai build/image digest, fixture, parameter, expected result, actual result, trace/evidence ID, reviewer, dan tanggal. Semua safety tests wajib pass; N/A membutuhkan alasan dan persetujuan scope, bukan digunakan untuk melewati fitur yang dipakai pilot.
+
+Gate mencakup lima skenario principal (worker chaos, SSE, budget race, late usage, sandbox) dan koreksi review: compare-renew, Redis loss, ordinary exit, completion-before-settlement, settlement crash, multi-turn budget, duplicate/cumulative evidence, external ambiguity, authorization, rollback, dan data deletion.
+
+**Exit:** gate report ditandatangani owner platform, app pilot, security, operations. Target SLO/retention/overage terkalibrasi; runbooks dan rollback rehearsed. Principal sign-off dokumen tidak menggantikan gate evidence.
+
+### P4 — Migrasi aplikasi bertahap
+
+**Dependency:** P3.5 untuk workload produksi; eksperimen nonproduksi dapat berlangsung lebih awal tanpa data/credential produksi.
+
+Urutan pilot: direct-chat/simple-inference nonproduksi untuk menguji agnosticism; Scribe agent pilot; satu inference workload sempit; Farexlate; selected RAG calls. Urutan cutover produksi ditetapkan dari risiko dan kesiapan app, bukan angka urut yang memaksa workload kritis lebih dulu.
+
+Setiap migrasi: inventaris contract/secrets, capture quality baseline, map process/step, canary traffic, limits, usage reconciliation, observability, rollback ke jalur lama, lalu decommission setelah masa evaluasi. Shadow test mutasi dilarang; inference shadow memerlukan budget/data approval.
+
+**Exit:** owner app menerima quality/latency/cost-per-accepted-output, isolation, failure behavior, dan rollback. Business job tetap di aplikasi. Lihat [APPLICATIONS](docs/migration/APPLICATIONS.md).
+
+### P5 — Codex runtime adapter
+
+**Dependency:** stable runtime contract dan P3.5 controls. Gunakan integrasi programatis resmi yang diverifikasi saat implementasi; pilihan SDK/transport dicatat sebagai versioned binding. Jangan mengganti nama Codex menjadi direct Responses API provider.
+
+Deliverable: adapter, capability/version matrix, event/usage mapping, permission enforcement, one-workload plugin packaging, same-runtime session support bila dibuktikan. **Exit:** runtime conformance, security, chaos, audit, dan quality acceptance untuk minimal satu workload nyata; perubahan runtime tidak memaksa caller mempelajari sintaks vendor.
+
+### P6 — Gemini runtime adapter
+
+**Dependency:** contract/gates yang sama. Headless/SDK choice dan credential mode diverifikasi ulang sebelum implementasi. Deliverable/exit sama dengan P5; ketidaktersediaan fitur dilaporkan eksplisit. Codex dan Gemini tidak otomatis compatible dengan semua plugin Scribe.
+
+### P7 — Evidence-driven expansion
+
+Tambahkan provider langsung lain, embeddings/reranking/vision/transcription, HA/scaling, advanced routing, SDK packaging, atau workflow technology hanya jika workload dan evidence menuntutnya. Kontrol minimum safety bukan item P7. Perubahan embedding model adalah migrasi retrieval/index aplikasi yang terpisah.
+
+## 3. Dependency dan parallel work
+
+P0 mengunci vocabulary; P1 mengunci durability/identity. Setelah itu gateway dan agent dapat dikerjakan paralel oleh owner berbeda melalui contract fixtures. API schema changes membutuhkan compatibility review sebelum kedua jalur merge. Tidak ada cutover produksi sebelum applicable gates.
+
+## 4. Definition of done
+
+Sebuah phase selesai bila deliverable ada, test evidence tersedia, source/contract/diagram selaras, security/data requirements ditinjau, dan rollback/operasi didokumentasikan. Build pass atau diagram rapi sendiri tidak cukup. [ROADMAP](ROADMAP.md) hanya merangkum status phase, bukan menggandakan requirement detail.

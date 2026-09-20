@@ -1,121 +1,49 @@
 # AI Runtime Platform — Roadmap
 
-## North Star
-One stable application-facing AI execution platform that supports both direct model access and agent execution while remaining provider- and runtime-agnostic.
+**Baseline 0.2 · 20 September 2026.** Roadmap berbasis dependency dan gate, bukan janji tanggal. Tidak ada implementasi runtime yang dilakukan dalam pembaruan dokumentasi ini.
 
-```text
-Apps
-  -> AI Runtime Platform
-      -> Direct Model Gateway
-      -> Agent Runtime
-      -> Usage / Audit
-```
+## North star
 
-Business workflow remains in each application.
+Satu kontrak AI execution yang melayani direct chat, structured calls, dan agent/plugins; app tetap memiliki workflow. Setiap execution dapat ditelusuri penggunaannya tanpa menganggap semua runtime interchangeable.
 
-## Milestone 1 — Foundation
-Status: planned
+## Milestones
 
-Scope:
-- architecture baseline;
-- shared execution context;
-- capability contracts;
-- result/error/event contracts;
-- usage ledger schema;
-- application identity model;
-- execution profiles.
+| Milestone | Outcome | Dependency | Exit evidence | Status |
+| --- | --- | --- | --- | --- |
+| M0 — Contract baseline | API, state, usage, stream, profile, tool schemas disepakati | Review docs | P0 review + blocking decisions resolved | PLANNED; documentation draft available |
+| M1 — Durable foundation | Identity, idempotency, reservation/ledger, execution/outbox | M0 | Admission/crash/isolation tests | PLANNED |
+| M2 — Direct & Aggregator Gateway | OpenRouter-first + Direct Anthropic proof; chat/structured/stream | M1 | Adapter conformance and restricted routing tests | PLANNED |
+| M3 — Claude Agent Runtime | Isolated managed execution, lease/fencing, tools, artifacts | M1 + shared M2 contracts | Agent, cancellation, orphan, tool safety tests | PLANNED |
+| M3.5 — Production Readiness Gate | Measured reliability/security/accounting confidence | M1–M3 | Applicable gate report and rollback drill | BLOCKED; not yet implemented |
+| M4 — Application migration | Scribe/simple inference/Farexlate/RAG adopt without losing job ownership | M3.5 | Per-app quality, canary, audit, rollback sign-off | PLANNED |
+| M5 — Codex runtime | Tested second agent implementation | M3.5 + workload | Runtime conformance + plugin acceptance | PLANNED |
+| M6 — Gemini runtime | Tested third agent implementation | M3.5 + workload | Runtime conformance + plugin acceptance | PLANNED |
+| M7 — Expansion | Additional capabilities/providers/scale justified by usage | Demand and ADR | Capability-specific gates | FUTURE |
 
-Outcome: common vocabulary and stable boundaries before implementation.
+## Decisions retained
 
-## Milestone 2 — Direct AI MVP
-Status: planned
+OpenRouter may remain primary per profile. A direct adapter proof does not automatically enable failover. Codex is an agent-runtime target, not another label for an inference API. Redis handles hot streams/heartbeat; authoritative reservations and settlement use durable transactions. Completion and accounting stay independent.
 
-Scope:
-- AI Runtime API;
-- Model Gateway;
-- OpenRouter adapter;
-- chat;
-- generate;
-- structured generation;
-- streaming;
-- usage accounting.
+## Readiness is not inferred
 
-Outcome: apps can use direct AI/chat through the platform without integrating OpenRouter directly.
+Principal review accepted the architectural direction. The [reconciliation register](docs/reviews/RECONCILIATION.md) records operational amendments and gaps. There are no passed implementation gates, deployment metrics, finalized production SLOs, or approved retention policies merely because the documentation exists.
 
-## Milestone 3 — Agent Runtime MVP
-Status: planned
+## Success measures
 
-Scope:
-- evolve Claude Runner into Claude Agent Runtime adapter;
-- durable execution lifecycle;
-- workspace isolation;
-- tool/plugin policy;
-- event streaming;
-- cancellation;
-- usage accounting.
+| Area | Measure to establish before cutover |
+| --- | --- |
+| Product boundary | Direct chat needs no fake job; Scribe retains business state and publication |
+| Portability | Same API conformance suite passes both gateway adapters and each enabled runtime |
+| Safety | No stale write after durable fence; no duplicate mutation from retry tests |
+| Accounting | Holds survive crash, denial leaves budget unchanged, duplicates do not double-charge; unknown ratio visible |
+| Experience | App-defined quality and latency plus total cost per accepted business output |
+| Recovery | Detection, termination, external reconciliation, and financial settlement timed separately |
+| Operations | Tested rollback, restore, credential rotation, retention/deletion |
 
-Outcome: Scribe uses the shared platform while continuing to own its own jobs and workflow.
+Numbers must name test environment, baseline, measurement window, and owner. Candidate heartbeat 5s/TTL 15s/reaper 5s comes from principal; detection timing includes scheduling/network delay, not a universal deterministic guarantee.
 
-## Milestone 4 — First Application Migrations
-Status: planned
+## Release sequence
 
-Scope:
-- Scribe;
-- one direct-chat/simple-inference consumer;
-- Farexlate candidate paths;
-- selected RAG model calls.
+Nonproduction examples -> applicable conformance tests -> gate -> limited production canary -> app owner acceptance -> wider rollout. Provider/runtime upgrade repeats affected tests. New capabilities do not inherit blanket production approval from old ones.
 
-Outcome: validate that one platform contract serves materially different application patterns.
-
-## Milestone 5 — Multi-Runtime
-Status: planned
-
-Scope:
-- Codex adapter;
-- Gemini adapter;
-- shared runtime acceptance suite;
-- runtime/plugin compatibility matrix.
-
-Outcome: applications can use approved agent runtimes without being coupled to one vendor.
-
-## Milestone 6 — Production Hardening
-Status: planned
-
-Scope:
-- quotas and budgets;
-- concurrency isolation;
-- worker reconciliation;
-- provider fallback;
-- artifact authorization;
-- tenant isolation;
-- operational metrics;
-- SLOs;
-- billing/usage reconciliation.
-
-Outcome: production-ready shared platform for multiple applications and workloads.
-
-## Milestone 7 — Expansion
-Status: future
-
-Potential scope:
-- direct provider adapters beyond OpenRouter;
-- embeddings;
-- reranking;
-- vision;
-- transcription;
-- richer capability registry;
-- policy-based routing;
-- cost/quality routing;
-- standardized SDKs for application teams.
-
-These are added only when real workloads justify them.
-
-## Success Criteria
-The roadmap is successful when:
-- apps do not contain provider-specific integration unless intentionally exempted;
-- apps continue to own business workflow;
-- direct chat does not require an agent runtime;
-- agent workloads can move between supported runtimes without redesigning app contracts;
-- every AI execution can be attributed to the responsible app/process;
-- usage uncertainty is explicit;
-- adding a provider/runtime is an adapter concern, not an application rewrite.
+Detailed work packages: [PLAN](PLAN.md). Test catalogue: [ACCEPTANCE](docs/testing/ACCEPTANCE.md). Open deployment/product choices: [OPEN-QUESTIONS](docs/decisions/OPEN-QUESTIONS.md). Visual dependency flow: [evolution diagrams](docs/diagrams/08-evolution-migration.md).
