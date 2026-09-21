@@ -27,6 +27,7 @@ ADRs record decisions and trade-offs; architecture explains the system; detailed
 | Document                                                                  | Purpose                                             |
 | ------------------------------------------------------------------------- | --------------------------------------------------- |
 | [docs/contracts/API.md](contracts/API.md)                                 | Application API Contract                            |
+| [docs/contracts/CAPABILITIES.md](contracts/CAPABILITIES.md)               | Canonical Capability Catalogue                      |
 | [docs/contracts/EXECUTION-LIFECYCLE.md](contracts/EXECUTION-LIFECYCLE.md) | Execution dan Attempt Lifecycle                     |
 | [docs/contracts/EVENTS-STREAMING.md](contracts/EVENTS-STREAMING.md)       | Events, SSE, dan Stream Recovery                    |
 | [docs/contracts/PROFILES-ADAPTERS.md](contracts/PROFILES-ADAPTERS.md)     | Execution Profiles dan Adapter Contracts            |

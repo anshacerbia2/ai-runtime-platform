@@ -47,7 +47,7 @@ AI Runtime Platform
 Application decides the next business step
 ```
 
-Direct chat tidak membutuhkan business job atau plugin. Execution ID dan authenticated app identity tetap tersedia. Model, provider, agent runtime, credential binding, dan app-owned harness adalah konsep terpisah.
+Direct chat tidak membutuhkan business job atau plugin. Public capability baseline adalah `chat`, `generate`, `structured_generate`, dan `agent_execute`; lihat [Capability Catalogue](docs/contracts/CAPABILITIES.md). Execution ID dan authenticated app identity tetap tersedia. Model, provider, agent runtime, credential binding, dan app-owned harness adalah konsep terpisah.
 
 ## Baseline choices
 

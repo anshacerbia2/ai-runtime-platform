@@ -99,7 +99,7 @@ Pemeriksaan source, dependency, database, migration, dan browser terbaru dicatat
 
 ADR-0019–ADR-0022, Control Plane contract, distributed-runner diagram, architecture/boundaries, API/profile/plugin/artifact contracts, data/accounting/security/reliability/deployment/runbooks, acceptance gates, migration, PLAN, ROADMAP, glossary/index/changelog, dan M0 scope notes were synchronized for the new requirements.
 
-Current automated documentation check: **64 Markdown files, 489 local links, 0 missing file targets**. Repository-wide Prettier check also passed after synchronization.
+Current automated documentation check after the platform-control/fleet synchronization was **64 Markdown files, 489 local links, 0 missing file targets**. After adding the canonical capability catalogue, the current check is **65 Markdown files, 503 local links, 0 missing file targets**. Repository-wide Prettier check passed after both synchronizations.
 
 Production gates now span **G01–G35**. G26–G35 cover application/connection isolation, secret handling, dedicated/shared connection semantics, runner registration/lifecycle, runner-local credential locality, shared quota groups, plugin supply-chain checks, optional workspace containment, optional remote-tool/MCP semantics, and fleet failover/fencing. These gates remain NOT RUN until the corresponding implementation exists.
 

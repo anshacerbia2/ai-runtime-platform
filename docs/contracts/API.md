@@ -33,15 +33,15 @@ Public endpoint session/approval tambahan tidak diklaim tersedia pada MVP. Same-
 
 ## 3. Envelope dan validation
 
-| Field         | Required                              | Arti/aturan                                                                      |
-| ------------- | ------------------------------------- | -------------------------------------------------------------------------------- |
-| `profile`     | Ya                                    | Published name/version atau alias yang server resolve menjadi immutable snapshot |
-| `capability`  | Ya pada executions; fixed pada facade | chat, generate, structured_generate, agent_execute                               |
-| `input`       | Ya                                    | Discriminated shape sesuai capability; unknown schema rejected                   |
-| `context`     | Tidak                                 | Opaque process_id, step_id, conversation_id, parent_execution_id, safe labels    |
-| `constraints` | Tidak                                 | Caller dapat menurunkan timeout/output bounds yang profile izinkan               |
-| `session_ref` | Tidak                                 | Platform session ID, bukan raw runtime session path; scope/version checked       |
-| `stream`      | Pada facade                           | Default false; tidak menambah kemampuan yang tidak didukung profile              |
+| Field         | Required                              | Arti/aturan                                                                                                            |
+| ------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `profile`     | Ya                                    | Published name/version atau alias yang server resolve menjadi immutable snapshot                                       |
+| `capability`  | Ya pada executions; fixed pada facade | `chat`, `generate`, `structured_generate`, `agent_execute`; canonical semantics ada di [CAPABILITIES](CAPABILITIES.md) |
+| `input`       | Ya                                    | Discriminated shape sesuai capability; unknown schema rejected                                                         |
+| `context`     | Tidak                                 | Opaque process_id, step_id, conversation_id, parent_execution_id, safe labels                                          |
+| `constraints` | Tidak                                 | Caller dapat menurunkan timeout/output bounds yang profile izinkan                                                     |
+| `session_ref` | Tidak                                 | Platform session ID, bukan raw runtime session path; scope/version checked                                             |
+| `stream`      | Pada facade                           | Default false; tidak menambah kemampuan yang tidak didukung profile                                                    |
 
 `process_id` dan `job_id` tidak menjadi dua authority; canonical field adalah `process_id`. SDK aplikasi boleh memetakan job ID miliknya ke field itu. `step_id` dapat berdiri sendiri sebagai label, tetapi tidak mengasumsikan platform mengetahui DAG bisnis. Parent execution reference harus authorized. Per-request secret, arbitrary pluginDir, filesystem path, shell command template, atau unrestricted provider override dilarang.
 

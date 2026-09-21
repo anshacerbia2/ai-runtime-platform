@@ -12,7 +12,7 @@ Backend menggunakan NestJS dengan FastifyAdapter; persistence memakai Prisma/Pos
 
 > Aplikasi memiliki business job, workflow, instruksi domain, dan penerimaan hasil. Platform memiliki AI execution, kebijakan eksekusi, serta audit penggunaan.
 
-Platform melayani direct chat, generation terstruktur, dan agent dengan tools/plugins melalui kontrak bersama. `process_id`, `step_id`, dan `conversation_id` bersifat opsional; tidak ada business job palsu untuk direct chat. Setiap request yang diterima tetap mempunyai identitas aplikasi terautentikasi dan `execution_id` untuk audit.
+Platform melayani capability melalui kontrak bersama. Public v1 baseline saat ini adalah `chat`, `generate`, `structured_generate`, dan `agent_execute`; status, execution path, feature matrix, serta future capability families didefinisikan secara canonical di [CAPABILITIES](../contracts/CAPABILITIES.md). `process_id`, `step_id`, dan `conversation_id` bersifat opsional; tidak ada business job palsu untuk direct chat. Setiap request yang diterima tetap mempunyai identitas aplikasi terautentikasi dan `execution_id` untuk audit.
 
 Agnostic berarti lifecycle dan kontrak publik tidak terikat vendor. Bukan berarti semua runtime identik, semua model memiliki kemampuan sama, atau sesi bisa dipindah lintas runtime tanpa evaluasi. `Provider`, `model`, `runtime`, `credential_binding`, dan `harness_version` adalah konsep berbeda.
 
@@ -61,7 +61,7 @@ Envelope mempunyai common context, capability, typed input, execution profile, b
 
 Profile memisahkan runtime engine dari model policy dan provider binding. Contoh `scribe-doc-v2` dapat menunjuk Claude runtime dengan paket Scribe tertentu; profile `chat-default` menunjuk gateway tanpa plugin dan tanpa sandbox agent. Caller dapat menurunkan batas yang diizinkan, tidak menaikkan izin lewat body request.
 
-Kontrak publik lengkap berada di [API](../contracts/API.md); profile dan adapter di [PROFILES-ADAPTERS](../contracts/PROFILES-ADAPTERS.md). Endpoint facade `POST /v1/chat` dan `POST /v1/generate` memakai pipeline admission/audit yang sama dengan `POST /v1/executions`; direct calls tidak wajib antre di agent queue.
+Capability catalogue berada di [CAPABILITIES](../contracts/CAPABILITIES.md), kontrak publik di [API](../contracts/API.md), dan profile/adapter di [PROFILES-ADAPTERS](../contracts/PROFILES-ADAPTERS.md). Endpoint facade `POST /v1/chat` dan `POST /v1/generate` memakai pipeline admission/audit yang sama dengan `POST /v1/executions`; direct calls tidak wajib antre di agent queue.
 
 ## 4. Boundary ownership
 

@@ -37,3 +37,7 @@ Initial ARCHITECTURE.md, PLAN.md, and ROADMAP.md were committed as `376d435bf435
 ## 21 September 2026 — platform control and distributed runner requirements
 
 Added ADR-0019–ADR-0022 and synchronized architecture/contracts/plan/roadmap for Application Registry, Keycloak caller identity versus AI Connection identity, dedicated/shared credential binding, central and runner-local secrets, plugin registry with ephemeral materialization, optional workspace/MCP model, distributed runner self-registration/pools/placement, Admin UI fleet visibility, and shared upstream quota groups. These are target architecture decisions; M0 does not claim these capabilities are implemented.
+
+## 21 September 2026 — canonical capability catalogue
+
+Added [CAPABILITIES](contracts/CAPABILITIES.md) as the source of truth for public capability IDs, status vocabulary, execution paths, orthogonal features, publication rules, adapter/runtime support scope, and deferred capability families. Architecture, API, profiles/adapters, plan, roadmap, index, and README now link to the catalogue. M0 remains contract-only; no live capability implementation is implied.

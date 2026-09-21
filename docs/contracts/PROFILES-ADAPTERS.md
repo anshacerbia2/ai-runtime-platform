@@ -4,15 +4,15 @@
 
 ## 1. Konsep yang tidak boleh dicampur
 
-| Konsep             | Contoh ilustratif                        | Fungsi                                         |
-| ------------------ | ---------------------------------------- | ---------------------------------------------- |
-| Capability         | chat, structured_generate, agent_execute | Kebutuhan execution                            |
-| Provider adapter   | openrouter, direct-anthropic             | Integrasi API inference                        |
-| Runtime adapter    | claude, codex, gemini                    | Agent lifecycle/tools/workspace/session        |
-| Model policy       | approved-document-models                 | Model allowlist/capability/context/data policy |
-| Credential binding | org-api-key-binding                      | Secret reference dan allowed upstream identity |
-| Cognitive harness  | scribe-package@digest                    | App-owned instructions/templates/domain tools  |
-| Execution profile  | scribe-document@2                        | Versi gabungan policy dan compatible bindings  |
+| Konsep             | Contoh ilustratif                                          | Fungsi                                                                    |
+| ------------------ | ---------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Capability         | `chat`, `generate`, `structured_generate`, `agent_execute` | Kebutuhan execution; canonical catalogue: [CAPABILITIES](CAPABILITIES.md) |
+| Provider adapter   | openrouter, direct-anthropic                               | Integrasi API inference                                                   |
+| Runtime adapter    | claude, codex, gemini                                      | Agent lifecycle/tools/workspace/session                                   |
+| Model policy       | approved-document-models                                   | Model allowlist/capability/context/data policy                            |
+| Credential binding | org-api-key-binding                                        | Secret reference dan allowed upstream identity                            |
+| Cognitive harness  | scribe-package@digest                                      | App-owned instructions/templates/domain tools                             |
+| Execution profile  | scribe-document@2                                          | Versi gabungan policy dan compatible bindings                             |
 
 Tidak semua runtime dapat memakai semua provider/binding. Model yang sama melalui aggregator bukan berarti menjalankan agent CLI vendor. Compatibility disimpan sebagai tested tuple, bukan Cartesian product otomatis.
 

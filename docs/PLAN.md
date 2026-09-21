@@ -10,7 +10,7 @@ NestJS + Fastify + Prisma + PostgreSQL, React/Vite, TypeScript strict, Prettier,
 
 ## 1. Batas pekerjaan
 
-Produk: AI execution bersama, bukan business workflow engine. Scope awal: direct chat/generate/structured generation; OpenRouter + pembuktian satu direct provider; Claude runtime; durable audit/admission; plugin dan artifact contract; reliability/security sebelum migrasi produksi.
+Produk: AI execution bersama, bukan business workflow engine. Scope capability v1: `chat`, `generate`, `structured_generate`, dan `agent_execute` sesuai [CAPABILITIES](contracts/CAPABILITIES.md). Scope implementasi awal: OpenRouter + pembuktian satu direct provider; Claude runtime; durable audit/admission; plugin dan artifact contract; reliability/security sebelum migrasi produksi.
 
 Tidak termasuk saat ini: business-job database bersama, universal agent translator, cross-runtime live session migration, semua provider, full plugin marketplace, distributed workflow engine baru, atau autonomous model selection tanpa evaluasi.
 

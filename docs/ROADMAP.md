@@ -8,7 +8,7 @@ NestJS + Fastify + Prisma + PostgreSQL, React/Vite, TypeScript strict, Prettier,
 
 ## North star
 
-Satu AI Runtime Platform yang melayani direct chat, structured calls, dan agent/plugins; app tetap memiliki workflow. Control Plane mengelola applications, profiles, AI connections/credential bindings, plugin registry, runner fleet, policy, budget, audit, dan Admin UI; Execution Plane menjalankan gateway/runtime/workers. Setiap execution dapat ditelusuri tanpa menganggap semua runtime, plugin, account, atau runner interchangeable.
+Satu AI Runtime Platform dengan canonical capability catalogue (`chat`, `generate`, `structured_generate`, `agent_execute` pada baseline v1) sementara app tetap memiliki workflow. Control Plane mengelola applications, profiles, AI connections/credential bindings, plugin registry, runner fleet, policy, budget, audit, dan Admin UI; Execution Plane menjalankan gateway/runtime/workers. Setiap execution dapat ditelusuri tanpa menganggap semua runtime, plugin, account, atau runner interchangeable.
 
 ## Milestones
 
