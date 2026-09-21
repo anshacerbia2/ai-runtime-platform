@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased — 21 September 2026 — ATI One internal app and frontend CDD
+
+Documented AI Runtime Platform as an ATI One internal app with a dedicated confidential Keycloak client, same-origin mount-path/SSO/proxy trust rules, and separate platform authorization. Added the target frontend architecture: Component-Driven Development, AI Platform semantic design tokens as visual source of truth, layered primitives/components/compositions/features/pages, isolated component states, accessibility, visual regression, and staged migration from M0 hardcoded CSS. Added ADR-0023 and ADR-0024. No runtime/source implementation was changed by this documentation update.
+
 ## Unreleased — 21 September 2026 — Fixed stack dan Clean Architecture
 
 Replaced Fastify route monolith with NestJS/Fastify modules, framework-independent use cases and ports, Prisma repositories, and a data-preserving Prisma migration baseline. Split frontend by feature and shared contracts by responsibility. Preserved user Prettier configuration; added ESLint, dependency/cycle checks, typed tests/tooling, and CI verification. Added ADR-0016/0017/0018 documenting framework/ORM selection, reviewer-claim corrections, and quality rules. No provider calls or M1 functionality introduced; M0 remains local-only.

@@ -22,11 +22,12 @@ Alamat FE/API, PostgreSQL, browser-test settings, credentials, dan timeout beras
 | Kebutuhan                                         | Dokumen                                                   |
 | ------------------------------------------------- | --------------------------------------------------------- |
 | Konsep, boundary, komponen, invariant             | [ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md)      |
+| Frontend, ATI One internal-app, CDD, design token | [FRONTEND.md](docs/architecture/FRONTEND.md)              |
 | Urutan implementasi dan gate                      | [PLAN.md](docs/PLAN.md) dan [ROADMAP.md](docs/ROADMAP.md) |
 | Kontrak integrasi aplikasi                        | [API](docs/contracts/API.md)                              |
 | Seluruh dokumen dan reading paths                 | [Documentation index](docs/INDEX.md)                      |
 | Visual alur normal dan kegagalan                  | [Diagram catalogue](docs/diagrams/README.md)              |
-| Keputusan arsitektur, alternatif, dan konsekuensi | [22 ADR](docs/adr/README.md)                              |
+| Keputusan arsitektur, alternatif, dan konsekuensi | [24 ADR](docs/adr/README.md)                              |
 | Pemetaan keputusan ke spesifikasi dan pengujian   | [Decision traceability](docs/reviews/RECONCILIATION.md)   |
 | Pengujian produksi yang masih harus dibuktikan    | [Acceptance gates](docs/testing/ACCEPTANCE.md)            |
 

@@ -42,7 +42,13 @@ Rollback API/runtime tidak boleh mereset idempotency keys, reservations, ledger,
 
 Platform team owns service/worker/storage health; app owner owns quality/business workflow and publication; security owns grant/data approval; accounting owner owns reconciliation thresholds/manual adjustments. Person/on-call rotation ditetapkan sebelum P3.5. Runbooks ada di [RUNBOOKS](RUNBOOKS.md); metrics/targets di [SLO-CAPACITY](SLO-CAPACITY.md).
 
-## 8. Distributed runner fleet
+## 8. ATI One internal-app web delivery
+
+The web application is exposed through ATI One at `/apps/<app-id>/app/*` and keeps an independently deployable upstream. The deployment MUST preserve the mount prefix for assets, routes, OIDC callback/logout URIs, and cookies. The upstream validates the per-app ATI One proxy credential on non-health routes and remains frame-compatible with the same-origin internal-app model.
+
+The app uses a dedicated confidential Keycloak client; it does not reuse the ATI One portal client. Existing realm SSO is probed silently, while interactive login is promoted to the top-level browsing context when needed. See [ADR-0023](../adr/0023-ati-one-internal-app.md) and [Frontend Architecture](../architecture/FRONTEND.md).
+
+## 9. Distributed runner fleet
 
 Deployment awal boleh satu host, tetapi contract target adalah distributed runner fleet. Runner self-register ke Control Plane dan masuk ke Runner Pool; tidak ada network scanning sebagai discovery mechanism.
 

@@ -87,7 +87,9 @@ Authentication memiliki port/use case sendiri. Query history selalu application-
 
 Mulai dari `apps/api/src/modules/contract-lab/presentation/http/validations.controller.ts`, lalu `application/validate-contract.use-case.ts`, `application/ports/validation-repository.port.ts`, dan `infrastructure/prisma-validation.repository.ts`. Buka `contract-lab.module.ts` untuk melihat implementasi port yang di-inject. Unit tests menunjukkan use case dapat dijalankan tanpa HTTP/Nest/database.
 
-Untuk frontend: `app/App.tsx` memilih fitur; `features/contract-lab/hooks/use-playground.ts` menangani editing/submission; components tidak berisi query DB. `shared/api` adalah batas network dan runtime parsing respons. No `any` sebagai jalan pintas terhadap bentuk data yang belum diketahui.
+Untuk frontend M0: `app/App.tsx` memilih fitur; `features/contract-lab/hooks/use-playground.ts` menangani editing/submission; components tidak berisi query DB. `shared/api` adalah batas network dan runtime parsing respons. No `any` sebagai jalan pintas terhadap bentuk data yang belum diketahui.
+
+Target frontend production mengikuti [FRONTEND](FRONTEND.md): ATI One internal-app delivery, dedicated Keycloak client, dan dependency CDD `tokens -> primitives -> components -> compositions -> features -> pages`. `apps/web/src/styles.css` saat ini adalah transitional M0 styling, bukan design-token source of truth.
 
 ## Quality gates
 

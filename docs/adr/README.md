@@ -1,6 +1,6 @@
 # Architecture Decision Records
 
-**Baseline 0.2 · 20 September 2026; extensions ADR-0016–ADR-0022 adopted 21 September 2026.** ADR adalah rujukan keputusan arsitektur yang aktif: konteks, keputusan, alternatif, konsekuensi, verification, dan revisit trigger. Status adopted in documentation tidak berarti implemented/tested. Review baseline tetap dilacak melalui O11 pada [OPEN-QUESTIONS](../decisions/OPEN-QUESTIONS.md).
+**Baseline 0.2 · 20 September 2026; extensions ADR-0016–ADR-0024 adopted 21 September 2026.** ADR adalah rujukan keputusan arsitektur yang aktif: konteks, keputusan, alternatif, konsekuensi, verification, dan revisit trigger. Status adopted in documentation tidak berarti implemented/tested. Review baseline tetap dilacak melalui O11 pada [OPEN-QUESTIONS](../decisions/OPEN-QUESTIONS.md).
 
 ## Decision catalogue
 
@@ -28,6 +28,8 @@
 | [ADR-0020](0020-plugin-registry-execution-packaging.md) | Plugin registry dan execution packaging                                    | [TOOLS-PLUGINS](../contracts/TOOLS-PLUGINS.md)             |
 | [ADR-0021](0021-workspace-remote-tools.md)              | Optional workspace dan remote tool model                                   | [ARTIFACTS-SESSIONS](../contracts/ARTIFACTS-SESSIONS.md)   |
 | [ADR-0022](0022-distributed-runner-fleet.md)            | Distributed runner fleet dan placement                                     | [DEPLOYMENT](../operations/DEPLOYMENT.md)                  |
+| [ADR-0023](0023-ati-one-internal-app.md)                | ATI One internal-app delivery + dedicated Keycloak client                  | [FRONTEND](../architecture/FRONTEND.md)                    |
+| [ADR-0024](0024-component-driven-ui-tokens.md)          | CDD + AI Platform semantic design-token contract                           | [FRONTEND](../architecture/FRONTEND.md)                    |
 
 ## Otoritas dan traceability
 

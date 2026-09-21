@@ -53,7 +53,13 @@ Separate admin/runtime/usage verifier identities. Audit profile/credential/grant
 
 Deployment requires a named owner, threat-model review, sandbox evidence, credential agreement, data policy, and recovery plan. Multi-tenant production remains blocked without these. See [open decisions](../decisions/OPEN-QUESTIONS.md).
 
-## 8. Application isolation, connection secrecy, dan plugin supply chain
+## 8. ATI One internal-app identity boundary
+
+AI Runtime Platform is hosted as an ATI One internal app but keeps its own confidential Keycloak OIDC client and application session. ATI One catalogue entitlement is an outer product-entry control; platform operation authorization remains enforced by AI Runtime Platform.
+
+The mounted app follows the ATI One internal-app security contract: exact mount-prefixed redirect/logout URIs, namespaced/path-scoped cookies, silent `prompt=none` SSO when a realm session exists, top-level interactive login fallback, and per-app proxy-origin verification for upstream requests. The platform never reads or reuses ATI One portal session cookies. See [ADR-0023](../adr/0023-ati-one-internal-app.md).
+
+## 9. Application isolation, connection secrecy, dan plugin supply chain
 
 Authorization dievaluasi pada authenticated application + profile revision + connection binding, bukan pada identifier yang dikirim caller. Mengetahui connection/plugin/runner ID tidak memberi authority.
 

@@ -17,10 +17,11 @@ ADRs record decisions and trade-offs; architecture explains the system; detailed
 
 ## Architecture and vocabulary
 
-| Document                                                      | Purpose                              |
-| ------------------------------------------------------------- | ------------------------------------ |
-| [docs/architecture/BOUNDARIES.md](architecture/BOUNDARIES.md) | Batas Produk, Actor, dan Kepemilikan |
-| [docs/GLOSSARY.md](GLOSSARY.md)                               | Glossary — Canonical Vocabulary      |
+| Document                                                      | Purpose                                      |
+| ------------------------------------------------------------- | -------------------------------------------- |
+| [docs/architecture/BOUNDARIES.md](architecture/BOUNDARIES.md) | Batas Produk, Actor, dan Kepemilikan         |
+| [docs/architecture/FRONTEND.md](architecture/FRONTEND.md)     | ATI One internal app, CDD, dan design tokens |
+| [docs/GLOSSARY.md](GLOSSARY.md)                               | Glossary — Canonical Vocabulary              |
 
 ## Contracts
 
