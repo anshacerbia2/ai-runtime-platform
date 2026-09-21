@@ -16,7 +16,7 @@ Dispatch hanya setelah reservation committed. Claimed attempt punya stable sandb
 
 ## 3. Capacity pools
 
-Pisahkan interactive, batch, agent melalui queue/pool/concurrency reservation. Capacity cap per tenant/application/profile dan upstream credential binding. Hindari satu global semaphore yang membuat document generation memblok semua chat.
+Pisahkan interactive, batch, agent melalui queue/pool/concurrency reservation. Capacity cap per application/profile dan upstream credential binding. Hindari satu global semaphore yang membuat document generation memblok semua chat.
 
 Scale gateway menurut active streams/latency/memory dan pool caps, worker menurut admitted queue age/resource need. Jangan autoscale tanpa memperhatikan provider rate limits dan budget. Storage pool concurrency bounded; tidak menahan DB transaction selama model execution.
 

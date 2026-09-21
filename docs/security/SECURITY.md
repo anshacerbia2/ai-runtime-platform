@@ -12,7 +12,7 @@ Prompt, retrieved text, artifact contents, tool responses, and model output are 
 
 | Threat                                    | Required control                                                                                                        | Proof       |
 | ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ----------- |
-| Cross-app/tenant read atau cancel         | Token binding + per-resource authZ pada read/list/stream/cancel/artifact/session/usage                                  | G01         |
+| Cross-application read atau cancel        | Token binding + per-resource authZ pada read/list/stream/cancel/artifact/session/usage                                  | G01         |
 | Credential theft dari sandbox             | No control-plane env; scoped short-lived grants; separate secret broker; no shared consumer config dir                  | G18         |
 | Host traversal/socket access              | Nonprivileged sandbox, no host mounts/sockets, filesystem policy, symlink validation                                    | G18/G19     |
 | SSRF/metadata exfiltration                | Egress allowlist, DNS/redirect/IP revalidation, block metadata/private control ranges kecuali explicitly approved route | G18         |
@@ -41,7 +41,7 @@ Do not pool consumer subscription login directories as an implicit production cr
 
 Data-class policy covers allowed provider/model route, region, retention/ZDR, plugin/tool destinations, encryption, logging, and deletion. OpenRouter documents ZDR/routing controls (R03), but a configured route/plugin set and organizational agreement still need review. No blanket claim that an aggregator guarantees or prevents compliance.
 
-Default: logs contain IDs, durations, result categories, error codes, and measurements—not full prompts/output. Content capture for evaluation/debug requires explicit policy, access scope, retention, and redaction. Raw transcript archive is optional. Cache shared across app/tenant is off by default.
+Default: logs contain IDs, durations, result categories, error codes, and measurements—not full prompts/output. Content capture for evaluation/debug requires explicit policy, access scope, retention, and redaction. Raw transcript archive is optional. Cache shared across applications is off by default.
 
 ## 6. Authorization of dangerous operations
 
@@ -51,7 +51,7 @@ Stateful tools need both identity authorization and stable operation/receiver id
 
 Separate admin/runtime/usage verifier identities. Audit profile/credential/grant changes and manual budget adjustments. Security kill switch revokes new dispatch and starts safe cancellation; it does not imply past remote actions were undone. Incident response preserves evidence before cleanup according to policy.
 
-Deployment requires a named owner, threat-model review, sandbox evidence, credential agreement, data policy, and recovery plan. Multi-tenant production remains blocked without these. See [open decisions](../decisions/OPEN-QUESTIONS.md).
+Deployment requires a named owner, threat-model review, sandbox evidence, credential agreement, data policy, and recovery plan. Production remains blocked without these controls and the applicable application-isolation evidence. See [open decisions](../decisions/OPEN-QUESTIONS.md).
 
 ## 8. ATI One internal-app identity boundary
 

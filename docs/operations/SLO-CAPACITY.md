@@ -36,11 +36,11 @@ Other limits must be populated before production: request bytes, prompt/schema c
 
 ## 3. Capacity model (planning, bukan benchmark)
 
-Replay memory roughly `active_streams * emitted_bytes_per_second * effective_retention_seconds + indexing/replication overhead`, bounded by per-execution/tenant quotas. A 10-minute age promise can require too much memory without byte cap; retention contract must expose eviction.
+Replay memory roughly `active_streams * emitted_bytes_per_second * effective_retention_seconds + indexing/replication overhead`, bounded by per-execution/application quotas. A 10-minute age promise can require too much memory without byte cap; retention contract must expose eviction.
 
 Gateway capacity depends on concurrent streams times per-stream buffers plus admission/normalization cost. Worker capacity depends on resource envelope per runtime and max concurrency. Ledger write load depends on invocations/control events/settlement, not every model token. Budget account hot-row contention measured separately from stream tier.
 
-Queue burst tests include one tenant monopolizing agent capacity while interactive traffic continues. Provider quota is another shared bottleneck even when local workers scale. Cache/route fallback must not bypass data/profile policy under load.
+Queue burst tests include one application monopolizing agent capacity while interactive traffic continues. Provider quota is another shared bottleneck even when local workers scale. Cache/route fallback must not bypass data/profile policy under load.
 
 ## 4. Dashboards dan alerts
 

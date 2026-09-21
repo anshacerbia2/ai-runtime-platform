@@ -62,7 +62,7 @@ Upload success alone is not execution success. Object upload and PG result commi
 flowchart TD
     REQ[Request with optional session reference] --> HAS{Session specified?}
     HAS -->|No| NEW[Independent execution or authorized new session]
-    HAS -->|Yes| AUTH[Authorize tenant, app, actor and profile]
+    HAS -->|Yes| AUTH[Authorize application, actor and profile]
     AUTH --> VALID{Runtime and version compatible?}
     VALID -->|No| ERR[Explicit incompatible-session error]
     VALID -->|Yes| CAS[Claim writer at expected session revision]

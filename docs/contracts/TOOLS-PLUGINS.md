@@ -23,7 +23,7 @@ Filesystem/workspace-only script masih bisa exfiltrate lewat network; klasifikas
 
 ## 3. Stable logical operation identity
 
-`operation_id` dihasilkan/dipersist platform sebelum dispatch. `idempotency_key` diturunkan dari tenant/application + logical business operation reference + tool/action + version + input digest, atau assigned opaque key yang disimpan durable. Key tidak diturunkan hanya dari attempt ID, karena retry attempt harus menggunakan key yang sama untuk operasi logis yang sama.
+`operation_id` dihasilkan/dipersist platform sebelum dispatch. `idempotency_key` diturunkan dari application + logical business operation reference + tool/action + version + input digest, atau assigned opaque key yang disimpan durable. Key tidak diturunkan hanya dari attempt ID, karena retry attempt harus menggunakan key yang sama untuk operasi logis yang sama.
 
 Business operation reference dari app dipakai bila aksi harus tetap sama lintas execution/retry bisnis. Tanpa referensi itu, platform tidak boleh menebak bahwa dua arbitrary agent tool calls merupakan operasi yang sama. Mutasi baru dengan maksud berbeda membutuhkan operation identity baru dan authority aplikasi.
 
@@ -72,7 +72,7 @@ Bila tool membutuhkan approval, approve/deny harus berasal dari authenticated ac
 
 Sandbox killed tidak mengubah COMMITTED menjadi FAILED dan tidak mengubah UNKNOWN menjadi no effect. App menerima operation IDs dan status references untuk keputusan bisnis. Platform dapat reconcile fakta remote dan melakukan permitted same-key infrastructure replay; tidak memutuskan kompensasi bisnis seperti menghapus dokumen yang sudah dipublikasikan.
 
-Tests: duplicate request, changed payload same key, crash after receiver success before receipt persistence, expired idempotency retention, forged receipt, cross-tenant status lookup, stale owner dispatch, approval digest mismatch. Lihat G13/G14/G18 pada [acceptance](../testing/ACCEPTANCE.md).
+Tests: duplicate request, changed payload same key, crash after receiver success before receipt persistence, expired idempotency retention, forged receipt, cross-application status lookup, stale owner dispatch, approval digest mismatch. Lihat G13/G14/G18 pada [acceptance](../testing/ACCEPTANCE.md).
 
 ## 8. Plugin registry dan remote capability model
 

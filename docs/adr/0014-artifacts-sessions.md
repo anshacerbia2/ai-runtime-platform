@@ -14,7 +14,7 @@ Artifact uploads scoped and verified; official manifest promoted by fenced final
 
 ## Alternatives considered
 
-Arbitrary caller filesystem paths/shared writable workspace ditolak. Reconstruct final result only from Redis deltas ditolak. Global session ID without tenant ownership ditolak.
+Arbitrary caller filesystem paths/shared writable workspace ditolak. Reconstruct final result only from Redis deltas ditolak. Global session ID without application ownership ditolak.
 
 ## Consequences and trade-offs
 

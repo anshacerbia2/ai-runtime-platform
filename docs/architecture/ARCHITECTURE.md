@@ -67,7 +67,7 @@ Capability catalogue berada di [CAPABILITIES](../contracts/CAPABILITIES.md), kon
 
 Business retries, review, validation, retrieval ACL, publication, glossary, dan domain state tetap di aplikasi. Platform dapat melakukan bounded infrastructure retry yang dinyatakan profile dan aman terhadap side effect. Satu retry menciptakan attempt baru; tidak mengubah business job menjadi sukses.
 
-Direct-chat UI melalui backend/BFF secara default. Akses client langsung hanya dengan token delegated berumur pendek dan scope terbatas; provider key maupun service credential tidak boleh masuk browser. `application_id`/tenant tidak dipercaya dari request body. Detail actor, trust boundary, serta integrasi platform lain ada di [BOUNDARIES](BOUNDARIES.md).
+Direct-chat UI melalui backend/BFF secara default. Akses client langsung hanya dengan token delegated berumur pendek dan scope terbatas; provider key maupun service credential tidak boleh masuk browser. `application_id` tidak dipercaya dari request body. Detail actor, trust boundary, serta integrasi platform lain ada di [BOUNDARIES](BOUNDARIES.md).
 
 ## 5. Data dan authority
 
@@ -75,7 +75,7 @@ Direct-chat UI melalui backend/BFF secara default. Akses client langsung hanya d
 | -------------- | --------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
 | PostgreSQL     | Executions, attempts, generation, control events, cancel intents, profiles, reservations, usage observations/ledger, outbox | Durable correctness authority; transaksi diskrit, bukan satu row per token atau heartbeat periodik |
 | Redis          | Lease TTL, coordination epoch projection, replay stream, fan-out, rate windows, cache budget                                | Data panas; cache tidak boleh menjadi satu-satunya sumber kebenaran financial reservation          |
-| Object storage | Input/output artifacts, manifest, checkpoint, transcript jika policy mengizinkan                                            | Scoped access, checksum, retention, cleanup, tidak terbuka lintas tenant                           |
+| Object storage | Input/output artifacts, manifest, checkpoint, transcript jika policy mengizinkan                                            | Scoped access, checksum, retention, cleanup, tidak terbuka lintas application                      |
 
 **Keputusan accounting:** reservasi dan settlement finansial otoritatif berada dalam transaksi PostgreSQL; Redis menjadi projection/fast rejection, bukan Redis-decrement lalu ledger-write yang terpisah. Ini memperjelas atomicity dan recovery, bukan memindahkan heartbeat ke database. Lihat [ADR-0007](../adr/0007-durable-accounting.md).
 
@@ -111,7 +111,7 @@ SSE menggunakan cursor opaque dengan execution/attempt/stream epoch. Replay dala
 
 Stateful tools membutuhkan stable logical-operation key, request digest, receiver-supported idempotency, dan status lookup. Tool mutasi tanpa kontrak tersebut tidak diizinkan pada autonomous retry profiles; side effect dapat dikembalikan ke aplikasi. MCP opsional sebagai protocol adapter, bukan pengganti authorization atau sandbox.
 
-Business conversation dimiliki aplikasi. Runtime session opsional, tenant-scoped, single-writer, terikat runtime/profile version; cross-runtime resume tidak dijanjikan. Artifact memakai immutable manifests dan commit result yang fenced. Lihat [EVENTS](../contracts/EVENTS-STREAMING.md), [TOOLS](../contracts/TOOLS-PLUGINS.md), dan [ARTIFACTS](../contracts/ARTIFACTS-SESSIONS.md).
+Business conversation dimiliki aplikasi. Runtime session opsional, application-scoped, single-writer, terikat runtime/profile version; cross-runtime resume tidak dijanjikan. Artifact memakai immutable manifests dan commit result yang fenced. Lihat [EVENTS](../contracts/EVENTS-STREAMING.md), [TOOLS](../contracts/TOOLS-PLUGINS.md), dan [ARTIFACTS](../contracts/ARTIFACTS-SESSIONS.md).
 
 ## 10. Security dan deployment
 
@@ -133,7 +133,7 @@ Gunakan per-app identity, least privilege, approved package digests, egress allo
 | INV-08 | Unknown usage tidak menjadi zero; evidence tidak double-counted | ACCOUNTING         |
 | INV-09 | Result completion terpisah dari settlement                      | LIFECYCLE          |
 | INV-10 | SSE replay terbatas dan tidak membuat attempt baru              | EVENTS             |
-| INV-11 | Secret/artifact/session tidak bocor antar-app/tenant            | SECURITY           |
+| INV-11 | Secret/artifact/session tidak bocor antar-application           | SECURITY           |
 | INV-12 | Production migration menunggu gate evidence                     | ACCEPTANCE         |
 
 ## 12. Evolusi dan status

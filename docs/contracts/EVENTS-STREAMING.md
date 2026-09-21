@@ -58,9 +58,9 @@ Terminal execution event dapat tiba sebelum usage final. Live token fragments ti
 
 ## 4. Replay contract
 
-Candidate window dari principal: 10 menit. Implementasi WAJIB membatasi juga total bytes/events per execution dan tenant; advertised earliest_available_cursor menjadi source untuk resume. Byte eviction dapat membuat cursor invalid lebih cepat; client tidak boleh dijanjikan 10 menit tanpa syarat kapasitas.
+Candidate window dari principal: 10 menit. Implementasi WAJIB membatasi juga total bytes/events per execution dan application; advertised earliest_available_cursor menjadi source untuk resume. Byte eviction dapat membuat cursor invalid lebih cepat; client tidak boleh dijanjikan 10 menit tanpa syarat kapasitas.
 
-GET dengan valid cursor menerima event sesudah cursor, tidak menjalankan model lagi. GET tanpa cursor menerima snapshot reference dan event dari posisi yang masih tersedia sesuai request policy; tidak mengarang prefix yang hilang. Stream reconnect ke execution lain/tenant lain ditolak, bukan dianggap cursor sah.
+GET dengan valid cursor menerima event sesudah cursor, tidak menjalankan model lagi. GET tanpa cursor menerima snapshot reference dan event dari posisi yang masih tersedia sesuai request policy; tidak mengarang prefix yang hilang. Stream reconnect ke execution lain/application lain ditolak, bukan dianggap cursor sah.
 
 Jika cursor tidak lagi tersedia, respond `410 STREAM_RESUME_EXPIRED` sebelum SSE headers, dengan `snapshot_url` yang tetap auth-protected. Bila kehilangan buffer terjadi setelah HTTP 200, emit `stream.reset_required` bila mungkin lalu tutup; client fetch snapshot. Native SSE transport tidak otomatis menyelesaikan flow 410 ini; SDK/BFF wajib menangani.
 

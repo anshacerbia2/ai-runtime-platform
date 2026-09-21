@@ -25,7 +25,7 @@ Claude Agent SDK cost dapat berupa client-side estimate; tidak disamakan dengan 
 
 ## 3. Granularity dan identifiers
 
-Tenant/application -> optional process/step/conversation -> execution -> attempt -> invocation -> observations. Provider request ID selalu disertai provider/account binding dan invocation context; ID kosong tidak menjadi dedup key global. Source sequence/revision membedakan update valid dari duplicate.
+Application -> optional process/step/conversation -> execution -> attempt -> invocation -> observations. Provider request ID selalu disertai provider/account binding dan invocation context; ID kosong tidak menjadi dedup key global. Source sequence/revision membedakan update valid dari duplicate.
 
 Observation minimum: ID, execution/attempt/invocation refs, source type + source event ID/revision, observed_at/received_at, counters/unit semantics, requested/resolved model/provider, credential-binding reference nonsecret, measurement status, cost basis, price version bila estimated, evidence digest/reference, verification status.
 
@@ -37,7 +37,7 @@ PostgreSQL menyimpan account, reservation, committed charge, adjustment, serta o
 
 Satu account scope mempunyai `limit`, `posted_charge`, `outstanding_hold`, dan `revision`. Available dihitung `limit - posted_charge - outstanding_hold`. Gunakan fixed integer minor units (misalnya micro-USD) dengan currency/unit eksplisit, checked range, dan aturan rounding yang terdokumentasi. Jangan pakai float untuk settlement. Angka ilustrasi berikut memakai unit internal, bukan harga provider.
 
-Scopes yang dipakai (tenant/app/profile/process bila configured) diperiksa bersama dengan deterministic lock order. Reservation terkait period/window yang ditetapkan saat admission; pergantian periode tidak menghapus outstanding hold. Kebijakan rebooking lintas periode/credit/FX harus ditetapkan accounting owner, bukan mengubah window worker-side.
+Scopes yang dipakai (app/profile/process bila configured) diperiksa bersama dengan deterministic lock order. Reservation terkait period/window yang ditetapkan saat admission; pergantian periode tidak menghapus outstanding hold. Kebijakan rebooking lintas periode/credit/FX harus ditetapkan accounting owner, bukan mengubah window worker-side.
 
 ## 5. Atomic admission protocol
 

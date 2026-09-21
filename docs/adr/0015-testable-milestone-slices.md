@@ -44,4 +44,4 @@ Panduan: [M0 local development](../development/M0.md). Review terbuka: [OPEN-QUE
 
 ## Subsequent platform generalization
 
-M0 local stack remains a testable contract slice. ADR-0019–ADR-0022 extend the target platform with application/connection registries, credential bindings, plugin packaging, optional workspaces, and distributed runners; none of those features are implied by the M0 local credential or single-machine development topology.
+M0 local stack remains a testable contract slice. ADR-0019–ADR-0024 extend the target platform with application/connection registries, credential bindings, plugin packaging, optional workspaces, distributed runners, ATI One internal-app integration, and CDD/token-strict frontend architecture; none of those features are implied by the M0 local credential or single-machine development topology.

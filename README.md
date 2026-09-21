@@ -2,7 +2,7 @@
 
 Shared AI execution platform untuk aplikasi yang membutuhkan direct chat, structured inference, atau agent/tools. **App owns business workflow; platform owns AI execution.**
 
-**M0 Contract Lab · 0.3.0-m0.** Frontend, backend, dan PostgreSQL lokal tersedia untuk mencoba kontrak dan menyimpan riwayat validasi. Belum ada panggilan AI, agent, atau billing. Arsitektur target tetap baseline 0.2; M1 dan fase berikutnya belum diimplementasikan.
+**M0 Contract Lab · 0.3.0-m0 tetap runnable.** M1 registry foundation pertama juga sedang **IN PROGRESS** di working implementation: Application/AI Connection/Credential metadata + read-only Control Plane slice tersedia lokal, sementara Keycloak, management mutations, admission/accounting, runner hot state, provider execution, agent, dan billing belum selesai. Arsitektur target tetap baseline 0.2 plus adopted extensions.
 
 **Fixed implementation stack:** NestJS + Fastify HTTP adapter + Prisma + PostgreSQL; frontend React/TypeScript + Vite. Struktur dan aturan dependency: [CODE-STRUCTURE](docs/architecture/CODE-STRUCTURE.md). Keputusan stack: [ADR-0016](docs/adr/0016-nestjs-fastify.md)–[ADR-0018](docs/adr/0018-clean-architecture-quality.md). Platform-control/fleet decisions: [ADR-0019](docs/adr/0019-application-connections-credentials.md)–[ADR-0022](docs/adr/0022-distributed-runner-fleet.md). Stack sudah diterapkan pada M0; fitur produksi tetap mengikuti gate.
 

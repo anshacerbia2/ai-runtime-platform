@@ -18,7 +18,7 @@ Stale worker boleh menghasilkan candidate artifact tetapi tidak dapat mengubah o
 
 ## 3. Access dan retention
 
-Setiap metadata/read/list/grant memeriksa tenant/application/actor permissions. Signed URL berumur pendek dan scope object/method; dicabut atau expired sesuai incident process sejauh mekanisme mendukung. Secrets, credentials, dan raw prompts tidak ditempatkan pada public object metadata/filenames.
+Setiap metadata/read/list/grant memeriksa application/actor permissions. Signed URL berumur pendek dan scope object/method; dicabut atau expired sesuai incident process sejauh mekanisme mendukung. Secrets, credentials, dan raw prompts tidak ditempatkan pada public object metadata/filenames.
 
 Retention ditentukan per data class/profile: input, output, workspace, transcript, usage metadata, quarantine. Principal menyebut 30–90 hari sebagai arah policy object store; baseline tidak menjadikannya universal. Tidak ada audit SoR permanen otomatis untuk semua payload. Legal/data policy owner menetapkan retention/deletion/hold sebelum produksi.
 
@@ -34,7 +34,7 @@ Cleanup berjalan setelah local exit terkonfirmasi dan required artifact/evidence
 
 Conversation ID dimiliki app; platform tidak menguasai history bisnis. Direct chat dapat stateless dengan messages setiap call. Optional runtime session menyimpan authorized pointer/checkpoint untuk same-runtime continuity, bukan janji persistent business memory.
 
-Session record: tenant/application, session ID, runtime/version, profile revision, owner actor scope, expected revision, active execution, checkpoint ref, expiry. Satu writer per session; concurrent send dengan revision sama memberi 409 SESSION_BUSY/SESSION_REVISION_CONFLICT. Resume harus memastikan prior writer fenced/terminated sesuai recovery policy.
+Session record: application, session ID, runtime/version, profile revision, owner actor scope, expected revision, active execution, checkpoint ref, expiry. Satu writer per session; concurrent send dengan revision sama memberi 409 SESSION_BUSY/SESSION_REVISION_CONFLICT. Resume harus memastikan prior writer fenced/terminated sesuai recovery policy.
 
 Idempotent replay submission memakai session revision awal, bukan mengirim ulang pesan ke session yang sudah maju. Branching conversation dinyatakan sebagai session baru dengan authorized snapshot bila runtime mendukung. Cross-runtime atau incompatible version resume ditolak; app dapat mengirim portable summary/artifacts ke new execution dengan label restart, bukan resume transparan.
 

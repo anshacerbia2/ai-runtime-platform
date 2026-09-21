@@ -6,11 +6,11 @@
 
 ## Context
 
-Agent tools can execute code/read files/network. Workspace directory and runtime prompts do not establish host/tenant isolation.
+Agent tools can execute code/read files/network. Workspace directory and runtime prompts do not establish host/application isolation.
 
 ## Decision
 
-Out-of-control-plane sandbox with approved image/package digest, least privilege, no host socket/mount secrets, scoped grants, egress policy, resource caps. Per-app/tenant auth on every resource. Credential/data policy reviewed before live use. Untrusted content cannot grant permissions. Sandbox technology selected and tested via threat model.
+Out-of-control-plane sandbox with approved image/package digest, least privilege, no host socket/mount secrets, scoped grants, egress policy, resource caps. Per-application auth on every resource. Credential/data policy reviewed before live use. Untrusted content cannot grant permissions. Sandbox technology selected and tested via threat model.
 
 ## Alternatives considered
 

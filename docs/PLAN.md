@@ -34,6 +34,8 @@ Tidak termasuk saat ini: business-job database bersama, universal agent translat
 
 ### P1 — Durable control plane dan accounting foundation
 
+**Status:** IN PROGRESS — registry foundation FE/BE/PostgreSQL tersedia; Keycloak, management authority/mutations, admission/accounting, runner hot state, dan P1 gates belum selesai. Evidence: [M1](milestones/M1.md).
+
 **Dependency:** P0. **Owner roles:** platform backend + storage/security.
 
 Bangun Keycloak-backed authentication/authorization per aplikasi, **Application Registry, AI Connection Registry, Credential Binding, Runner Registry/Pool**, profile registry/version snapshot, idempotency record, execution/attempt state, budget account/reservation/observation/ledger, durable cancel intent, outbox/inbox, audit query, dan artifact metadata. Implementasi awal memilih PostgreSQL sebagai correctness authority, Redis untuk hot runner/lease/capacity tier. Actual provider secret berada di secret manager/workload identity atau runner-local store; database hanya menyimpan reference/metadata. Budget transaction memeriksa semua scope dalam urutan lock stabil; rejected reservation tidak mengubah pool.
@@ -102,13 +104,14 @@ P0 mengunci vocabulary; P1 mengunci durability/identity. Setelah itu gateway dan
 
 Sebuah phase selesai bila deliverable ada, test evidence tersedia, source/contract/diagram selaras, security/data requirements ditinjau, dan rollback/operasi didokumentasikan. Build pass atau diagram rapi sendiri tidak cukup. [ROADMAP](ROADMAP.md) hanya merangkum status phase, bukan menggandakan requirement detail.
 
-## 5. New platform-control workstream
+## 5. Cross-cutting workstreams
 
-Req 21 September menambah empat workstream lintas phase:
+Req 21–22 September menambah lima workstream lintas phase:
 
 1. **Application & Connection Control (P1):** Keycloak mapping, Application Registry, AI Connection Registry, credential instances/bindings, dedicated/shared allow-list, secret references, Admin UI foundation.
 2. **Plugin Packaging (P2–P3):** immutable plugin registry/version/digest/compatibility, ephemeral materialization, supply-chain verification.
 3. **Workspace & Remote Tools (P3):** optional workspace modes, generic artifact promotion, MCP/HTTP/RPC remote tools without making MCP mandatory.
 4. **Distributed Fleet (P1 registry; P3 placement):** runner self-registration, pools, capability/capacity/connection advertisement, Redis liveness, drain/offline/disable, placement and quota-group awareness.
+5. **ATI One Internal App + CDD Frontend (P1 onward):** dedicated Keycloak client and silent SSO, mount-path/proxy/cookie contract, AI Platform semantic design tokens, component-driven primitives/components/compositions, isolated accessibility/visual-regression coverage, dan incremental migration dari M0 page-level CSS.
 
-P3.5 wajib menguji cross-app connection isolation, plugin/workspace containment, runner-local credentials, shared-account quota semantics, drain/failover, dan fencing sebelum P4 production migration.
+P1 nonlocal readiness wajib mencakup ATI One mount/SSO/proxy isolation dan application-scoped authorization. P3.5 tetap wajib menguji cross-app connection isolation, plugin/workspace containment, runner-local credentials, shared-account quota semantics, drain/failover, dan fencing sebelum P4 production migration.

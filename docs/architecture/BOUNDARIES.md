@@ -6,7 +6,7 @@
 
 | Actor                        | Boleh                                                                                | Tidak boleh                                                                    |
 | ---------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
-| App backend/service          | Submit sesuai profile, baca/cancel execution miliknya, baca usage/artifact scope-nya | Memalsukan tenant, memilih secret arbitrary, mengubah ledger                   |
+| App backend/service          | Submit sesuai profile, baca/cancel execution miliknya, baca usage/artifact scope-nya | Memalsukan application scope, memilih secret arbitrary, mengubah ledger        |
 | Chat UI                      | Mengirim melalui BFF; alternatif delegated token sempit                              | Menyimpan service/provider key                                                 |
 | Profile owner (app/team)     | Versioning cognitive harness, input/output schemas, acceptance criteria              | Memperluas sandbox permission sendiri tanpa policy approval                    |
 | Platform operator            | Mengelola rollout, budgets, runtime availability, recovery                           | Mengubah outcome bisnis atau membuang evidence untuk membuat angka tampak baik |
@@ -26,15 +26,17 @@
 
 Platform tidak perlu mengenal nama job bisnis atau status seperti document-approved. Correlation IDs diperlakukan sebagai label opaque, bukan foreign key ke database aplikasi.
 
-## Identitas dan tenancy
+## Identitas dan application scope
 
-`application_id` berasal dari service principal; `tenant_id` dari authorized binding/claim. `actor_ref` opsional untuk attribution delegated-user, hanya dari token/claim terpercaya. Scope minimal mencakup submit, read-own, cancel-own, read-artifact, read-usage. Admin profile/credential/ledger scopes terpisah.
+`application_id` berasal dari authenticated service principal/client binding. `actor_ref` opsional untuk attribution delegated-user dan hanya berasal dari token/claim terpercaya. Scope minimal mencakup submit, read-own, cancel-own, read-artifact, dan read-usage. Admin profile/credential/ledger scopes terpisah.
 
-Aplikasi tidak boleh membaca execution aplikasi lain hanya karena berbagi tenant. Cross-app sharing memerlukan explicit grant. Kebijakan tenant/session/artifact/usage ditegakkan pada setiap read, list, stream, cancel, dan object grant. Cache key mencakup tenant/application dan authorization scope; shared semantic cache tidak aktif pada MVP.
+Aplikasi tidak boleh membaca resource aplikasi lain tanpa explicit cross-app grant. Application/session/artifact/usage policy ditegakkan pada setiap read, list, stream, cancel, dan object grant. Cache key mencakup application dan authorization scope; shared semantic cache tidak aktif pada MVP.
 
-## Hubungan dengan platform organisasi lain
+Saat ini deployment diasumsikan berada dalam satu organisasi, sehingga Organization/Tenant bukan runtime authority atau required contract field. Jika kelak dibutuhkan multi-organization, parent scope diperkenalkan melalui versioned architecture/data migration tanpa mengubah ownership Application hari ini.
 
-Repository lain tidak otomatis menjadi dependency runtime hanya karena ada di folder yang sama. Adapter identitas dapat memakai identity platform organisasi bila kontrak/auth service tersedia; jangan membangun IdP baru. Organization context diterima sebagai validated claims, bukan menyalin seluruh domain organization.
+## Hubungan dengan platform lain
+
+Repository lain tidak otomatis menjadi dependency runtime hanya karena ada di folder yang sama. Identity integration memakai Keycloak/ATI One contract yang ditetapkan untuk aplikasi ini; platform tidak membangun IdP baru.
 
 Scheduling bisnis tetap di aplikasi/scheduling platform. Retry/backoff/lease reconciliation internal adalah mekanisme eksekusi, bukan penjadwalan bisnis. Notification produk tetap di app/notification platform; baseline AI Runtime menyediakan status/SSE, tidak menambahkan notification engine. Foundation observability/idempotency package dapat direuse setelah contract review, tidak diasumsikan kompatibel.
 

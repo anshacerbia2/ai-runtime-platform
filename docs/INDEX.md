@@ -1,6 +1,6 @@
 # Documentation Index
 
-**Baseline 0.2 · 20 September 2026.** Entry point: [README](../README.md). Scope now includes the local M0 Contract Lab; full AI runtime remains planned. [ADR](adr/README.md) is the active architectural decision reference.
+**Baseline 0.2 + adopted extensions through ADR-0024.** Entry point: [README](../README.md). M0 Contract Lab remains runnable; M1 registry foundation is in progress while full AI execution remains planned. [ADR](adr/README.md) is the active architectural decision reference.
 
 ## Authority and traceability
 
@@ -79,16 +79,17 @@ ADRs record decisions and trade-offs; architecture explains the system; detailed
 
 ## Recommended reading
 
-App integrators: Architecture -> API -> profile/tool/artifact contracts -> application migration. Platform implementers: Architecture -> ADRs -> lifecycle/recovery/accounting -> data/deployment -> gates. Security/accounting reviewers: relevant ADRs -> detailed controls -> acceptance and open decisions. Traceability and diagram catalogues provide topic-specific entry points.
+App integrators: Architecture -> API -> profile/tool/artifact contracts -> application migration. Frontend implementers: Frontend Architecture -> ADR-0023/0024 -> ATI One integration gates -> component/token quality gates. Platform implementers: Architecture -> ADRs -> lifecycle/recovery/accounting -> data/deployment -> gates. Security/accounting reviewers: relevant ADRs -> detailed controls -> acceptance and open decisions. Traceability and diagram catalogues provide topic-specific entry points.
 
 ## Status conventions
 
 Adopted in documentation means a baseline design choice, not implementation proof. PLANNED and NOT RUN refer to future implementation. ADR review and implementation verification remain separate; open requirements retain owners and closure gates instead of fabricated production values. Repointing references does not close pending reviews or create new approval.
 
-## Runnable M0
+## Runnable milestones
 
-- [Local setup, ports, data and manual tests](development/M0.md)
+- [Local M0 setup, ports, data and manual tests](development/M0.md)
 - [M0 scope and verification evidence](milestones/M0.md)
+- [M1 durable control-plane foundation](milestones/M1.md)
 - [ADR-0015: milestone vertical slices](adr/0015-testable-milestone-slices.md)
 
 ## Platform control and distributed execution

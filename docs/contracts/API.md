@@ -8,7 +8,7 @@ Local Contract Lab berjalan di `/api/m0/*`, terpisah dari semua endpoint executi
 
 ## 1. Transport dan identitas
 
-HTTPS wajib di deployment produksi. Service credential ber-scope atau delegated user token divalidasi oleh platform. Tenant/application/actor diturunkan dari token dan binding server. Body tidak dapat mengganti identity. Browser secara default memakai app BFF; no provider key di client.
+HTTPS wajib di deployment produksi. Service credential ber-scope atau delegated user token divalidasi oleh platform. Application/actor diturunkan dari token dan binding server. Body tidak dapat mengganti identity. Browser secara default memakai app BFF; no provider key di client.
 
 Header umum: `Authorization`, `Idempotency-Key` untuk submission, `traceparent` opsional, `Content-Type: application/json`. `X-Request-ID` adalah server request ID. `X-Execution-ID` dikembalikan setelah admission committed. Trace/correlation user bukan bukti authority.
 
@@ -22,7 +22,7 @@ Header umum: `Authorization`, `Idempotency-Key` untuk submission, `traceparent` 
 | GET `/v1/executions/{id}`          | Authorized read                                                | Snapshot otoritatif termasuk result/accounting state                 |
 | GET `/v1/executions/{id}/events`   | Optional `Last-Event-ID`                                       | SSE 200 atau 410 cursor expired dengan snapshot URL                  |
 | POST `/v1/executions/{id}/cancel`  | Optional reason                                                | 202 jika cancel intent baru/ongoing; 200 jika sudah terminal         |
-| GET `/v1/executions`               | Filter process/step/conversation/status + page cursor          | Scoped list; tidak boleh enumerate tenant lain                       |
+| GET `/v1/executions`               | Filter process/step/conversation/status + page cursor          | Scoped list; tidak boleh enumerate application lain                  |
 | GET `/v1/usage`                    | Filter time/process/step/execution + page cursor               | Scoped observations/aggregates, completeness dan pending total       |
 | GET `/v1/capabilities`             | Caller-scoped request                                          | Published profiles/capabilities yang caller boleh gunakan            |
 | POST `/v1/artifacts`               | Metadata upload intent                                         | Scoped upload grant dan artifact ID                                  |
@@ -148,7 +148,7 @@ Plugin/harness digest terikat profile; caller boleh memilih hanya package versio
 
 ## 8. Idempotency
 
-Scope key: tenant + application + operation family `execution-submit` + caller key. Facade dan generic submission dinormalisasi ke common digest agar key yang sama tidak membuat duplikasi lintas endpoint. Digest mencakup typed input, profile reference, constraints, authorized artifact hashes, session revision bila relevan. Trace ID/timestamp transport dikecualikan.
+Scope key: application + operation family `execution-submit` + caller key. Facade dan generic submission dinormalisasi ke common digest agar key yang sama tidak membuat duplikasi lintas endpoint. Digest mencakup typed input, profile reference, constraints, authorized artifact hashes, session revision bila relevan. Trace ID/timestamp transport dikecualikan.
 
 Satu unique record mengikat key ke canonical request digest dan execution. Same key + same digest mengembalikan execution semula, termasuk ketika masih running. Same key + different digest memberi 409 `IDEMPOTENCY_CONFLICT`. Concurrent duplicate diserialisasi oleh unique constraint/transaction, bukan check-then-insert di cache.
 
