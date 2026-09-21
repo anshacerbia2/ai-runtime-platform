@@ -5,8 +5,11 @@ import {
 } from '../../shared/api/lab-client.js';
 import { errorMessage } from '../../shared/api/http-client.js';
 import { prettyJson } from '../../shared/lib/json.js';
-import { Button } from '../../shared/ui/button.js';
-import { Panel, PanelHeader } from '../../shared/ui/panel.js';
+import { Button } from '../../design-system/primitives/button.js';
+import { Badge } from '../../design-system/components/badge.js';
+import { DataTable } from '../../design-system/components/data-table.js';
+import { EmptyState } from '../../design-system/components/empty-state.js';
+import { Panel, PanelHeader } from '../../design-system/components/panel.js';
 
 export function HistoryPage({
   onError,
@@ -57,74 +60,88 @@ export function HistoryPage({
   }
 
   return (
-    <Panel>
-      <PanelHeader
-        title="Metadata validasi"
-        aside={
-          <Button disabled={busy} onClick={() => void load()}>
-            Refresh dari DB
-          </Button>
-        }
-      />
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>WAKTU</th>
-              <th>KONTRAK</th>
-              <th>STATUS</th>
-              <th>RECORD</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((row) => (
-              <tr key={row.id}>
-                <td>{new Date(row.created_at).toLocaleString('id-ID')}</td>
-                <td>{row.kind}</td>
-                <td>
-                  <span className={'pill ' + (row.valid ? 'pass' : 'fail')}>
-                    {row.valid ? 'VALID' : 'INVALID'}
-                  </span>
-                </td>
-                <td className="mono">{row.id.slice(0, 13)}…</td>
-                <td>
-                  <button
-                    className="text-button"
-                    onClick={() => setSelected(row)}
-                  >
-                    Detail
-                  </button>
-                </td>
+    <div className="audit-layout">
+      <Panel>
+        <PanelHeader
+          title="Validation records"
+          description="Application-scoped contract metadata persisted in PostgreSQL."
+          aside={
+            <Button size="sm" disabled={busy} onClick={() => void load()}>
+              Refresh
+            </Button>
+          }
+        />
+        {items.length ? (
+          <DataTable label="Validation records">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Contract</th>
+                <th>Result</th>
+                <th>Record</th>
+                <th>
+                  <span className="sr-only">Action</span>
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {!items.length && (
-        <p className="table-empty">
-          Belum ada validasi. Mulai dari Contract Lab.
-        </p>
-      )}
-      {cursor && (
-        <button
-          className="secondary load-more"
-          disabled={busy}
-          onClick={() => void load(true)}
-        >
-          Muat berikutnya
-        </button>
-      )}
-      {selected && (
-        <details className="saved-detail" open>
-          <summary>Record {selected.id}</summary>
-          <pre>{prettyJson(selected)}</pre>
-        </details>
-      )}
-      <div className="privacy-note">
-        Yang tersimpan: digest, bentuk request, profile, hasil validasi, dan
-        waktu. Prompt mentah, provider key, dan job bisnis tidak disimpan.
-      </div>
-    </Panel>
+            </thead>
+            <tbody>
+              {items.map((row) => (
+                <tr key={row.id}>
+                  <td>{new Date(row.created_at).toLocaleString('id-ID')}</td>
+                  <td>
+                    <code>{row.kind}</code>
+                  </td>
+                  <td>
+                    <Badge tone={row.valid ? 'success' : 'danger'}>
+                      {row.valid ? 'VALID' : 'INVALID'}
+                    </Badge>
+                  </td>
+                  <td className="mono">{row.id.slice(0, 13)}…</td>
+                  <td>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelected(row)}
+                    >
+                      Inspect
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </DataTable>
+        ) : (
+          <EmptyState
+            title="No validation records yet"
+            description="Create a validation from Contract Lab to populate this durable audit view."
+          />
+        )}
+        {cursor ? (
+          <div className="panel-actions">
+            <Button disabled={busy} onClick={() => void load(true)}>
+              Load more
+            </Button>
+          </div>
+        ) : null}
+      </Panel>
+      <Panel className="audit-inspector">
+        <PanelHeader
+          title="Record inspector"
+          description="Raw durable metadata for the selected validation."
+        />
+        {selected ? (
+          <pre className="code-surface">{prettyJson(selected)}</pre>
+        ) : (
+          <EmptyState
+            title="Select a record"
+            description="Choose Inspect from the table to view the complete stored metadata."
+          />
+        )}
+        <div className="privacy-note">
+          Raw prompts, provider credentials, and business-job data are not
+          persisted by Contract Lab.
+        </div>
+      </Panel>
+    </div>
   );
 }

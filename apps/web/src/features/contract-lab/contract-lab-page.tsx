@@ -1,4 +1,5 @@
 import type { LabResources } from '../../shared/api/lab-client.js';
+import { Badge } from '../../design-system/components/badge.js';
 import { usePlayground } from './hooks/use-playground.js';
 import { ScenarioPicker } from './components/scenario-picker.js';
 import { RequestEditor } from './components/request-editor.js';
@@ -23,17 +24,17 @@ export function ContractLabPage({
       (item) => item.profile === payload.profile,
     );
   } catch {
-    /* An incomplete editor document has no resolved profile. */
+    // Incomplete JSON has no resolved profile yet.
   }
 
   return (
-    <>
+    <div className="contract-workbench">
       <ScenarioPicker
         examples={resources.examples}
         selected={lab.selected}
         onChoose={lab.choose}
       />
-      <div className="work-grid">
+      <div className="workbench-grid">
         <RequestEditor
           kind={lab.kind}
           payload={lab.payload}
@@ -51,17 +52,24 @@ export function ContractLabPage({
           onHistory={onHistory}
         />
       </div>
-      <div className="flow-strip">
-        <b>Contract validation flow</b>
-        <span>Frontend</span>
-        <i>→</i>
-        <span>Nest use case</span>
-        <i>→</i>
-        <span>Prisma / PostgreSQL</span>
-        <i>→</i>
-        <span>Hasil ke frontend</span>
-        <small>Tidak menuju provider</small>
-      </div>
-    </>
+      <section
+        className="execution-boundary"
+        aria-label="Contract validation boundary"
+      >
+        <div>
+          <span className="ds-eyebrow">Execution boundary</span>
+          <strong>Contract validation stops before provider execution.</strong>
+        </div>
+        <div className="boundary-flow">
+          <Badge>Frontend</Badge>
+          <span>→</span>
+          <Badge>Nest use case</Badge>
+          <span>→</span>
+          <Badge>PostgreSQL</Badge>
+          <span>→</span>
+          <Badge tone="success">Durable result</Badge>
+        </div>
+      </section>
+    </div>
   );
 }

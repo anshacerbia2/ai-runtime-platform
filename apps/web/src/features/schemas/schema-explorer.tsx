@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { prettyJson } from '../../shared/lib/json.js';
-import { Button } from '../../shared/ui/button.js';
-import { Panel, PanelHeader } from '../../shared/ui/panel.js';
+import { Button } from '../../design-system/primitives/button.js';
+import { Badge } from '../../design-system/components/badge.js';
+import { Panel, PanelHeader } from '../../design-system/components/panel.js';
 
 export function SchemaExplorer({
   schemas,
@@ -10,6 +11,7 @@ export function SchemaExplorer({
   schemas: Record<string, unknown>;
   onError(error: string): void;
 }) {
+  const names = Object.keys(schemas);
   const [name, setName] = useState('ChatRequest');
   const [copied, setCopied] = useState(false);
 
@@ -23,45 +25,61 @@ export function SchemaExplorer({
   }
 
   return (
-    <Panel>
-      <PanelHeader
-        title="Contract registry"
-        aside={
-          <a
-            className="text-button"
-            href="/api/m0/openapi.json"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Buka OpenAPI ↗
-          </a>
-        }
-      />
-      <div className="schema-tools">
-        <label>
-          Schema
-          <select
-            aria-label="Pilih schema"
-            value={name}
-            onChange={(event) => {
-              setName(event.target.value);
-              setCopied(false);
-            }}
-          >
-            {Object.keys(schemas).map((item) => (
-              <option key={item}>{item}</option>
-            ))}
-          </select>
-        </label>
-        <Button onClick={() => void copy()}>
-          {copied ? 'Tersalin' : 'Salin schema'}
-        </Button>
-      </div>
-      <p className="schema-disclaimer">
-        Schema /v1 adalah draft kontrak. API /v1 belum dijalankan di M0;
-        endpoint aktif hanya /api/m0/*.
-      </p>
-      <pre className="schema-code">{prettyJson(schemas[name])}</pre>
-    </Panel>
+    <div className="schema-layout">
+      <Panel className="schema-catalogue">
+        <PanelHeader
+          title="Contract catalogue"
+          description={`${names.length} generated schemas`}
+          aside={<Badge tone="info">TypeScript source</Badge>}
+        />
+        <div className="schema-list" role="list" aria-label="Schema catalogue">
+          {names.map((item) => (
+            <button
+              key={item}
+              role="listitem"
+              className={`schema-list-item ${name === item ? 'is-active' : ''}`}
+              onClick={() => {
+                setName(item);
+                setCopied(false);
+              }}
+            >
+              <span>{item}</span>
+              <small>JSON Schema</small>
+            </button>
+          ))}
+        </div>
+      </Panel>
+      <Panel className="schema-viewer">
+        <PanelHeader
+          title={name}
+          description="Generated contract used by the validation boundary."
+          aside={
+            <div className="inline-actions">
+              <a
+                className="ds-link-button"
+                href="/api/m0/openapi.json"
+                target="_blank"
+                rel="noreferrer"
+              >
+                OpenAPI ↗
+              </a>
+              <Button size="sm" onClick={() => void copy()}>
+                {copied ? 'Copied' : 'Copy schema'}
+              </Button>
+            </div>
+          }
+        />
+        <div className="schema-banner">
+          <Badge tone="warning">Draft runtime</Badge>
+          <span>
+            /v1 schemas describe the target API; M0 serves validation endpoints
+            under /api/m0.
+          </span>
+        </div>
+        <pre className="code-surface schema-code">
+          {prettyJson(schemas[name])}
+        </pre>
+      </Panel>
+    </div>
   );
 }

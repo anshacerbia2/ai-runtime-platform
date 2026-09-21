@@ -1,6 +1,6 @@
 # Frontend Architecture — ATI One Internal App, CDD, and Design Tokens
 
-**Status:** target architecture; M0 Contract Lab remains a transitional implementation.
+**Status:** implemented locally for the current M0/M1 console. CDD layering, semantic tokens, reusable primitives/components/compositions, responsive shell, and token-bypass enforcement are active. Live ATI One embedding/SSO remains external deployment evidence.
 **Decisions:** [ADR-0023](../adr/0023-ati-one-internal-app.md), [ADR-0024](../adr/0024-component-driven-ui-tokens.md).
 
 ## 1. Product placement
@@ -50,9 +50,9 @@ tokens
 
 Feature/page code must not be imported into shared component layers.
 
-## 4. Target source shape
+## 4. Implemented source shape
 
-The current source can migrate incrementally toward:
+The current frontend now follows:
 
 ```text
 apps/web/src/
@@ -62,12 +62,11 @@ apps/web/src/
     bootstrap/
 
   design-system/
-    tokens/
-    primitives/
-    components/
-    compositions/
-    testing/
-    index.ts
+    tokens/              # raw token source only
+    primitives/          # leaf controls such as Button
+    components/          # Badge, Panel, MetricCard, DataTable, EmptyState, icons
+    compositions/        # AppShell and PageHeader
+    system.css           # semantic-token consumer; no raw palette values
 
   features/
     contract-lab/
@@ -107,7 +106,7 @@ Feature code consumes semantics such as surface, text, action, status, border, f
 
 Outside the token adapter/source, the target is no direct hardcoded colors, spacing, radii, elevation, type scale, motion timing, or z-index.
 
-The existing M0 `apps/web/src/styles.css` is transitional. It records prototype intent but is not a token authority.
+`apps/web/src/styles.css` is now only the stylesheet entry point. Raw visual values live in `design-system/tokens/tokens.css`; `design-system/system.css` and all feature/component code consume semantic `--ds-*` tokens. `npm run ui:check` rejects raw color literals, obvious raw spacing/radius/font-size values, and inline-style bypasses outside the token source.
 
 ## 6. Component-Driven Development
 
@@ -191,7 +190,7 @@ Accessibility belongs in reusable components so features inherit it by default.
 
 ## 9. Application shell
 
-The current M0 workspace has useful operational density, but the target shell should be componentized rather than one large workspace component.
+The previous monolithic M0 workspace shell has been replaced by the implemented `AppShell` composition with product-level navigation groups, a compact top bar, responsive page region, and shared `PageHeader` composition.
 
 ```text
 <AppShell>
@@ -221,13 +220,11 @@ The app must work in both the normal ATI One internal-app viewport and ATI One's
 
 ## 11. Quality gates
 
-Target frontend checks include typecheck/lint, dependency direction, token-bypass linting, component behavior tests, isolated accessibility tests, component visual regression, ATI One mount-prefix browser tests, OIDC silent-login/logout tests, responsive embedded/expanded tests, and production build/bundle checks.
+Current local frontend checks include typecheck/lint, dependency direction, `npm run ui:check`, browser flow coverage for Contract Lab/History/Schema/Control Plane, phone overflow checks, desktop/mobile screenshots, semantic focus handling, reduced-motion handling, and production build checks. Live ATI One mount/SSO/cookie verification remains a nonlocal G36–G38 evidence item.
 
-## 12. M0 migration rule
+## 12. Migration status
 
-Do not freeze platform work for a one-shot CSS rewrite. New reusable UI follows this architecture immediately; existing selectors migrate incrementally when touched.
-
-A migrated area has equivalent behavior, isolated component-state coverage, reviewed visual parity, semantic-token/component consumption, and no obsolete page-level rules.
+The M0/M1 console has completed the first full CDD/token migration: legacy shared Button/Panel/Badge/PageHeading/StatusOverview/WorkspaceShell implementations were removed, product navigation moved to `AppShell`, all current feature surfaces consume the shared design-system layer, and the visual source moved behind semantic tokens. Future M2/M3 feature UI must extend these contracts instead of reintroducing page-level primitives.
 
 ## Non-goals
 

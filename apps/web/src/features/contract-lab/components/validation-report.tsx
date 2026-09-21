@@ -1,27 +1,17 @@
 import type { ProfileType } from '@ai-runtime/contracts';
 import type { SavedValidation } from '../../../shared/api/lab-client.js';
+import { Button } from '../../../design-system/primitives/button.js';
+import { Badge } from '../../../design-system/components/badge.js';
+import { EmptyState } from '../../../design-system/components/empty-state.js';
+import { Panel, PanelHeader } from '../../../design-system/components/panel.js';
 
 function EmptyReport() {
   return (
-    <div className="empty-result">
-      <div className="empty-icon">✓</div>
-      <h3>Siap menerima request.</h3>
-      <p>
-        Klik validasi untuk mengecek schema dan kecocokan profile. Hasil akan
-        disimpan di PostgreSQL.
-      </p>
-      <div className="check-list">
-        <span>
-          01 <b>Schema & field</b>
-        </span>
-        <span>
-          02 <b>Capability & batas profile</b>
-        </span>
-        <span>
-          03 <b>Persistence & request ID</b>
-        </span>
-      </div>
-    </div>
+    <EmptyState
+      icon="✓"
+      title="Ready for validation"
+      description="Run the request to validate schema, capability, profile limits, and durable persistence."
+    />
   );
 }
 
@@ -35,26 +25,33 @@ export function ValidationReport({
   onHistory(): void;
 }) {
   return (
-    <section className="panel result-panel">
-      <div className="panel-head">
-        <h2>Hasil pemeriksaan</h2>
-        <span className="step-label">02 / EVALUASI</span>
-      </div>
+    <Panel className="workbench-result">
+      <PanelHeader
+        title="Validation result"
+        description="Normalized contract outcome and resolved platform metadata."
+        aside={
+          <Badge tone={saved?.valid ? 'success' : saved ? 'danger' : 'neutral'}>
+            {saved ? (saved.valid ? 'VALID' : 'REJECTED') : 'WAITING'}
+          </Badge>
+        }
+      />
       {!saved ? (
         <EmptyReport />
       ) : (
         <div className="result-content" aria-live="polite">
-          <div className={'verdict ' + (saved.valid ? 'valid' : 'invalid')}>
-            <span>{saved.valid ? '✓' : '!'}</span>
+          <div
+            className={`result-verdict ${saved.valid ? 'is-valid' : 'is-invalid'}`}
+          >
+            <div className="result-symbol">{saved.valid ? '✓' : '!'}</div>
             <div>
               <strong data-testid="verdict">
                 {saved.valid ? 'Kontrak valid' : 'Kontrak ditolak'}
               </strong>
-              <small>
+              <span>
                 {saved.replayed
                   ? 'Replay · tidak membuat record baru'
-                  : 'Record tersimpan di PostgreSQL'}
-              </small>
+                  : 'New durable validation record'}
+              </span>
             </div>
           </div>
           <dl className="result-meta">
@@ -64,7 +61,7 @@ export function ValidationReport({
             </div>
             <div>
               <dt>Profile</dt>
-              <dd>{saved.report.profile?.profile ?? 'Tidak resolved'}</dd>
+              <dd>{saved.report.profile?.profile ?? 'Unresolved'}</dd>
             </div>
             <div>
               <dt>Capability</dt>
@@ -75,37 +72,46 @@ export function ValidationReport({
               <dd className="mono">{saved.id}</dd>
             </div>
           </dl>
-          {saved.report.issues.map((issue, index) => (
-            <div className="issue" key={index}>
-              <code>{issue.path || '/'}</code>
-              <strong>{issue.code}</strong>
-              <p>{issue.message}</p>
+          {saved.report.issues.length ? (
+            <div className="issue-list">
+              {saved.report.issues.map((issue, index) => (
+                <article className="issue-card" key={index}>
+                  <div>
+                    <code>{issue.path || '/'}</code>
+                    <Badge tone="danger">{issue.code}</Badge>
+                  </div>
+                  <p>{issue.message}</p>
+                </article>
+              ))}
             </div>
-          ))}
+          ) : null}
           {saved.report.warnings.map((warning, index) => (
             <p className="notice" key={index}>
               {warning}
             </p>
           ))}
-          <button className="secondary full" onClick={onHistory}>
-            Lihat riwayat di database →
-          </button>
+          <Button variant="secondary" onClick={onHistory}>
+            Open validation history
+          </Button>
         </div>
       )}
-      <div className="profile-note">
-        <span className="tiny-label">PROFILE YANG DIPILIH</span>
-        <strong>{profile?.title ?? 'Belum ditemukan'}</strong>
+      <div className="profile-summary">
+        <span className="ds-eyebrow">Resolved profile</span>
+        <strong>{profile?.title ?? 'No profile resolved'}</strong>
         <p>
-          {profile?.description ?? 'Pilih profile yang tersedia pada skenario.'}
+          {profile?.description ??
+            'Choose a scenario with a published profile.'}
         </p>
         <div>
-          <span>{profile?.execution_path ?? '—'}</span>
-          <span>
-            {profile?.runtime_adapter ?? profile?.provider_adapter ?? '—'} ·
-            planned
-          </span>
+          <Badge>{profile?.execution_path ?? '—'}</Badge>
+          <Badge tone="info">
+            {profile?.runtime_adapter ??
+              profile?.provider_adapter ??
+              'No adapter'}{' '}
+            · planned runtime
+          </Badge>
         </div>
       </div>
-    </section>
+    </Panel>
   );
 }

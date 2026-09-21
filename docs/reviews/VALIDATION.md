@@ -112,3 +112,18 @@ M0 local runtime/tooling configuration was consolidated behind `config/environme
 Automated environment-boundary tests verify required values fail closed, boolean values are explicit, application/scripts source does not directly read env variables outside the gate, and no active source reads `.local/config.json`. Legacy `.local/config.json` was deleted after migration. The current M0+M1 suite now passes **30 contract tests, 24 unit/tooling tests, 30 integration tests, and 5 E2E tests**.
 
 `DATABASE_URL` is no longer an alternate input path, PostgreSQL binary discovery was removed, and required port/browser/timeout/pool/path values have no silent fallback. M1 extends the same single environment gate with separate local operator/runner credentials and fail-closed `m1-oidc` ATI One/OIDC configuration. The OIDC verifier is tested locally with generated signing keys/JWKS transport; live ATI Keycloak and production secret-manager/deployment evidence remain future work.
+
+## 11. Frontend CDD/design-system implementation — 22 September 2026
+
+The M0/M1 console now implements the frontend architecture in ADR-0024: semantic design tokens, leaf primitives, reusable components, explicit Sidebar/TopBar/PageRegion/PageHeader compositions, feature-owned orchestration, and a resource-based M1 Control Plane admin console.
+
+Local frontend evidence includes:
+
+- `npm run ui:check` PASS: raw color literals, obvious raw visual dimensions, and inline-style bypasses are rejected outside the token source;
+- frontend TypeScript typecheck PASS;
+- Playwright **5/5 PASS** across Contract Lab, validation replay, History, Schema Explorer, Delivery Plan, M1 Control Plane resources, desktop screenshot, and phone-width overflow checks;
+- mobile page width remains bounded while data tables retain their own scroll regions;
+- browser-visible Control Plane responses remain free of `secretRef`, `secret_ref`, and secret URI material;
+- reduced-motion and focus-visible behavior are provided by the shared design-system layer.
+
+This is local UI/architecture evidence. Live ATI One iframe/mount behavior, silent SSO, real Keycloak redirect/logout behavior, and production visual review remain external G36–G38 evidence.

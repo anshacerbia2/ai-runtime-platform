@@ -38,15 +38,22 @@ apps/
         contract-lab.module.ts
     cli/                        # seed/inspect entrypoints, not HTTP handlers
   web/src/
-    app/                        # composition and shared workspace state
+    app/                        # feature selection and shared workspace state
+    design-system/
+      tokens/                   # raw visual values -> semantic --ds-* contract
+      primitives/               # leaf controls
+      components/               # Badge, Panel, MetricCard, DataTable, EmptyState
+      compositions/             # AppShell, Sidebar, TopBar, PageRegion, PageHeader
+      system.css                # semantic-token consumer styles
     features/
-      contract-lab/             # page, hook, request/scenario/result components
-      history/                  # persisted validation history
-      schemas/                  # schema explorer
-      roadmap/                  # milestone guide
+      contract-lab/             # engineering workbench
+      control-plane/            # M1 operator resource console
+      history/                  # persisted validation audit surface
+      schemas/                  # technical schema catalogue
+      roadmap/                  # delivery reference
     shared/
       api/                      # typed HTTP client and response parsing
-      ui/                       # layout and reusable presentational components
+      ui/                       # exceptional shared feedback only
       lib/                      # small pure helpers
 packages/contracts/src/
   schemas/                      # requests, execution, events, profiles, errors
@@ -87,16 +94,14 @@ Authentication memiliki port/use case sendiri. Query history selalu application-
 
 Mulai dari `apps/api/src/modules/contract-lab/presentation/http/validations.controller.ts`, lalu `application/validate-contract.use-case.ts`, `application/ports/validation-repository.port.ts`, dan `infrastructure/prisma-validation.repository.ts`. Buka `contract-lab.module.ts` untuk melihat implementasi port yang di-inject. Unit tests menunjukkan use case dapat dijalankan tanpa HTTP/Nest/database.
 
-Untuk frontend M0: `app/App.tsx` memilih fitur; `features/contract-lab/hooks/use-playground.ts` menangani editing/submission; components tidak berisi query DB. `shared/api` adalah batas network dan runtime parsing respons. No `any` sebagai jalan pintas terhadap bentuk data yang belum diketahui.
-
-Target frontend production mengikuti [FRONTEND](FRONTEND.md): ATI One internal-app delivery, dedicated Keycloak client, dan dependency CDD `tokens -> primitives -> components -> compositions -> features -> pages`. `apps/web/src/styles.css` saat ini adalah transitional M0 styling, bukan design-token source of truth.
+Frontend sekarang mengikuti [FRONTEND](FRONTEND.md) secara langsung: `app/App.tsx` hanya memilih feature surface; `design-system/tokens` memegang raw visual values; `design-system/primitives`, `components`, dan `compositions` menyediakan reusable contracts; feature modules memiliki domain state/orchestration; `shared/api` tetap menjadi network/runtime-parsing boundary. `apps/web/src/styles.css` hanya mengimpor token dan system stylesheet. No `any` digunakan sebagai jalan pintas terhadap bentuk data yang belum diketahui.
 
 ## Quality gates
 
-`npm run verify` memeriksa format Prettier, ESLint, dependency/cycle rules, TypeScript source/tests/tools, unit contract/use-case/rule tests, Nest/Prisma integration, generated contract drift, build, serta tautan docs. `npm run test:e2e` menguji UI desktop/mobile terhadap backend dan database nyata. SQL custom constraints diuji langsung, tidak diasumsikan dari Prisma schema.
+`npm run verify` memeriksa format Prettier, ESLint, dependency/cycle rules, UI semantic-token boundary (`npm run ui:check`), TypeScript source/tests/tools, unit contract/use-case/rule tests, Nest/Prisma integration, generated contract drift, build, serta tautan docs. `npm run test:e2e` menguji UI desktop/mobile terhadap backend dan database nyata. SQL custom constraints diuji langsung, tidak diasumsikan dari Prisma schema.
 
 CI workflow menjalankan gate yang sama pada database disposable ketika perubahan dipublikasikan. Definisi workflow bukan bukti bahwa remote CI sudah dieksekusi. Evidence lokal dan batas cakupannya ada di [M0 record](../milestones/M0.md).
 
 ## Operating limits yang belum menjadi implementasi produksi
 
-Keycloak/OIDC integration, per-app budget, distributed executions, SSE replay, sandbox, dan live provider adapters tetap fase selanjutnya. M0 mengikat loopback dan menolak production mode. Pilihan stack tetap tidak menghapus gate keamanan, data policy, credential rotation, patching, deployment/restore, load testing, atau per-app acceptance.
+M1 kini mengimplementasikan OIDC/JWKS verifier boundary, application-scoped budgets/admission/accounting, and durable runner registry metadata secara lokal. Live ATI Keycloak/ATI One flow, Redis runner hot state/placement, distributed executions, SSE replay, sandbox, dan live provider adapters tetap deployment/fase berikutnya. M0 local mode tetap mengikat loopback. Pilihan stack tetap tidak menghapus gate keamanan, data policy, credential rotation, patching, deployment/restore, load testing, atau per-app acceptance.

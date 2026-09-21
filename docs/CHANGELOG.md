@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased — 22 September 2026 — frontend CDD and design-system overhaul
+
+Rebuilt the M0/M1 internal console around the implemented CDD architecture: semantic AI Platform design tokens, shared primitives/components/compositions, grouped product navigation, responsive AppShell/PageHeader, engineering-workbench Contract Lab, resource-based M1 Control Plane, audit-style History, schema catalogue, and de-emphasized delivery reference. Removed duplicate legacy shared UI primitives, added `npm run ui:check` token-bypass enforcement, strengthened desktop/mobile E2E coverage, and kept backend/API behavior unchanged.
+
 ## Unreleased — 22 September 2026 — M1 durable foundation local implementation
 
 Implemented the local P1/M1 durable foundation: application/operator/runner identity separation, OIDC/JWKS verification boundary, operator control-plane mutations with CAS/audit, Application/AI Connection/Credential Binding registries, immutable profile revisions/aliases, durable admission/idempotency/execution/attempt/cancel intent, budgets/reservations, usage observations and append-only ledger adjustments, outbox/inbox, artifact metadata, runner pool/node metadata, additive migrations, and local Control Plane UI. Added dedicated M1 unit/integration evidence for G01/G02/G07/G08/G09/G15/G26–G29. Live ATI Keycloak/ATI One, concrete secret-manager, Redis hot runner state, provider/runtime execution, and production readiness remain pending.

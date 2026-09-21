@@ -1,8 +1,8 @@
 import type { ContractKind } from '@ai-runtime/contracts';
 import { newIdempotencyKey } from '../../../shared/lib/json.js';
-import { Button } from '../../../shared/ui/button.js';
-import { Panel, PanelHeader } from '../../../shared/ui/panel.js';
-import { Badge } from '../../../shared/ui/badge.js';
+import { Button } from '../../../design-system/primitives/button.js';
+import { Panel, PanelHeader } from '../../../design-system/components/panel.js';
+import { Badge } from '../../../design-system/components/badge.js';
 
 interface Props {
   kind: ContractKind;
@@ -18,11 +18,15 @@ interface Props {
 
 export function RequestEditor(props: Props) {
   return (
-    <Panel>
-      <PanelHeader title="Request editor" aside={<Badge>JSON</Badge>} />
-      <div className="editor-options">
-        <label>
-          Kontrak
+    <Panel className="workbench-editor">
+      <PanelHeader
+        title="Request editor"
+        description="Edit the application-owned payload. Platform identity and routing stay server-controlled."
+        aside={<Badge tone="info">JSON</Badge>}
+      />
+      <div className="editor-toolbar">
+        <label className="ds-field">
+          <span>Contract</span>
           <select
             aria-label="Jenis kontrak"
             value={props.kind}
@@ -30,12 +34,16 @@ export function RequestEditor(props: Props) {
               props.onKind(event.target.value as ContractKind)
             }
           >
-            <option value="chat">POST /v1/chat · planned</option>
-            <option value="generate">POST /v1/generate · planned</option>
-            <option value="execution">POST /v1/executions · planned</option>
+            <option value="chat">POST /v1/chat · planned runtime</option>
+            <option value="generate">
+              POST /v1/generate · planned runtime
+            </option>
+            <option value="execution">
+              POST /v1/executions · planned runtime
+            </option>
           </select>
         </label>
-        <Button variant="text" onClick={props.onFormat}>
+        <Button variant="ghost" size="sm" onClick={props.onFormat}>
           Format JSON
         </Button>
       </div>
@@ -46,9 +54,14 @@ export function RequestEditor(props: Props) {
         value={props.payload}
         onChange={(event) => props.onPayload(event.target.value)}
       />
-      <div className="key-row">
-        <label htmlFor="key">Idempotency-Key</label>
+      <div className="idempotency-box">
         <div>
+          <label htmlFor="key">Idempotency-Key</label>
+          <small>
+            Same key + same payload replays the existing durable record.
+          </small>
+        </div>
+        <div className="idempotency-control">
           <input
             id="key"
             value={props.idempotencyKey}
@@ -56,24 +69,24 @@ export function RequestEditor(props: Props) {
             spellCheck={false}
           />
           <Button
-            variant="text"
+            variant="ghost"
+            size="sm"
             onClick={() => props.onKey(newIdempotencyKey())}
           >
-            Key baru
+            New key
           </Button>
         </div>
-        <small>Key yang sama + payload sama mengembalikan record semula.</small>
       </div>
-      <div className="panel-footer">
-        <span>Hanya validasi & simpan metadata</span>
+      <footer className="workbench-footer">
+        <span>Validation only · provider calls remain disabled</span>
         <Button
           variant="primary"
           onClick={() => void props.onValidate()}
           disabled={props.busy}
         >
-          {props.busy ? 'Memeriksa…' : 'Validasi & simpan'} <span>↗</span>
+          {props.busy ? 'Checking…' : 'Validasi & simpan'}
         </Button>
-      </div>
+      </footer>
     </Panel>
   );
 }

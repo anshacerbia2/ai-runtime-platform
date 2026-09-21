@@ -1,7 +1,7 @@
 # ADR-0024 — Component-Driven Frontend and AI Platform Design Tokens
 
 **Date:** 21 September 2026
-**Status:** adopted in documentation
+**Status:** implemented locally; external ATI One visual/integration evidence remains separate
 **Scope:** AI Runtime Platform frontend architecture and visual-system consumption
 
 ## Context
@@ -39,7 +39,7 @@ Application/component code SHALL NOT introduce raw visual values for:
 
 Raw values belong only in the token source/adapter that imports or compiles the AI Platform token contract.
 
-The existing M0 hardcoded CSS is explicitly transitional, not canonical.
+The original M0 hardcoded stylesheet has been migrated. The canonical raw visual values now live only in `apps/web/src/design-system/tokens/tokens.css`; the rest of the frontend consumes semantic tokens.
 
 Components consume semantic roles such as:
 

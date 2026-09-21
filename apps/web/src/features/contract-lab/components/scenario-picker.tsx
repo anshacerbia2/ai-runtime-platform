@@ -1,5 +1,18 @@
 import type { Example } from '../../../shared/api/lab-client.js';
 
+function scenarioNote(id: string) {
+  if (id === 'chat') {
+    return 'Direct request · no business job';
+  }
+  if (id === 'structured') {
+    return 'Typed output contract';
+  }
+  if (id === 'scribe') {
+    return 'Workflow remains app-owned';
+  }
+  return 'Negative authorization case';
+}
+
 export function ScenarioPicker({
   examples,
   selected,
@@ -10,34 +23,28 @@ export function ScenarioPicker({
   onChoose(example: Example): void;
 }) {
   return (
-    <>
-      <div className="section-title">
-        <h2>Pilih skenario</h2>
-        <span>01 / SUSUN REQUEST</span>
+    <section className="scenario-section" aria-labelledby="scenario-heading">
+      <div className="section-heading">
+        <div>
+          <span className="ds-eyebrow">Request fixture</span>
+          <h2 id="scenario-heading">Choose a validation scenario</h2>
+        </div>
+        <span className="section-hint">Canonical examples</span>
       </div>
       <div className="scenario-grid">
-        {examples.map((example, index) => (
+        {examples.map((example) => (
           <button
             key={example.id}
-            className={
-              'scenario ' + (selected === example.id ? 'selected' : '')
-            }
+            className={`scenario-card ${selected === example.id ? 'is-selected' : ''}`}
             onClick={() => onChoose(example)}
+            aria-pressed={selected === example.id}
           >
-            <span className="scenario-number">0{index + 1}</span>
+            <span className="scenario-kicker">{example.id}</span>
             <strong>{example.title}</strong>
-            <small>
-              {example.id === 'chat'
-                ? 'Tanpa job & plugin'
-                : example.id === 'structured'
-                  ? 'Output dengan schema'
-                  : example.id === 'scribe'
-                    ? 'Job tetap di aplikasi'
-                    : 'Contoh yang harus ditolak'}
-            </small>
+            <small>{scenarioNote(example.id)}</small>
           </button>
         ))}
       </div>
-    </>
+    </section>
   );
 }

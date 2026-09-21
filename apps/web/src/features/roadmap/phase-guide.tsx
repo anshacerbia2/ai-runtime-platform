@@ -1,69 +1,114 @@
+import { Badge } from '../../design-system/components/badge.js';
+import { Panel, PanelHeader } from '../../design-system/components/panel.js';
+
 const phases = [
   [
     'M0',
-    'Kontrak yang bisa dicoba',
-    'Schema + NestJS/Fastify + Prisma + React + PostgreSQL lokal. Tidak ada panggilan provider.',
+    'Contract baseline',
+    'Contract Lab, schemas, persistence, and local developer verification.',
+    'complete',
   ],
   [
     'M1',
-    'Fondasi durable',
-    'Execution, admission, budget reservation, dan ledger nyata.',
+    'Durable foundation',
+    'Identity, registries, admission, accounting, audit, artifacts, and runner metadata.',
+    'complete',
   ],
-  ['M2', 'Model Gateway', 'OpenRouter dan pembuktian satu direct adapter.'],
-  ['M3', 'Agent Runtime', 'Claude, sandbox, tools, lease, dan cancellation.'],
+  [
+    'M2',
+    'Model Gateway',
+    'OpenRouter-first gateway plus a direct provider adapter proof.',
+    'planned',
+  ],
+  [
+    'M3',
+    'Agent Runtime',
+    'Distributed runners, sandbox, tools, placement, and cancellation.',
+    'planned',
+  ],
   [
     'M3.5',
-    'Reliability gate',
-    'Bukti keamanan, recovery, accounting, dan rollback.',
+    'Production gate',
+    'Nonlocal reliability, security, accounting, rollback, and operational evidence.',
+    'blocked',
   ],
   [
     'M4+',
-    'Adopsi & perluasan',
-    'Migrasi app, Codex, Gemini, dan capability baru.',
+    'Adoption & expansion',
+    'Application migration, Codex/Gemini adapters, and evidence-driven capability growth.',
+    'future',
   ],
-];
+] as const;
+
 const commands = [
-  ['npm run setup', 'Siapkan database terpisah dan demo profiles.'],
-  ['npm run dev', 'Jalankan frontend dan backend.'],
+  [
+    'npm run setup',
+    'Prepare PostgreSQL, migrations, and local fixture identities.',
+  ],
+  ['npm run dev', 'Run the API and internal-platform console.'],
   [
     'npm run verify',
-    'Periksa format, dependency rules, lint, types, kontrak, API/DB, build, dan docs.',
+    'Run format, lint, architecture, types, contracts, integration, build, and docs checks.',
   ],
-  ['npm run db:inspect', 'Lihat metadata langsung melalui Prisma.'],
+  [
+    'npm run test:e2e',
+    'Run browser flows including responsive and Control Plane coverage.',
+  ],
 ];
 
 export function PhaseGuide() {
   return (
-    <div className="phase-list">
-      {phases.map(([id, title, description]) => (
-        <section
-          className={'panel phase ' + (id === 'M1' ? 'current' : '')}
-          key={id}
-        >
-          <div className="phase-badge">{id}</div>
-          <div>
-            <h2>{title}</h2>
-            <p>{description}</p>
-          </div>
-          <span className="tag">
-            {id === 'M0' ? 'BASELINE' : id === 'M1' ? 'IN PROGRESS' : 'PLANNED'}
-          </span>
-        </section>
-      ))}
-      <div className="notice">
-        M0 menjadi baseline developer tool. M1 sedang berjalan: durable registry
-        sudah ada, sementara Keycloak, management authority, admission, dan
-        accounting masih harus melewati gate sebelum production.
-      </div>
-      <section className="panel command-panel">
-        <h2>Perintah lokal</h2>
-        {commands.map(([command, description]) => (
-          <div key={command}>
-            <code>{command}</code>
-            <p>{description}</p>
-          </div>
-        ))}
-      </section>
+    <div className="delivery-layout">
+      <Panel>
+        <PanelHeader
+          title="Milestone map"
+          description="Implementation status is separated from external production evidence."
+          aside={<Badge tone="info">Dependency driven</Badge>}
+        />
+        <div className="milestone-list">
+          {phases.map(([id, title, description, status]) => (
+            <article className="milestone-row" key={id}>
+              <div className="milestone-id">{id}</div>
+              <div>
+                <strong>{title}</strong>
+                <p>{description}</p>
+              </div>
+              <Badge
+                tone={
+                  status === 'complete'
+                    ? 'success'
+                    : status === 'blocked'
+                      ? 'danger'
+                      : status === 'planned'
+                        ? 'warning'
+                        : 'neutral'
+                }
+              >
+                {status.toUpperCase()}
+              </Badge>
+            </article>
+          ))}
+        </div>
+      </Panel>
+      <Panel>
+        <PanelHeader
+          title="Local verification commands"
+          description="The repository keeps local implementation evidence executable."
+        />
+        <div className="command-list">
+          {commands.map(([command, description]) => (
+            <div className="command-row" key={command}>
+              <code>{command}</code>
+              <p>{description}</p>
+            </div>
+          ))}
+        </div>
+        <div className="reference-note">
+          M0 and M1 are locally implemented. Live ATI One/Keycloak,
+          secret-manager deployment, Redis runner hot state, and
+          production-readiness evidence remain external gates.
+        </div>
+      </Panel>
     </div>
   );
 }
