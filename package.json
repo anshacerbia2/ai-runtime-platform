@@ -9,29 +9,52 @@
     "apps/web"
   ],
   "engines": {
-    "node": ">=22.12.0"
+    "node": ">=24.11.1 <25"
   },
   "scripts": {
-    "setup": "npm run build -w @ai-runtime/contracts && node scripts/setup-local.mjs",
+    "setup": "npm run build -w @ai-runtime/contracts && npm run db:generate && node scripts/setup-local.mjs",
     "dev": "node scripts/dev.mjs",
     "db:start": "node scripts/setup-local.mjs --db-only",
     "db:stop": "node scripts/setup-local.mjs --stop",
-    "db:migrate": "tsx apps/api/src/migrate.ts",
-    "db:inspect": "tsx apps/api/src/inspect.ts",
-    "build": "npm run build --workspaces --if-present",
-    "typecheck": "npm run build -w @ai-runtime/contracts && npm run typecheck --workspaces --if-present",
+    "db:migrate": "node scripts/database/migrate.mjs",
+    "db:inspect": "tsx apps/api/src/cli/inspect.ts",
+    "build": "npm run db:generate && npm run build --workspaces --if-present",
+    "typecheck": "npm run db:generate && npm run build -w @ai-runtime/contracts && npm run typecheck --workspaces --if-present && npm run build -w @ai-runtime/api && npm run typecheck:tests",
     "contracts:export": "npm run build -w @ai-runtime/contracts && tsx scripts/export-contracts.ts",
     "contracts:check": "npm run build -w @ai-runtime/contracts && tsx scripts/export-contracts.ts --check",
     "docs:check": "node scripts/check-docs.mjs",
     "test": "npm run build -w @ai-runtime/contracts && tsx --test packages/contracts/test/contracts.test.ts",
-    "test:integration": "tsx --test apps/api/test/integration.test.ts",
+    "test:integration": "npm run build -w @ai-runtime/api && tsx --test apps/api/test/integration.test.ts",
     "test:e2e": "playwright test",
-    "verify": "npm run typecheck && npm test && npm run test:integration && npm run contracts:check && npm run build && npm run docs:check"
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "verify": "npm run format:check && npm run lint && npm run architecture:check && npm run typecheck && npm test && npm run test:unit && npm run test:integration && npm run contracts:check && npm run build && npm run docs:check",
+    "db:generate": "prisma generate",
+    "test:unit": "tsx --test apps/api/test/unit/*.test.ts && node --test scripts/test/*.test.mjs",
+    "lint": "eslint apps packages scripts tests playwright.config.ts prisma.config.ts",
+    "lint:fix": "npm run lint -- --fix",
+    "architecture:check": "node scripts/check-architecture.mjs",
+    "typecheck:tests": "tsc -p apps/api/tsconfig.test.json && tsc -p packages/contracts/tsconfig.test.json && tsc -p tsconfig.tools.json",
+    "db:format": "prisma format"
   },
   "devDependencies": {
+    "@eslint/js": "10.0.1",
     "@playwright/test": "1.63.0",
     "@types/node": "24.10.1",
+    "eslint": "10.11.0",
+    "globals": "17.12.0",
+    "prettier": "3.9.8",
+    "prisma": "7.10.0",
     "tsx": "4.23.15",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.70.0"
+  },
+  "overrides": {
+    "@prisma/config": {
+      "deepmerge-ts": "8.0.2"
+    },
+    "prisma": {
+      "mysql2": "3.24.4"
+    }
   }
 }

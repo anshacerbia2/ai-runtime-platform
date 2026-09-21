@@ -5,9 +5,11 @@
 **Dasar:** execution boundary [ADR-0002](0002-managed-envelope.md) dan pre-production verification [ADR-0013](0013-evolution-gates.md). Review baseline tetap dilacak melalui O11.
 
 ## Context
+
 Agent tools can execute code/read files/network. Workspace directory and runtime prompts do not establish host/tenant isolation.
 
 ## Decision
+
 Out-of-control-plane sandbox with approved image/package digest, least privilege, no host socket/mount secrets, scoped grants, egress policy, resource caps. Per-app/tenant auth on every resource. Credential/data policy reviewed before live use. Untrusted content cannot grant permissions. Sandbox technology selected and tested via threat model.
 
 ## Alternatives considered

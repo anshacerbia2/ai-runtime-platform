@@ -4,26 +4,26 @@
 
 ## 1. Entity catalogue
 
-| Entity | Identity/important fields | Constraints / owner |
-| --- | --- | --- |
-| applications | app_id, tenant bindings, service principal, status | Identity policy service; no raw secret |
-| execution_profiles | profile_id, revision, content digest, policy refs, state | Immutable published revision |
-| executions | execution_id, tenant/app, optional process/step/conversation, profile revision, public status/revision, current attempt/generation | Scoped reads; monotonic durable revision |
-| idempotency_records | tenant/app/family/key, request digest, execution_id, expiry/tombstone | Unique scope+key; never cache-only |
-| execution_attempts | attempt_id, execution_id, ordinal, owner, generation, coord_epoch, attempt status + four dimensions | Unique execution+ordinal; generation checks on mutation |
-| model_invocations | invocation_id, attempt_id, upstream refs, model/provider, dispatch/outcome, usage coverage | Every actual paid call attributable |
-| tool_operations | operation_id, logical key, digest, target, state, receipt/status refs | Stable receiver idempotency key; old attempt evidence not owner |
-| operation_invocations | invocation_id, operation_id, attempt_id, dispatched/received times | Retry references same logical operation |
-| cancel_intents | execution_id, request actor/time/reason, revision | Durable idempotent command |
-| control_events | event_id, execution_id, revision, type, sanitized payload/ref | Durable state/audit events only, no model.delta |
-| outbox / inbox | event/command ID, aggregate/revision, delivery state | At-least-once dispatch, unique consumption key |
-| budget_accounts | scope/period/currency, limit, posted_charge, held, revision | Transactional correctness authority |
-| reservations | reservation_id, execution_id, account scopes, amount, residual_hold, state, revision | Durable before dispatch; no TTL-only financial release |
-| usage_observations | source/event/revision, invocation ref, units, cost basis, completeness, verification, evidence | Append evidence; conflicting duplicate quarantined |
-| ledger_entries | ledger_id, account, charge/adjustment amount, currency, evidence IDs, previous-entry ref | Append-only economic entries; posting command unique |
-| artifacts/manifests | artifact_id, tenant/app, object ref/digest/size, producer attempt, state/retention | Official result pointer only by fenced finalization |
-| runtime_sessions | session_id, scope, runtime/profile versions, revision, active writer, checkpoint | Single writer; same-runtime/version policy |
-| coordination_state | environment/pool epoch, status, last authorized transition | Serializes rebuild/failover bootstrap |
+| Entity                | Identity/important fields                                                                                                          | Constraints / owner                                             |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| applications          | app_id, tenant bindings, service principal, status                                                                                 | Identity policy service; no raw secret                          |
+| execution_profiles    | profile_id, revision, content digest, policy refs, state                                                                           | Immutable published revision                                    |
+| executions            | execution_id, tenant/app, optional process/step/conversation, profile revision, public status/revision, current attempt/generation | Scoped reads; monotonic durable revision                        |
+| idempotency_records   | tenant/app/family/key, request digest, execution_id, expiry/tombstone                                                              | Unique scope+key; never cache-only                              |
+| execution_attempts    | attempt_id, execution_id, ordinal, owner, generation, coord_epoch, attempt status + four dimensions                                | Unique execution+ordinal; generation checks on mutation         |
+| model_invocations     | invocation_id, attempt_id, upstream refs, model/provider, dispatch/outcome, usage coverage                                         | Every actual paid call attributable                             |
+| tool_operations       | operation_id, logical key, digest, target, state, receipt/status refs                                                              | Stable receiver idempotency key; old attempt evidence not owner |
+| operation_invocations | invocation_id, operation_id, attempt_id, dispatched/received times                                                                 | Retry references same logical operation                         |
+| cancel_intents        | execution_id, request actor/time/reason, revision                                                                                  | Durable idempotent command                                      |
+| control_events        | event_id, execution_id, revision, type, sanitized payload/ref                                                                      | Durable state/audit events only, no model.delta                 |
+| outbox / inbox        | event/command ID, aggregate/revision, delivery state                                                                               | At-least-once dispatch, unique consumption key                  |
+| budget_accounts       | scope/period/currency, limit, posted_charge, held, revision                                                                        | Transactional correctness authority                             |
+| reservations          | reservation_id, execution_id, account scopes, amount, residual_hold, state, revision                                               | Durable before dispatch; no TTL-only financial release          |
+| usage_observations    | source/event/revision, invocation ref, units, cost basis, completeness, verification, evidence                                     | Append evidence; conflicting duplicate quarantined              |
+| ledger_entries        | ledger_id, account, charge/adjustment amount, currency, evidence IDs, previous-entry ref                                           | Append-only economic entries; posting command unique            |
+| artifacts/manifests   | artifact_id, tenant/app, object ref/digest/size, producer attempt, state/retention                                                 | Official result pointer only by fenced finalization             |
+| runtime_sessions      | session_id, scope, runtime/profile versions, revision, active writer, checkpoint                                                   | Single writer; same-runtime/version policy                      |
+| coordination_state    | environment/pool epoch, status, last authorized transition                                                                         | Serializes rebuild/failover bootstrap                           |
 
 ## 2. Transaction boundaries
 
@@ -60,3 +60,11 @@ Deletion harus mempertahankan minimal financial trace sesuai kebijakan yang dise
 Expand-contract schema changes; additive columns/event versions before reader upgrade; backfill dengan rate limit; validate invariant; drop deprecated fields setelah consumers migrated. Never rewrite ledger history untuk mengubah source basis; append corrections. Dry-run restore, idempotent replay, and mixed-version tests diperlukan sebelum production migration.
 
 ERD dan trust-zone view: [data/deployment diagrams](../diagrams/07-deployment-data-security.md).
+
+## 8. Registry dan fleet entities
+
+Durable control-plane model menambahkan logical entities: `applications`, `ai_connections`, `credential_instances`, `credential_bindings`, `plugin_packages`, `plugin_versions`, `runner_pools`, `runner_nodes`, `runner_capabilities`, `connection_runner_bindings`, dan profile bindings.
+
+Credential row hanya menyimpan metadata/reference; plaintext secret bukan durable application data. `ai_connection` merepresentasikan logical upstream account/project. Banyak credential instance/runner binding dapat menunjuk connection yang sama. `quota_group_ref` mengelompokkan bindings yang berbagi upstream rate-limit/budget authority.
+
+Runner liveness dan instantaneous capacity tidak ditulis heartbeat-per-second ke PostgreSQL; Redis/hot tier memegang lease/capacity. PostgreSQL menyimpan durable registration state, lifecycle intent seperti DRAIN/DISABLE, capability snapshots yang perlu audit, dan assignment authority transitions.

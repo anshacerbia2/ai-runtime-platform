@@ -5,9 +5,11 @@
 **Dasar:** app/runtime boundary [ADR-0001](0001-application-ownership.md), fencing [ADR-0005](0005-leases-fencing.md), dan isolation [ADR-0011](0011-sandbox-security.md). Review baseline tetap dilacak melalui O11.
 
 ## Context
+
 Agent generates files and runtime sessions, but upload success or shared session ID must not bypass fencing/authorization. Cross-runtime memory portability unproven.
 
 ## Decision
+
 Artifact uploads scoped and verified; official manifest promoted by fenced finalization. Orphan objects cleaned independently from external/usage evidence. App owns conversation; optional runtime session single-writer, scoped, version-bound with optimistic revision. Cross-runtime restart explicit; no transparent session migration promise.
 
 ## Alternatives considered

@@ -58,13 +58,13 @@ Epoch transition adalah operation terotorisasi dan diserialisasi oleh durable co
 
 ## 7. Dependency loss matrix
 
-| Dependency | New work | Existing work/status |
-| --- | --- | --- |
-| PostgreSQL unavailable | No durable admission, assignment, tool-intent, settlement, or final commit | Serve retained stream best-effort; stop new paid/mutating steps; buffer bounded evidence, reconcile later |
-| Redis unavailable/uncertain epoch | No agent lease/start/renew; no new work requiring hot-tier guarantees | Stop new steps, quarantine; snapshots from SoR; replay unavailable explicit |
-| Object store unavailable | No successful result requiring unavailable object | Retain candidate state, retry idempotent upload/verify within deadline |
-| Provider unavailable | Route-specific breaker; only safe authorized alternate route | Mark partial/ambiguous calls accurately, retain exposure |
-| Usage sink unavailable | No spend that cannot preserve required evidence/admission | Bounded durable spool in trusted collector or pause; never drop and assume zero |
+| Dependency                        | New work                                                                   | Existing work/status                                                                                      |
+| --------------------------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| PostgreSQL unavailable            | No durable admission, assignment, tool-intent, settlement, or final commit | Serve retained stream best-effort; stop new paid/mutating steps; buffer bounded evidence, reconcile later |
+| Redis unavailable/uncertain epoch | No agent lease/start/renew; no new work requiring hot-tier guarantees      | Stop new steps, quarantine; snapshots from SoR; replay unavailable explicit                               |
+| Object store unavailable          | No successful result requiring unavailable object                          | Retain candidate state, retry idempotent upload/verify within deadline                                    |
+| Provider unavailable              | Route-specific breaker; only safe authorized alternate route               | Mark partial/ambiguous calls accurately, retain exposure                                                  |
+| Usage sink unavailable            | No spend that cannot preserve required evidence/admission                  | Bounded durable spool in trusted collector or pause; never drop and assume zero                           |
 
 Direct gateway may continue only when its documented required-dependency set and admission safety remain satisfied; no undocumented bypass route on Redis outage. Define per-profile degraded behavior and test it before production.
 
@@ -81,3 +81,9 @@ Candidate H=5s, TTL L=15s, reaper R=5s from principal. Detection under controlle
 Unbounded retry, immediate zombie replacement, and periodic heartbeat UPDATE per worker to PostgreSQL are outside this baseline. Read scans/discrete transactional writes are permitted and capacity-tested.
 
 Tests G04/G05/G06/G23; diagrams [recovery](../diagrams/04-recovery-cancellation.md).
+
+## Fleet placement and node disappearance
+
+Placement authority hanya diberikan ke runner yang eligible pada saat dispatch. Runner registry/liveness tidak menggantikan attempt lease/fencing: node yang hilang memicu removal dari placement set, sementara existing attempt mengikuti orphan quarantine dan durable fencing rules.
+
+Jika logical AI Connection tersedia di runner lain, scheduler baru boleh redispatch setelah recovery policy menyatakan retry aman. Availability credential pada node kedua bukan bukti external provider/tool side effect attempt pertama telah berhenti.

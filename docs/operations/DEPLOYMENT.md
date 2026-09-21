@@ -41,3 +41,13 @@ Rollback API/runtime tidak boleh mereset idempotency keys, reservations, ledger,
 ## 7. Operational ownership
 
 Platform team owns service/worker/storage health; app owner owns quality/business workflow and publication; security owns grant/data approval; accounting owner owns reconciliation thresholds/manual adjustments. Person/on-call rotation ditetapkan sebelum P3.5. Runbooks ada di [RUNBOOKS](RUNBOOKS.md); metrics/targets di [SLO-CAPACITY](SLO-CAPACITY.md).
+
+## 8. Distributed runner fleet
+
+Deployment awal boleh satu host, tetapi contract target adalah distributed runner fleet. Runner self-register ke Control Plane dan masuk ke Runner Pool; tidak ada network scanning sebagai discovery mechanism.
+
+Node state `RUNNING`, `DRAINING`, `OFFLINE`, dan `DISABLED` mempengaruhi placement. DRAINING menghentikan assignment baru sambil membiarkan in-flight work direkonsiliasi/selesai. OFFLINE berasal dari liveness loss; DISABLED adalah durable operator policy.
+
+Satu AI Connection dapat tersedia pada beberapa nodes. Connection credential dapat central-managed atau runner-local. Placement hanya memilih node yang memiliki compatible runtime + allowed connection + healthy credential binding + capacity + region/data/version policy.
+
+Shared upstream account/project membawa `quota_group_ref`; menambah runner tidak boleh dianggap menambah upstream quota. Autoscaling/Kubernetes/Nomad dapat mengganti mekanisme provisioning, tetapi registry, placement, fencing, dan connection semantics tetap sama.

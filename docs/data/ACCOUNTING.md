@@ -10,16 +10,16 @@ Satu business process dapat memiliki banyak executions dan failed attempts. Usag
 
 ## 2. Data yang dipisahkan
 
-| Record/dimensi | Fungsi |
-| --- | --- |
-| Usage observation | Evidence mentah/normalized, immutable, source-specific identity/revision |
-| Verification | pending, verified, disputed, quarantined, rejected dengan reason |
-| Measurement completeness | complete, partial, pending, unknown; null bukan zero |
-| Cost basis | provider_reported, estimated, allocated, unknown |
-| Ledger entry | Accepted charge/adjustment dengan referenced evidence dan currency/unit |
-| Budget reservation | Outstanding financial exposure held sebelum dispatch |
-| Settlement state | RESERVED, PENDING_RECONCILIATION, SETTLED, OVERAGE_SETTLED |
-| Reconciliation source | normal, orphan, provider_lookup, audit_adjustment |
+| Record/dimensi           | Fungsi                                                                   |
+| ------------------------ | ------------------------------------------------------------------------ |
+| Usage observation        | Evidence mentah/normalized, immutable, source-specific identity/revision |
+| Verification             | pending, verified, disputed, quarantined, rejected dengan reason         |
+| Measurement completeness | complete, partial, pending, unknown; null bukan zero                     |
+| Cost basis               | provider_reported, estimated, allocated, unknown                         |
+| Ledger entry             | Accepted charge/adjustment dengan referenced evidence dan currency/unit  |
+| Budget reservation       | Outstanding financial exposure held sebelum dispatch                     |
+| Settlement state         | RESERVED, PENDING_RECONCILIATION, SETTLED, OVERAGE_SETTLED               |
+| Reconciliation source    | normal, orphan, provider_lookup, audit_adjustment                        |
 
 Claude Agent SDK cost dapat berupa client-side estimate; tidak disamakan dengan authoritative billing (R04). OpenRouter menyediakan usage/cost dan generation-ID lookup sesuai dokumentasinya (R02). Kemampuan itu tidak memastikan setiap disconnected request mempunyai ID atau complete observation. Primary-source summary: [SOURCES](../reviews/SOURCES.md).
 
@@ -76,6 +76,7 @@ E = sum over admitted invocations i:
 Rates menggunakan versioned price source dan units yang benar. Cache discounts tidak diasumsikan pasti sebelum observed. Context pertumbuhan setiap turn dan allowed retry attempts harus masuk upper bound. Provider-specific categories tidak didobelkan.
 
 Dua strategy diizinkan:
+
 - **Whole-execution envelope:** reserve conservative bound untuk semua attempts/turns/tools sebelum mulai; adapter harus dapat menegakkan batas yang digunakan dalam perhitungan.
 - **Incremental tranche:** reserve initial bounded invocation, lalu atomically extend hold sebelum invocation berikutnya; runtime/broker harus benar-benar dapat menahan dispatch per invocation. Jangan memakai tranche bila runtime opaque dapat memanggil upstream tanpa interposition.
 
@@ -124,17 +125,17 @@ Completeness memerlukan closure basis: expected invocation coverage, terminal ev
 
 ## 10. Crash matrix
 
-| Crash point | Expected recovery |
-| --- | --- |
-| Sebelum admission commit | Tidak dispatch; tidak ada surviving hold |
-| Setelah commit sebelum HTTP response | Same key returns same execution/hold |
-| Setelah commit sebelum dispatch delivery | Outbox retries; dispatcher dedup |
+| Crash point                                             | Expected recovery                                              |
+| ------------------------------------------------------- | -------------------------------------------------------------- |
+| Sebelum admission commit                                | Tidak dispatch; tidak ada surviving hold                       |
+| Setelah commit sebelum HTTP response                    | Same key returns same execution/hold                           |
+| Setelah commit sebelum dispatch delivery                | Outbox retries; dispatcher dedup                               |
 | Setelah upstream accepted sebelum response ID tersimpan | Mark ambiguous; preserve exposure, reconcile; no invented zero |
-| Evidence persisted sebelum posting | Verifier/settler retries same command |
-| Settlement committed sebelum Redis projection | Outbox replays revision; no duplicate credit |
-| Projection delivered twice | Idempotent projection ignores older/same revision |
-| Sandbox terminated, remote effect/usage unknown | Hold residual stays pending according to policy |
-| Verified late charge setelah closure | Append adjustment; do not reopen execution |
+| Evidence persisted sebelum posting                      | Verifier/settler retries same command                          |
+| Settlement committed sebelum Redis projection           | Outbox replays revision; no duplicate credit                   |
+| Projection delivered twice                              | Idempotent projection ignores older/same revision              |
+| Sandbox terminated, remote effect/usage unknown         | Hold residual stays pending according to policy                |
+| Verified late charge setelah closure                    | Append adjustment; do not reopen execution                     |
 
 ## 11. Audit/reporting
 
@@ -143,3 +144,9 @@ Queries group by app/process/step/execution/attempt/provider/runtime/profile. Re
 Budget expiry is not evidence usage zero. Manual write-off/release harus recorded policy decision, authority, rationale, dan exposure consequence; tidak menamainya settled actual cost. SLO reporting membedakan normalized-token consistency, provider charge reconciliation, estimate error, dan unresolved exposure.
 
 Tests G07–G09/G12/G15/G25; flow [admission/settlement/late usage](../diagrams/05-budget-accounting.md).
+
+## Shared AI connection quota groups
+
+Logical AI Connection dapat mempunyai beberapa credential instances dan runner bindings tetapi tetap berbagi upstream provider account/project quota. `quota_group_ref` menjadi grouping authority untuk admission/rate accounting ketika provider membatasi pada account/project, bukan per local key.
+
+Menambah runner atau key tidak boleh menggandakan budget/rate capacity secara asumsi. Provider-reported limits, contract limits, dan measured behavior menentukan effective ceiling. Chargeback tetap diatribusikan ke authenticated application/execution walaupun connection shared.

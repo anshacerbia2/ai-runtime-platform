@@ -4,25 +4,25 @@
 
 ## Actor dan authority
 
-| Actor | Boleh | Tidak boleh |
-| --- | --- | --- |
-| App backend/service | Submit sesuai profile, baca/cancel execution miliknya, baca usage/artifact scope-nya | Memalsukan tenant, memilih secret arbitrary, mengubah ledger |
-| Chat UI | Mengirim melalui BFF; alternatif delegated token sempit | Menyimpan service/provider key |
-| Profile owner (app/team) | Versioning cognitive harness, input/output schemas, acceptance criteria | Memperluas sandbox permission sendiri tanpa policy approval |
-| Platform operator | Mengelola rollout, budgets, runtime availability, recovery | Mengubah outcome bisnis atau membuang evidence untuk membuat angka tampak baik |
-| Worker/sandbox | Menjalankan satu assigned attempt sesuai grants | Akses database/control-plane secret, membuat generation baru, menaikkan izin |
-| Usage verifier | Verifikasi evidence, normalisasi, dedup, settlement/adjustment | Memulihkan authority worker atau mengganti result |
-| Security/accounting reviewer | Menyetujui scoped deployment/data/accounting controls | Menganggap sign-off desain sebagai test pass |
+| Actor                        | Boleh                                                                                | Tidak boleh                                                                    |
+| ---------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
+| App backend/service          | Submit sesuai profile, baca/cancel execution miliknya, baca usage/artifact scope-nya | Memalsukan tenant, memilih secret arbitrary, mengubah ledger                   |
+| Chat UI                      | Mengirim melalui BFF; alternatif delegated token sempit                              | Menyimpan service/provider key                                                 |
+| Profile owner (app/team)     | Versioning cognitive harness, input/output schemas, acceptance criteria              | Memperluas sandbox permission sendiri tanpa policy approval                    |
+| Platform operator            | Mengelola rollout, budgets, runtime availability, recovery                           | Mengubah outcome bisnis atau membuang evidence untuk membuat angka tampak baik |
+| Worker/sandbox               | Menjalankan satu assigned attempt sesuai grants                                      | Akses database/control-plane secret, membuat generation baru, menaikkan izin   |
+| Usage verifier               | Verifikasi evidence, normalisasi, dedup, settlement/adjustment                       | Memulihkan authority worker atau mengganti result                              |
+| Security/accounting reviewer | Menyetujui scoped deployment/data/accounting controls                                | Menganggap sign-off desain sebagai test pass                                   |
 
 ## App patterns
 
-| App/pola | Input ke platform | Output platform | Tetap di app |
-| --- | --- | --- | --- |
-| Scribe | Prompt atau input/artifact refs, process/job ID, step, profile/plugin version | Artifact manifest, execution state/events, usage | Job lifecycle, document validation, review, publish |
-| Farexlate | Satu batch/tahap translate, verify, atau repair dengan schema/context | Structured/text result, usage per step/attempt | Sequencing, glossary, translation memory, quality rules |
-| Themis/sq-fare | Request interpretasi yang dibatasi schema | Result dan source/request metadata | Fare rules, enum/domain/evidence validation |
-| RAGnosis/ragnarok | Selected model call + context yang telah diotorisasi | Model result/stream, usage | Retrieval, ACL dokumen, SQL, citation validation, index version |
-| Future chat | Messages + optional conversation ID + profile | Streaming response/result/status/usage | UI, conversation ownership, user consent/history policy |
+| App/pola          | Input ke platform                                                             | Output platform                                  | Tetap di app                                                    |
+| ----------------- | ----------------------------------------------------------------------------- | ------------------------------------------------ | --------------------------------------------------------------- |
+| Scribe            | Prompt atau input/artifact refs, process/job ID, step, profile/plugin version | Artifact manifest, execution state/events, usage | Job lifecycle, document validation, review, publish             |
+| Farexlate         | Satu batch/tahap translate, verify, atau repair dengan schema/context         | Structured/text result, usage per step/attempt   | Sequencing, glossary, translation memory, quality rules         |
+| Themis/sq-fare    | Request interpretasi yang dibatasi schema                                     | Result dan source/request metadata               | Fare rules, enum/domain/evidence validation                     |
+| RAGnosis/ragnarok | Selected model call + context yang telah diotorisasi                          | Model result/stream, usage                       | Retrieval, ACL dokumen, SQL, citation validation, index version |
+| Future chat       | Messages + optional conversation ID + profile                                 | Streaming response/result/status/usage           | UI, conversation ownership, user consent/history policy         |
 
 Platform tidak perlu mengenal nama job bisnis atau status seperti document-approved. Correlation IDs diperlakukan sebagai label opaque, bukan foreign key ke database aplikasi.
 
@@ -47,3 +47,13 @@ App orchestration menentukan langkah bisnis berikutnya (translate -> verify -> r
 Control plane menyimpan policy, assignment, status, reservation, audit. Gateway/sandbox menangani model IO/compute. Worker hanya boleh melaporkan proposal hasil dan evidence; service berwenang melakukan durable commit. SSE adalah presentasi data, bukan jalur command. Direct provider access oleh app merupakan pengecualian migrasi yang harus didokumentasikan, bukan target steady-state.
 
 Diagram terkait: [context/container](../diagrams/01-system-context.md), [agent flow](../diagrams/03-agent-execution.md), [deployment/trust](../diagrams/07-deployment-data-security.md).
+
+## Application, connection, plugin, dan runner boundaries
+
+- **Application Registry** menentukan application identity, environment, allowed profiles/connections/plugins, dan policy scope.
+- **Keycloak** membuktikan siapa caller; ia tidak menentukan provider credential yang dipakai platform.
+- **AI Connection Registry** merepresentasikan logical provider/runtime account/project. Secret material berada di secret manager atau runner-local store.
+- **Credential Binding** mengizinkan connection untuk application/profile tertentu. Dedicated adalah default aman; shared connection membutuhkan explicit allow-list.
+- **Plugin package** boleh dimiliki team aplikasi tetapi hanya dieksekusi pada execution-plane sandbox. Control plane tidak menjalankan arbitrary plugin.
+- **Remote tool** tetap dimiliki service/domain asal dan dapat diakses via MCP atau typed HTTP/RPC; MCP bukan kewajiban semua app.
+- **Runner** adalah execution node, bukan owner workflow. Runner boleh memiliki local credentials/capabilities berbeda, dan logical AI account yang sama boleh tersedia pada banyak runner.

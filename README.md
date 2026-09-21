@@ -4,6 +4,8 @@ Shared AI execution platform untuk aplikasi yang membutuhkan direct chat, struct
 
 **M0 Contract Lab · 0.3.0-m0.** Frontend, backend, dan PostgreSQL lokal tersedia untuk mencoba kontrak dan menyimpan riwayat validasi. Belum ada panggilan AI, agent, atau billing. Arsitektur target tetap baseline 0.2; M1 dan fase berikutnya belum diimplementasikan.
 
+**Fixed implementation stack:** NestJS + Fastify HTTP adapter + Prisma + PostgreSQL; frontend React/TypeScript + Vite. Struktur dan aturan dependency: [CODE-STRUCTURE](docs/architecture/CODE-STRUCTURE.md). Keputusan stack: [ADR-0016](docs/adr/0016-nestjs-fastify.md)–[ADR-0018](docs/adr/0018-clean-architecture-quality.md). Platform-control/fleet decisions: [ADR-0019](docs/adr/0019-application-connections-credentials.md)–[ADR-0022](docs/adr/0022-distributed-runner-fleet.md). Stack sudah diterapkan pada M0; fitur produksi tetap mengikuti gate.
+
 ## Coba lokal
 
 ```powershell
@@ -15,16 +17,16 @@ Buka `http://127.0.0.1:4310`. Node 24 dan PostgreSQL binaries diperlukan; bootst
 
 ## Mulai membaca
 
-| Kebutuhan | Dokumen |
-| --- | --- |
-| Konsep, boundary, komponen, invariant | [ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md) |
-| Urutan implementasi dan gate | [PLAN.md](docs/PLAN.md) dan [ROADMAP.md](docs/ROADMAP.md) |
-| Kontrak integrasi aplikasi | [API](docs/contracts/API.md) |
-| Seluruh dokumen dan reading paths | [Documentation index](docs/INDEX.md) |
-| Visual alur normal dan kegagalan | [Diagram catalogue](docs/diagrams/README.md) |
-| Keputusan arsitektur, alternatif, dan konsekuensi | [15 ADR](docs/adr/README.md) |
-| Pemetaan keputusan ke spesifikasi dan pengujian | [Decision traceability](docs/reviews/RECONCILIATION.md) |
-| Pengujian produksi yang masih harus dibuktikan | [Acceptance gates](docs/testing/ACCEPTANCE.md) |
+| Kebutuhan                                         | Dokumen                                                   |
+| ------------------------------------------------- | --------------------------------------------------------- |
+| Konsep, boundary, komponen, invariant             | [ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md)      |
+| Urutan implementasi dan gate                      | [PLAN.md](docs/PLAN.md) dan [ROADMAP.md](docs/ROADMAP.md) |
+| Kontrak integrasi aplikasi                        | [API](docs/contracts/API.md)                              |
+| Seluruh dokumen dan reading paths                 | [Documentation index](docs/INDEX.md)                      |
+| Visual alur normal dan kegagalan                  | [Diagram catalogue](docs/diagrams/README.md)              |
+| Keputusan arsitektur, alternatif, dan konsekuensi | [22 ADR](docs/adr/README.md)                              |
+| Pemetaan keputusan ke spesifikasi dan pengujian   | [Decision traceability](docs/reviews/RECONCILIATION.md)   |
+| Pengujian produksi yang masih harus dibuktikan    | [Acceptance gates](docs/testing/ACCEPTANCE.md)            |
 
 Dokumen perencanaan dan changelog berada di `docs/`; arsitektur utama berada di `docs/architecture/ARCHITECTURE.md`. `README.md` tetap menjadi pintu masuk repository.
 
@@ -35,9 +37,11 @@ Application
   | prompt/input + profile + optional process/step
   v
 AI Runtime Platform
+  +-- Control Plane: apps, profiles, AI connections, plugins, runner fleet
   +-- Model Gateway: OpenRouter and direct adapter
   +-- Agent Runtime: Claude, later Codex and Gemini
-  +-- Result, events, and usage audit
+  +-- Distributed workers: placement, sandbox, optional workspace/plugin
+  +-- Result, events, usage, policy, and audit
   |
   v
 Application decides the next business step

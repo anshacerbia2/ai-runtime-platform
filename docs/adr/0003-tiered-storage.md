@@ -5,9 +5,11 @@
 **Dasar:** kebutuhan durability, retention, dan pemisahan jalur data. Detail otoritas finansial: [ADR-0007](0007-durable-accounting.md). Review baseline tetap dilacak melalui O11.
 
 ## Context
+
 Live deltas, heartbeat, control records, financial facts, dan large artifacts mempunyai failure/retention needs berbeda. Authority boundary masing-masing jalur harus eksplisit.
 
 ## Decision
+
 PostgreSQL menyimpan durable state, discrete control events, reservation/ledger/outbox. Redis menangani heartbeat/replay/rate windows/projections; no model.delta rows atau periodic heartbeat UPDATE ke PG. Object store menyimpan artifacts/approved traces. App tidak langsung mengakses backing stores. Final output tidak bergantung pada replay buffer.
 
 ## Alternatives considered

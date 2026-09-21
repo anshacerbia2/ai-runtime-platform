@@ -4,6 +4,10 @@
 
 Dokumen ini menjabarkan kebutuhan produk dan keputusan aktif pada [ADR](../adr/README.md). Pemetaan topik, klarifikasi operasional, spesifikasi, dan gate tersedia di [decision traceability](../reviews/RECONCILIATION.md); riwayat review bukan dependency implementasi. Istilah MUST/WAJIB berarti requirement baseline, bukan bukti bahwa requirement sudah terpenuhi.
 
+## Implementasi dan stack
+
+Backend menggunakan NestJS dengan FastifyAdapter; persistence memakai Prisma/PostgreSQL melalui repository ports. Domain dan use case tidak mengimpor Nest/Fastify/Prisma. Frontend React/Vite dipisah per feature. [Code structure](CODE-STRUCTURE.md) adalah peta source aktual; [ADR-0016](../adr/0016-nestjs-fastify.md), [ADR-0017](../adr/0017-prisma-postgresql.md), dan [ADR-0018](../adr/0018-clean-architecture-quality.md) merekam alasan, alternatif, serta trade-off. Implementasi yang tersedia tetap M0 contract-only, bukan semua komponen target di diagram.
+
 ## 1. Tujuan dan batas produk
 
 > Aplikasi memiliki business job, workflow, instruksi domain, dan penerimaan hasil. Platform memiliki AI execution, kebijakan eksekusi, serta audit penggunaan.
@@ -40,16 +44,16 @@ flowchart TB
 
 Gambar adalah logical view, bukan izin aplikasi mengakses storage atau provider langsung. API/worker services melakukan akses sesuai trust boundary. Lihat [katalog diagram](../diagrams/README.md) untuk konteks, deployment, flow, state machine, dan ERD lengkap.
 
-| Komponen | Tanggung jawab | Bukan tanggung jawab |
-| --- | --- | --- |
-| AI Runtime API | Auth, validasi kontrak, status, cancel, stream, artifact access | Domain workflow aplikasi |
-| Policy/profile service | Profile immutable, binding model/runtime/tools, batas penggunaan | Mengubah instruksi domain tanpa versi/persetujuan owner |
-| Admission/accounting | Idempotency, reservasi durable, settlement, audit | Menjamin tagihan tepat pada nominal dolar tertentu |
-| Model Gateway | Direct inference, stream normalisasi, routing, usage capture | Agent loop yang tidak diminta |
+| Komponen                     | Tanggung jawab                                                    | Bukan tanggung jawab                                                |
+| ---------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------- |
+| AI Runtime API               | Auth, validasi kontrak, status, cancel, stream, artifact access   | Domain workflow aplikasi                                            |
+| Policy/profile service       | Profile immutable, binding model/runtime/tools, batas penggunaan  | Mengubah instruksi domain tanpa versi/persetujuan owner             |
+| Admission/accounting         | Idempotency, reservasi durable, settlement, audit                 | Menjamin tagihan tepat pada nominal dolar tertentu                  |
+| Model Gateway                | Direct inference, stream normalisasi, routing, usage capture      | Agent loop yang tidak diminta                                       |
 | Dispatcher/worker supervisor | Durable assignment, fenced authority, recovery, sandbox lifecycle | Retry bisnis atau menganggap lease hilang berarti side effect batal |
-| Runtime adapter | Terjemahan lifecycle dan capability runtime | Portabilitas perilaku tanpa acceptance test |
-| Tool broker | Otorisasi operasi, idempotency, status inquiry | Publikasi bisnis tanpa mandat aplikasi |
-| Event relay | Fan-out dan replay berretensi terbatas | Sumber status/biaya yang otoritatif |
+| Runtime adapter              | Terjemahan lifecycle dan capability runtime                       | Portabilitas perilaku tanpa acceptance test                         |
+| Tool broker                  | Otorisasi operasi, idempotency, status inquiry                    | Publikasi bisnis tanpa mandat aplikasi                              |
+| Event relay                  | Fan-out dan replay berretensi terbatas                            | Sumber status/biaya yang otoritatif                                 |
 
 ## 3. Managed Execution Envelope
 
@@ -67,11 +71,11 @@ Direct-chat UI melalui backend/BFF secara default. Akses client langsung hanya d
 
 ## 5. Data dan authority
 
-| Tier | Data | Aturan baseline |
-| --- | --- | --- |
-| PostgreSQL | Executions, attempts, generation, control events, cancel intents, profiles, reservations, usage observations/ledger, outbox | Durable correctness authority; transaksi diskrit, bukan satu row per token atau heartbeat periodik |
-| Redis | Lease TTL, coordination epoch projection, replay stream, fan-out, rate windows, cache budget | Data panas; cache tidak boleh menjadi satu-satunya sumber kebenaran financial reservation |
-| Object storage | Input/output artifacts, manifest, checkpoint, transcript jika policy mengizinkan | Scoped access, checksum, retention, cleanup, tidak terbuka lintas tenant |
+| Tier           | Data                                                                                                                        | Aturan baseline                                                                                    |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| PostgreSQL     | Executions, attempts, generation, control events, cancel intents, profiles, reservations, usage observations/ledger, outbox | Durable correctness authority; transaksi diskrit, bukan satu row per token atau heartbeat periodik |
+| Redis          | Lease TTL, coordination epoch projection, replay stream, fan-out, rate windows, cache budget                                | Data panas; cache tidak boleh menjadi satu-satunya sumber kebenaran financial reservation          |
+| Object storage | Input/output artifacts, manifest, checkpoint, transcript jika policy mengizinkan                                            | Scoped access, checksum, retention, cleanup, tidak terbuka lintas tenant                           |
 
 **Keputusan accounting:** reservasi dan settlement finansial otoritatif berada dalam transaksi PostgreSQL; Redis menjadi projection/fast rejection, bukan Redis-decrement lalu ledger-write yang terpisah. Ini memperjelas atomicity dan recovery, bukan memindahkan heartbeat ke database. Lihat [ADR-0007](../adr/0007-durable-accounting.md).
 
@@ -117,23 +121,37 @@ Gunakan per-app identity, least privilege, approved package digests, egress allo
 
 ## 11. Invariant baseline
 
-| ID | Invariant | Spesifikasi utama |
-| --- | --- | --- |
-| INV-01 | Workflow/domain acceptance tetap di aplikasi | BOUNDARIES |
-| INV-02 | Chat tidak membutuhkan business job/plugin | API |
-| INV-03 | Identity dan policy ditegakkan server-side | SECURITY |
-| INV-04 | Satu logical submission, attempts eksplisit | API, LIFECYCLE |
-| INV-05 | Worker lama tidak memenangkan state setelah fence | OWNERSHIP-RECOVERY |
-| INV-06 | Local stop tidak membuktikan external outcome | LIFECYCLE, TOOLS |
-| INV-07 | Rejected admission tidak mengubah budget | ACCOUNTING |
-| INV-08 | Unknown usage tidak menjadi zero; evidence tidak double-counted | ACCOUNTING |
-| INV-09 | Result completion terpisah dari settlement | LIFECYCLE |
-| INV-10 | SSE replay terbatas dan tidak membuat attempt baru | EVENTS |
-| INV-11 | Secret/artifact/session tidak bocor antar-app/tenant | SECURITY |
-| INV-12 | Production migration menunggu gate evidence | ACCEPTANCE |
+| ID     | Invariant                                                       | Spesifikasi utama  |
+| ------ | --------------------------------------------------------------- | ------------------ |
+| INV-01 | Workflow/domain acceptance tetap di aplikasi                    | BOUNDARIES         |
+| INV-02 | Chat tidak membutuhkan business job/plugin                      | API                |
+| INV-03 | Identity dan policy ditegakkan server-side                      | SECURITY           |
+| INV-04 | Satu logical submission, attempts eksplisit                     | API, LIFECYCLE     |
+| INV-05 | Worker lama tidak memenangkan state setelah fence               | OWNERSHIP-RECOVERY |
+| INV-06 | Local stop tidak membuktikan external outcome                   | LIFECYCLE, TOOLS   |
+| INV-07 | Rejected admission tidak mengubah budget                        | ACCOUNTING         |
+| INV-08 | Unknown usage tidak menjadi zero; evidence tidak double-counted | ACCOUNTING         |
+| INV-09 | Result completion terpisah dari settlement                      | LIFECYCLE          |
+| INV-10 | SSE replay terbatas dan tidak membuat attempt baru              | EVENTS             |
+| INV-11 | Secret/artifact/session tidak bocor antar-app/tenant            | SECURITY           |
+| INV-12 | Production migration menunggu gate evidence                     | ACCEPTANCE         |
 
 ## 12. Evolusi dan status
 
 [PLAN.md](../PLAN.md) mendefinisikan work packages; [ROADMAP.md](../ROADMAP.md) milestones dan dependency. Phase 2 membuktikan OpenRouter dan Direct Anthropic pada common capability. OpenRouter tetap boleh primary per profile. Claude adalah runtime pertama; Codex dan Gemini menyusul dengan compatibility tests.
 
 M0 telah memiliki vertical slice FE/BE/PostgreSQL untuk contract checks sesuai [ADR-0015](../adr/0015-testable-milestone-slices.md). Implementasi AI execution, accounting produksi, serta P1 dan fase lanjut **belum dikerjakan**; hasil uji lab tidak menutup gate produksi. [ADR index](../adr/README.md), [open decisions](../decisions/OPEN-QUESTIONS.md), [test gates](../testing/ACCEPTANCE.md), dan [validation record](../reviews/VALIDATION.md) membedakan keputusan desain, pertanyaan terbuka, serta bukti yang benar-benar tersedia.
+
+## 13. Control Plane, connections, plugins, dan distributed fleet
+
+AI Runtime Platform tetap **satu produk** dengan dua responsibility zone internal. **Control Plane** mengelola application identity, execution profiles, AI connections, credential bindings, plugin registry, runner registry/pools, policy, budget, audit, dan Admin UI. **Execution Plane** menjalankan Model Gateway, Agent Runtime, workers/sandboxes, optional plugin/workspace, tools, streaming, dan artifact promotion.
+
+Keycloak mengautentikasi caller; AI Connection adalah identitas/credential platform terhadap provider/runtime. Caller tidak boleh memilih secret, credential instance, atau runner. Resolusi dilakukan server-side berdasarkan application + profile + policy.
+
+Satu logical AI Connection dapat mempunyai banyak credential instances dan runner bindings. Credential dapat central-managed atau runner-local. Beberapa binding untuk logical account/project yang sama tetap berbagi upstream quota group bila provider menerapkan rate limit/account quota bersama.
+
+Plugin bukan software yang dipasang permanen pada control-plane host. Plugin adalah versioned immutable artifact yang direferensikan profile dan dimaterialize secara ephemeral pada isolated worker. Plugin dan workspace bersifat opsional; direct chat tidak membutuhkan keduanya.
+
+Runner adalah fleet terdistribusi. Node melakukan authenticated self-registration dan heartbeat; platform tidak melakukan network scan. PostgreSQL menyimpan registry/config durable, Redis menyimpan lease/liveness/capacity hot state. Placement mempertimbangkan runtime, connection locality, profile/app policy, capacity, region/data policy, version, dan node lifecycle.
+
+Rincian keputusan: [ADR-0019](../adr/0019-application-connections-credentials.md), [ADR-0020](../adr/0020-plugin-registry-execution-packaging.md), [ADR-0021](../adr/0021-workspace-remote-tools.md), dan [ADR-0022](../adr/0022-distributed-runner-fleet.md).

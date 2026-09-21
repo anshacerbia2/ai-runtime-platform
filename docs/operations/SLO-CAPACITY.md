@@ -4,33 +4,33 @@
 
 ## 1. Measurement definitions
 
-| SLI | Definisi | Target status |
-| --- | --- | --- |
-| Admission availability | Authorized eligible requests yang berhasil durably admitted / eligible requests; policy/rate denial dipisah | O04: target/window belum ditetapkan |
-| Gateway overhead | Platform processing/queue time, upstream wait diukur terpisah | Baseline diperlukan; bukan otomatis P99 <20ms |
-| End-user TTFT | Dari app request sampai first useful model delta | Per-app target; termasuk network/provider |
-| Queue delay | Accepted timestamp -> attempt start per workload class | Per-pool target |
-| Failure detection | t0 injected failure -> durable orphan/quarantine transition | Controlled candidate L+R+delta |
-| Local termination | Cancel/quarantine command -> verified sandbox stopped | Sandbox-specific target |
-| External reconciliation | Unknown operation -> verified outcome atau escalation | Per tool/provider capability |
-| Usage completeness | Complete/partial/unknown invocation coverage + age | Separate from charge discrepancy |
-| Charge discrepancy | Difference on matched provider source, period, currency and units | Not applied to estimates as if invoices |
-| Budget correctness | Denial leaves held balance unchanged; duplicate settlement no double-credit | Exact fixture invariant |
-| Isolation | Cross-scope accesses/unauthorized tool calls denied in test | Safety gate, bukan percentile SLO |
+| SLI                     | Definisi                                                                                                    | Target status                                 |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| Admission availability  | Authorized eligible requests yang berhasil durably admitted / eligible requests; policy/rate denial dipisah | O04: target/window belum ditetapkan           |
+| Gateway overhead        | Platform processing/queue time, upstream wait diukur terpisah                                               | Baseline diperlukan; bukan otomatis P99 <20ms |
+| End-user TTFT           | Dari app request sampai first useful model delta                                                            | Per-app target; termasuk network/provider     |
+| Queue delay             | Accepted timestamp -> attempt start per workload class                                                      | Per-pool target                               |
+| Failure detection       | t0 injected failure -> durable orphan/quarantine transition                                                 | Controlled candidate L+R+delta                |
+| Local termination       | Cancel/quarantine command -> verified sandbox stopped                                                       | Sandbox-specific target                       |
+| External reconciliation | Unknown operation -> verified outcome atau escalation                                                       | Per tool/provider capability                  |
+| Usage completeness      | Complete/partial/unknown invocation coverage + age                                                          | Separate from charge discrepancy              |
+| Charge discrepancy      | Difference on matched provider source, period, currency and units                                           | Not applied to estimates as if invoices       |
+| Budget correctness      | Denial leaves held balance unchanged; duplicate settlement no double-credit                                 | Exact fixture invariant                       |
+| Isolation               | Cross-scope accesses/unauthorized tool calls denied in test                                                 | Safety gate, bukan percentile SLO             |
 
 ## 2. Candidate configuration
 
-| Parameter | Candidate/source | Required closure |
-| --- | --- | --- |
-| Worker heartbeat H | 5s, principal | Prove renewal/failure behavior at target load |
-| Lease TTL L | 15s, principal | Monotonic local deadline margin and GC/network tolerance |
-| Reaper scan interval R | 5s, principal | Bounded scan capacity and coordination delay delta |
-| Nominal detection | L+R = 20s before scheduling/network delta | Record t0 and measured max/P95/P99, not universal exact bound |
-| Stream age retention | 10m, principal | Byte/event cap; advertise actual earliest cursor |
-| Late worker fast-path | 15m, principal | Arrival clock/proxy and quarantine adjustment path |
-| Max turns example | 15, principal example | Profile-specific bound and envelope coverage |
-| SSE keepalive | Deployment-specific | Must be below actual proxy idle timeout; not an arbitrary universal interval |
-| Artifact/transcript retention | Not fixed | Class/owner policy, deletion and backup effects |
+| Parameter                     | Candidate/source                          | Required closure                                                             |
+| ----------------------------- | ----------------------------------------- | ---------------------------------------------------------------------------- |
+| Worker heartbeat H            | 5s, principal                             | Prove renewal/failure behavior at target load                                |
+| Lease TTL L                   | 15s, principal                            | Monotonic local deadline margin and GC/network tolerance                     |
+| Reaper scan interval R        | 5s, principal                             | Bounded scan capacity and coordination delay delta                           |
+| Nominal detection             | L+R = 20s before scheduling/network delta | Record t0 and measured max/P95/P99, not universal exact bound                |
+| Stream age retention          | 10m, principal                            | Byte/event cap; advertise actual earliest cursor                             |
+| Late worker fast-path         | 15m, principal                            | Arrival clock/proxy and quarantine adjustment path                           |
+| Max turns example             | 15, principal example                     | Profile-specific bound and envelope coverage                                 |
+| SSE keepalive                 | Deployment-specific                       | Must be below actual proxy idle timeout; not an arbitrary universal interval |
+| Artifact/transcript retention | Not fixed                                 | Class/owner policy, deletion and backup effects                              |
 
 Other limits must be populated before production: request bytes, prompt/schema complexity, upload bytes, output size, active streams, per-subscriber queue, per-execution replay bytes, process count, CPU/RAM/disk, tool runtime, overall deadline, max attempts, and quarantine intake. Missing value is a launch blocker, not unlimited permission.
 
@@ -53,3 +53,9 @@ Alert thresholds and notification routing need named owners and rehearsal at P3.
 ## 5. Evidence discipline
 
 Every load/fault run records build/runtime/provider versions, environment, seed/fixture, load mix, concurrency, time window, dependencies, observed distributions, failure cases, and raw evidence refs. Report partial/unknown data explicitly. No statement of 100% financial accuracy from one five-minute late-event example.
+
+## Fleet and upstream quota capacity model
+
+Capacity runner dan capacity upstream adalah dua dimensi berbeda. Banyak runner dapat menunjuk logical AI Connection/quota group yang sama; node concurrency tidak boleh dijumlahkan sebagai provider quota tambahan tanpa evidence provider.
+
+Capacity planning memantau eligible runner count, active slots, queue/admission latency, connection health, provider rate-limit signals, quota-group saturation, drain/offline events, dan placement failure reasons. Numerical thresholds tetap harus berasal dari measured environment/profile.

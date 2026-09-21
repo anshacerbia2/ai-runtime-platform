@@ -5,9 +5,11 @@
 **Dasar:** durable accounting authority dan reserve–execute–settle, mengikuti [ADR-0003](0003-tiered-storage.md). Review baseline tetap dilacak melalui O11.
 
 ## Context
+
 Redis decrement lalu reject dapat mengubah denied balance; release Redis sebelum PG ledger memiliki crash/duplicate-credit gap. Single token-pair estimate tidak mencakup multi-turn agent.
 
 ## Decision
+
 PG transaction owns budget accounts/holds/admission/idempotency/outbox. Rejection no balance mutation. Settlement/adjustment/hold release/outbox committed together; Redis revisioned projection only. Use fixed monetary units, canonical invocation evidence, multi-scope atomic checks. Whole-run envelope atau enforceable tranches cover retries/turns/tools; incomplete exposure remains held/pending.
 
 ## Alternatives considered

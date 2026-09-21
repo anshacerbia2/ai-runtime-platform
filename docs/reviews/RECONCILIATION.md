@@ -12,31 +12,31 @@ Review baseline yang belum selesai tetap dicatat sebagai O11 pada [OPEN-QUESTION
 
 ## 2. Peta topik keputusan
 
-| ID | Topik | Keputusan aktif | Spesifikasi |
-| --- | --- | --- | --- |
-| P01 | Workflow ownership dan Managed Execution Envelope | [ADR-0001](../adr/0001-application-ownership.md), [ADR-0002](../adr/0002-managed-envelope.md) | [PROFILES-ADAPTERS](../contracts/PROFILES-ADAPTERS.md) |
-| P02 | Tiered Storage dan durable accounting | [ADR-0003](../adr/0003-tiered-storage.md), [ADR-0007](../adr/0007-durable-accounting.md) | [DATA-MODEL](../data/DATA-MODEL.md) |
-| P03 | Policy-driven default route | [ADR-0004](../adr/0004-routing-dual-adapter.md) | [PROFILES-ADAPTERS](../contracts/PROFILES-ADAPTERS.md) |
-| P04 | State fencing terpisah dari late usage | [ADR-0005](../adr/0005-leases-fencing.md), [ADR-0008](../adr/0008-late-usage.md) | [ACCOUNTING](../data/ACCOUNTING.md) |
-| P05 | Dimensi state independen | [ADR-0006](../adr/0006-orthogonal-state.md) | [EXECUTION-LIFECYCLE](../contracts/EXECUTION-LIFECYCLE.md) |
-| P06 | Gate sebelum migrasi produksi | [ADR-0013](../adr/0013-evolution-gates.md) | [ACCEPTANCE](../testing/ACCEPTANCE.md) |
-| P07 | Stateful tool idempotency/status | [ADR-0010](../adr/0010-tool-side-effects.md) | [TOOLS-PLUGINS](../contracts/TOOLS-PLUGINS.md) |
-| P08 | Dual adapter, Claude lalu runtime tambahan | [ADR-0004](../adr/0004-routing-dual-adapter.md), [ADR-0013](../adr/0013-evolution-gates.md) | [PLAN](../PLAN.md), [ROADMAP](../ROADMAP.md) |
+| ID  | Topik                                             | Keputusan aktif                                                                               | Spesifikasi                                                |
+| --- | ------------------------------------------------- | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| P01 | Workflow ownership dan Managed Execution Envelope | [ADR-0001](../adr/0001-application-ownership.md), [ADR-0002](../adr/0002-managed-envelope.md) | [PROFILES-ADAPTERS](../contracts/PROFILES-ADAPTERS.md)     |
+| P02 | Tiered Storage dan durable accounting             | [ADR-0003](../adr/0003-tiered-storage.md), [ADR-0007](../adr/0007-durable-accounting.md)      | [DATA-MODEL](../data/DATA-MODEL.md)                        |
+| P03 | Policy-driven default route                       | [ADR-0004](../adr/0004-routing-dual-adapter.md)                                               | [PROFILES-ADAPTERS](../contracts/PROFILES-ADAPTERS.md)     |
+| P04 | State fencing terpisah dari late usage            | [ADR-0005](../adr/0005-leases-fencing.md), [ADR-0008](../adr/0008-late-usage.md)              | [ACCOUNTING](../data/ACCOUNTING.md)                        |
+| P05 | Dimensi state independen                          | [ADR-0006](../adr/0006-orthogonal-state.md)                                                   | [EXECUTION-LIFECYCLE](../contracts/EXECUTION-LIFECYCLE.md) |
+| P06 | Gate sebelum migrasi produksi                     | [ADR-0013](../adr/0013-evolution-gates.md)                                                    | [ACCEPTANCE](../testing/ACCEPTANCE.md)                     |
+| P07 | Stateful tool idempotency/status                  | [ADR-0010](../adr/0010-tool-side-effects.md)                                                  | [TOOLS-PLUGINS](../contracts/TOOLS-PLUGINS.md)             |
+| P08 | Dual adapter, Claude lalu runtime tambahan        | [ADR-0004](../adr/0004-routing-dual-adapter.md), [ADR-0013](../adr/0013-evolution-gates.md)   | [PLAN](../PLAN.md), [ROADMAP](../ROADMAP.md)               |
 
 ## 3. Peta klarifikasi operasional
 
-| ID | Klarifikasi baseline | Keputusan aktif | Verification |
-| --- | --- | --- | --- |
-| M01 | Completion tidak menunggu settlement; external NONE dan normal exit sah; authority RELEASED setelah finalisasi sah | [ADR-0006](../adr/0006-orthogonal-state.md) | G21 |
-| M02 | Durable check-and-reserve; penolakan tidak mengubah saldo; semua financial scopes diperiksa atomik | [ADR-0007](../adr/0007-durable-accounting.md) | G07/G09 |
-| M03 | Compare-and-renew existing owner/generation/epoch; missing lease tidak dibangkitkan; durable fence menentukan cutover authority | [ADR-0005](../adr/0005-leases-fencing.md) | G04/G05/G06 |
-| M04 | Window hanya membatasi fast path; older evidence dikarantina dan dapat menghasilkan verified adjustment; completeness tetap diverifikasi | [ADR-0008](../adr/0008-late-usage.md) | G12/G15 |
-| M05 | Settlement, hold release, dan outbox dalam transaksi PostgreSQL yang sama; Redis menjadi revisioned projection | [ADR-0007](../adr/0007-durable-accounting.md) | G08 |
-| M06 | Whole-execution envelope atau enforceable per-invocation tranche mencakup retries/tools/context growth | [ADR-0007](../adr/0007-durable-accounting.md) | G25 |
-| M07 | Tidak ada periodic heartbeat writes; discrete cancel/revocation/intent/reservation/control records tetap durable | [ADR-0003](../adr/0003-tiered-storage.md), [ADR-0005](../adr/0005-leases-fencing.md) | G09/G23 |
-| M08 | Nominal detection bound memerlukan delay budget; fixture correctness dan unknown coverage bukan jaminan universal | [ADR-0013](../adr/0013-evolution-gates.md) | G04/G12 |
-| M09 | Aplikasi melalui authenticated API; topology berdasarkan kebutuhan; PostgreSQL financial authority | [ADR-0003](../adr/0003-tiered-storage.md), [ADR-0012](../adr/0012-deployment-dispatch.md) | G01/G07 |
-| M10 | Stable operation key lintas attempts/business retry untuk operasi sah yang sama; receiver scope/retention diverifikasi | [ADR-0010](../adr/0010-tool-side-effects.md) | G13/G14 |
+| ID  | Klarifikasi baseline                                                                                                                     | Keputusan aktif                                                                           | Verification |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------ |
+| M01 | Completion tidak menunggu settlement; external NONE dan normal exit sah; authority RELEASED setelah finalisasi sah                       | [ADR-0006](../adr/0006-orthogonal-state.md)                                               | G21          |
+| M02 | Durable check-and-reserve; penolakan tidak mengubah saldo; semua financial scopes diperiksa atomik                                       | [ADR-0007](../adr/0007-durable-accounting.md)                                             | G07/G09      |
+| M03 | Compare-and-renew existing owner/generation/epoch; missing lease tidak dibangkitkan; durable fence menentukan cutover authority          | [ADR-0005](../adr/0005-leases-fencing.md)                                                 | G04/G05/G06  |
+| M04 | Window hanya membatasi fast path; older evidence dikarantina dan dapat menghasilkan verified adjustment; completeness tetap diverifikasi | [ADR-0008](../adr/0008-late-usage.md)                                                     | G12/G15      |
+| M05 | Settlement, hold release, dan outbox dalam transaksi PostgreSQL yang sama; Redis menjadi revisioned projection                           | [ADR-0007](../adr/0007-durable-accounting.md)                                             | G08          |
+| M06 | Whole-execution envelope atau enforceable per-invocation tranche mencakup retries/tools/context growth                                   | [ADR-0007](../adr/0007-durable-accounting.md)                                             | G25          |
+| M07 | Tidak ada periodic heartbeat writes; discrete cancel/revocation/intent/reservation/control records tetap durable                         | [ADR-0003](../adr/0003-tiered-storage.md), [ADR-0005](../adr/0005-leases-fencing.md)      | G09/G23      |
+| M08 | Nominal detection bound memerlukan delay budget; fixture correctness dan unknown coverage bukan jaminan universal                        | [ADR-0013](../adr/0013-evolution-gates.md)                                                | G04/G12      |
+| M09 | Aplikasi melalui authenticated API; topology berdasarkan kebutuhan; PostgreSQL financial authority                                       | [ADR-0003](../adr/0003-tiered-storage.md), [ADR-0012](../adr/0012-deployment-dispatch.md) | G01/G07      |
+| M10 | Stable operation key lintas attempts/business retry untuk operasi sah yang sama; receiver scope/retention diverifikasi                   | [ADR-0010](../adr/0010-tool-side-effects.md)                                              | G13/G14      |
 
 Gate IDs merujuk [ACCEPTANCE](../testing/ACCEPTANCE.md); seluruh implementation gates masih NOT RUN. Peta ini tidak mengubah isi keputusan, parameter kandidat, atau acceptance criteria.
 
@@ -49,3 +49,12 @@ Stream/replay mengikuti [ADR-0009](../adr/0009-stream-replay.md); security mengi
 Perubahan keputusan dilakukan lewat ADR dan disinkronkan ke spesifikasi, diagram, plan, serta gate. Pembaruan navigasi atau penghapusan sumber historis tidak menutup open decisions. Catatan sebelumnya tetap dapat ditelusuri pada riwayat Git; register ini tidak menggantikan atau merekonstruksi dokumen yang dihapus.
 
 Referensi publik dan asal kebutuhan: [SOURCES](SOURCES.md). Pemeriksaan dokumentasi dan batas verifikasinya: [VALIDATION](VALIDATION.md). Titik masuk keputusan: [ADR index](../adr/README.md).
+
+## Platform control and fleet decision traceability
+
+| Decision                                                                                | ADR                                                            | Canonical specifications                                                                                              | Planned evidence                                                       |
+| --------------------------------------------------------------------------------------- | -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Application identity vs provider/runtime identity; dedicated/shared connection bindings | [ADR-0019](../adr/0019-application-connections-credentials.md) | [BOUNDARIES](../architecture/BOUNDARIES.md), [SECURITY](../security/SECURITY.md), [DATA-MODEL](../data/DATA-MODEL.md) | Cross-app denial, secret isolation, rotation, shared quota attribution |
+| Versioned plugin artifact, not host installation                                        | [ADR-0020](../adr/0020-plugin-registry-execution-packaging.md) | [TOOLS-PLUGINS](../contracts/TOOLS-PLUGINS.md)                                                                        | Digest/revoke/runtime compatibility/sandbox tests                      |
+| Optional workspace and optional MCP/remote tools                                        | [ADR-0021](../adr/0021-workspace-remote-tools.md)              | [ARTIFACTS-SESSIONS](../contracts/ARTIFACTS-SESSIONS.md), [API](../contracts/API.md)                                  | workspace-none, artifact promotion, remote mutation reconciliation     |
+| Self-registering distributed runner fleet and policy-aware placement                    | [ADR-0022](../adr/0022-distributed-runner-fleet.md)            | [DEPLOYMENT](../operations/DEPLOYMENT.md), [OWNERSHIP-RECOVERY](../reliability/OWNERSHIP-RECOVERY.md)                 | registration, drain/offline, locality, quota group, failover/fencing   |

@@ -5,9 +5,11 @@
 **Dasar:** application-owned workflow [ADR-0001](0001-application-ownership.md) dan pemisahan external outcome [ADR-0006](0006-orthogonal-state.md). Review baseline tetap dilacak melalui O11.
 
 ## Context
+
 Sandbox stop tidak membuktikan remote action batal. Per-attempt new key memungkinkan duplicate business mutation.
 
 ## Decision
+
 Persist logical operation identity/input digest before invoke; same operation reuses stable key across attempts. Receiver implements dedup/status with adequate retention; UNKNOWN not no-effect. Mutating tools without this contract not allowed in autonomous retry profile. Domain publish/compensation normally stays app-owned. MCP only protocol adapter.
 
 ## Alternatives considered

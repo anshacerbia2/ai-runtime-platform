@@ -6,6 +6,10 @@
 
 **Dasar:** user meminta FE, BE, dan DB tersedia sejak M0 supaya tiap fase dapat dicoba. Mengikuti [ADR-0001](0001-application-ownership.md), [ADR-0002](0002-managed-envelope.md), dan [ADR-0013](0013-evolution-gates.md).
 
+## Status pemilihan stack
+
+Pilihan Fastify standalone pada record awal ini digantikan oleh [ADR-0016](0016-nestjs-fastify.md) dan persistence raw-pg oleh [ADR-0017](0017-prisma-postgresql.md). Batas local contract-only dan testable milestone tetap berlaku. Struktur/quality mengikuti [ADR-0018](0018-clean-architecture-quality.md).
+
 ## Context
 
 P0 semula hanya contract/decision closure. Dokumen saja tidak memberi feedback integrasi dari browser hingga database. Menjalankan model berbayar sebelum admission, credential policy, dan reliability siap justru melompati boundary P1/P2.
@@ -37,3 +41,7 @@ Unit contract checks, schema export drift, API/database integration (scope, idem
 Setiap milestone berikutnya menambah kemampuan nyata melalui UI + API + DB dan acceptance recipe. M1 mengganti persistence demo dengan control/accounting paths yang sesuai ADR, M2 mengaktifkan provider setelah policy/credentials siap, M3 agent setelah isolasi/recovery. Jangan menyambungkan Contract Lab langsung ke provider. Deployment atau perubahan stack besar membutuhkan ADR baru.
 
 Panduan: [M0 local development](../development/M0.md). Review terbuka: [OPEN-QUESTIONS](../decisions/OPEN-QUESTIONS.md).
+
+## Subsequent platform generalization
+
+M0 local stack remains a testable contract slice. ADR-0019–ADR-0022 extend the target platform with application/connection registries, credential bindings, plugin packaging, optional workspaces, and distributed runners; none of those features are implied by the M0 local credential or single-machine development topology.

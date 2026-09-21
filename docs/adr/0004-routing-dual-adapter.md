@@ -5,9 +5,11 @@
 **Dasar:** kebutuhan OpenRouter-first dan validasi kontrak [ADR-0002](0002-managed-envelope.md) melalui adapter kedua. Review baseline tetap dilacak melalui O11.
 
 ## Context
+
 User memilih OpenRouter awal; pembuktian interface juga memerlukan direct adapter. Menentukan primary route berbeda dari memverifikasi abstraksi.
 
 ## Decision
+
 Implementasikan OpenRouter lebih dahulu dan Direct Anthropic proof pada Phase 2. Default/alternate routes per profile; OpenRouter boleh primary. Proof mencakup shared capability, error, stream, usage. Operational failover memerlukan test terpisah dan policy/data/quality equivalence. Codex runtime tidak disamakan dengan OpenAI inference provider.
 
 ## Alternatives considered

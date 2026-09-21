@@ -5,9 +5,11 @@
 **Dasar:** bukti reliability, security, dan accounting sebelum migrasi produksi; terkait [ADR-0005](0005-leases-fencing.md), [ADR-0007](0007-durable-accounting.md), dan [ADR-0011](0011-sandbox-security.md). Review baseline tetap dilacak melalui O11.
 
 ## Context
+
 Roadmap awal menempatkan core reliability setelah migrasi aplikasi. Gate harus mendahului produksi; target timing/accuracy memerlukan ruang lingkup pengukuran yang jelas.
 
 ## Decision
+
 Core controls built with P1/P2/P3, verified P3.5 before production cutover. Twenty-five applicable scenarios cover worker chaos, SSE, budget race, late usage, sandbox, and operational correctness gaps. Record actual evidence, parameters, owner, and unresolved risks. Controlled canary/rollback per app. Codex/Gemini added through same conformance/security/quality gates.
 
 ## Alternatives considered

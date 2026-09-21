@@ -4,10 +4,10 @@
 
 ## 1. Dua kelas event
 
-| Class | Contoh | Penyimpanan/jaminan |
-| --- | --- | --- |
+| Class                 | Contoh                                                                                      | Penyimpanan/jaminan                                                          |
+| --------------------- | ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
 | Durable control/audit | accepted, attempt assigned, started, cancel requested, orphaned, terminal, usage adjustment | PostgreSQL transaction + outbox; at-least-once delivery, idempotent consumer |
-| Live presentation | model.delta, tool log delta, progress fragment | Redis replay buffer; bounded retention/bytes, tidak menjadi ledger |
+| Live presentation     | model.delta, tool log delta, progress fragment                                              | Redis replay buffer; bounded retention/bytes, tidak menjadi ledger           |
 
 Tool invocation intent/outcome yang berpengaruh pada retry/safety WAJIB durable. Bukan berarti setiap baris stdout/log tool durable. Sensitive raw output disaring sebelum log/event publik; stream data mengikuti authorization execution.
 
@@ -23,13 +23,14 @@ Tool invocation intent/outcome yang berpengaruh pada retry/safety WAJIB durable.
   "sequence": 12,
   "type": "model.delta",
   "occurred_at": "2026-09-20T00:00:00Z",
-  "payload": {"text": "Hasil"}
+  "payload": { "text": "Hasil" }
 }
 ```
 
 Sequence monoton per stream epoch; bukan urutan global seluruh aplikasi. SSE `id` adalah opaque cursor mengikat execution/attempt/epoch/position. Durable control event memiliki ID stabil saat relay ulang. Consumer dedup event ID; snapshot revision digunakan untuk durable state, tidak disamakan dengan live sequence.
 
 SSE frame konseptual:
+
 ```text
 id: opaque-exec-attempt-epoch-sequence
 event: model.delta
@@ -41,17 +42,17 @@ Implementasi codec menghasilkan field `id:`, `event:`, `data:` tepat sesuai prot
 
 ## 3. Event catalogue
 
-| Event | Durable | Meaning |
-| --- | --- | --- |
-| execution.accepted | Ya | Admission committed |
-| execution.started | Ya | Active execution starts |
-| attempt.started / attempt.orphaned / attempt.ended | Ya | Attempt lifecycle |
-| model.delta | Tidak | Partial unvalidated output |
-| tool.started / tool.completed | Ya untuk invocation state | Approved operation began/ended; payload detail dapat reference |
-| execution.cancel_requested | Ya | Durable intent committed |
-| execution.completed / failed / cancelled / timed_out | Ya | Public terminal state committed |
-| usage.updated | Ya untuk accepted evidence/aggregate revision | Financial state dapat bergerak setelah execution terminal |
-| stream.reset_required | Tidak | Current hot stream tidak dapat dilanjutkan dari cursor |
+| Event                                                | Durable                                       | Meaning                                                        |
+| ---------------------------------------------------- | --------------------------------------------- | -------------------------------------------------------------- |
+| execution.accepted                                   | Ya                                            | Admission committed                                            |
+| execution.started                                    | Ya                                            | Active execution starts                                        |
+| attempt.started / attempt.orphaned / attempt.ended   | Ya                                            | Attempt lifecycle                                              |
+| model.delta                                          | Tidak                                         | Partial unvalidated output                                     |
+| tool.started / tool.completed                        | Ya untuk invocation state                     | Approved operation began/ended; payload detail dapat reference |
+| execution.cancel_requested                           | Ya                                            | Durable intent committed                                       |
+| execution.completed / failed / cancelled / timed_out | Ya                                            | Public terminal state committed                                |
+| usage.updated                                        | Ya untuk accepted evidence/aggregate revision | Financial state dapat bergerak setelah execution terminal      |
+| stream.reset_required                                | Tidak                                         | Current hot stream tidak dapat dilanjutkan dari cursor         |
 
 Terminal execution event dapat tiba sebelum usage final. Live token fragments tidak dapat dianggap hasil resmi setelah attempt fail/fence. Emit attempt boundaries agar UI tidak menggabungkan dua attempts menjadi satu jawaban tanpa penanda.
 

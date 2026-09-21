@@ -5,9 +5,11 @@
 **Dasar:** application boundary [ADR-0001](0001-application-ownership.md) dan durable data authority [ADR-0003](0003-tiered-storage.md). Review baseline tetap dilacak melalui O11.
 
 ## Context
+
 Shared platform needs reliable delivery without building many microservices or a business workflow engine. Dual-write queue/state can lose work.
 
 ## Decision
+
 Modular control plane plus separate agent workers; PG work/assignment/outbox authority; optional external broker as delivery optimization with idempotent consumer. Direct gateway pool not long-agent queue. Redis hot layer and object/secret stores isolated. Interactive/batch/agent capacity budgets separated.
 
 ## Alternatives considered

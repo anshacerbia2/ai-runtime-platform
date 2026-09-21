@@ -1,0 +1,9 @@
+node_modules
+.local
+dist
+build
+coverage
+test-results
+contracts/*.json
+package-lock.json
+apps/api/src/infrastructure/database/generated/

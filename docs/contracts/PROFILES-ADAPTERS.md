@@ -4,15 +4,15 @@
 
 ## 1. Konsep yang tidak boleh dicampur
 
-| Konsep | Contoh ilustratif | Fungsi |
-| --- | --- | --- |
-| Capability | chat, structured_generate, agent_execute | Kebutuhan execution |
-| Provider adapter | openrouter, direct-anthropic | Integrasi API inference |
-| Runtime adapter | claude, codex, gemini | Agent lifecycle/tools/workspace/session |
-| Model policy | approved-document-models | Model allowlist/capability/context/data policy |
-| Credential binding | org-api-key-binding | Secret reference dan allowed upstream identity |
-| Cognitive harness | scribe-package@digest | App-owned instructions/templates/domain tools |
-| Execution profile | scribe-document@2 | Versi gabungan policy dan compatible bindings |
+| Konsep             | Contoh ilustratif                        | Fungsi                                         |
+| ------------------ | ---------------------------------------- | ---------------------------------------------- |
+| Capability         | chat, structured_generate, agent_execute | Kebutuhan execution                            |
+| Provider adapter   | openrouter, direct-anthropic             | Integrasi API inference                        |
+| Runtime adapter    | claude, codex, gemini                    | Agent lifecycle/tools/workspace/session        |
+| Model policy       | approved-document-models                 | Model allowlist/capability/context/data policy |
+| Credential binding | org-api-key-binding                      | Secret reference dan allowed upstream identity |
+| Cognitive harness  | scribe-package@digest                    | App-owned instructions/templates/domain tools  |
+| Execution profile  | scribe-document@2                        | Versi gabungan policy dan compatible bindings  |
 
 Tidak semua runtime dapat memakai semua provider/binding. Model yang sama melalui aggregator bukan berarti menjalankan agent CLI vendor. Compatibility disimpan sebagai tested tuple, bukan Cartesian product otomatis.
 
@@ -22,13 +22,16 @@ Tidak semua runtime dapat memakai semua provider/binding. Model yang sama melalu
 {
   "profile": "scribe-document@2",
   "capability": "agent_execute",
-  "runtime": {"adapter": "claude", "version_policy": "approved-pinned-version"},
+  "runtime": {
+    "adapter": "claude",
+    "version_policy": "approved-pinned-version"
+  },
   "model_policy_ref": "document-models@1",
   "credential_binding_ref": "scribe-runtime-key@1",
   "harness_ref": "scribe-package@sha256:example",
   "tool_policy_ref": "scribe-artifact-only@1",
   "data_policy_ref": "internal-documents@1",
-  "limits": {"max_attempts": 2, "max_turns": 15, "max_concurrency": 2},
+  "limits": { "max_attempts": 2, "max_turns": 15, "max_concurrency": 2 },
   "budget_policy_ref": "scribe-budget@1",
   "session_policy": "same-runtime-single-writer",
   "workload_class": "agent"
@@ -47,14 +50,14 @@ Server memvalidasi supported tuple, output schema, allowed egress, credential sc
 
 ## 4. Provider adapter interface konseptual
 
-| Operation | Input/output | Obligasi |
-| --- | --- | --- |
-| describeCapabilities | Versioned capability set | Tidak mengiklankan fitur yang belum dibuktikan |
-| validateAndPrepare | Normalized request + resolved policy -> provider request | Unsupported parameter explicit error, no silent drop |
-| invoke/stream | Attempt/invocation context -> normalized response/events | Capture request ID, resolved model, finish reason, usage scope |
-| cancel | Request handle -> cancellation evidence | Bedakan request accepted, upstream confirmed, unknown |
-| reconcileUsage | Upstream ID -> evidence bila didukung | Tidak mengarang usage jika provider tidak menyediakan lookup |
-| normalizeError | Provider error -> platform category | Preserve sanitized debug refs tanpa secret |
+| Operation            | Input/output                                             | Obligasi                                                       |
+| -------------------- | -------------------------------------------------------- | -------------------------------------------------------------- |
+| describeCapabilities | Versioned capability set                                 | Tidak mengiklankan fitur yang belum dibuktikan                 |
+| validateAndPrepare   | Normalized request + resolved policy -> provider request | Unsupported parameter explicit error, no silent drop           |
+| invoke/stream        | Attempt/invocation context -> normalized response/events | Capture request ID, resolved model, finish reason, usage scope |
+| cancel               | Request handle -> cancellation evidence                  | Bedakan request accepted, upstream confirmed, unknown          |
+| reconcileUsage       | Upstream ID -> evidence bila didukung                    | Tidak mengarang usage jika provider tidak menyediakan lookup   |
+| normalizeError       | Provider error -> platform category                      | Preserve sanitized debug refs tanpa secret                     |
 
 Adapter tidak mengubah business job, tidak melakukan hidden unbounded retry, dan tidak menyimpan usage lewat jalur terpisah yang menghindari dedup. Setiap actual invocation dicatat.
 
@@ -68,14 +71,14 @@ Runtime harus mengungkap tool/approval/session support dan batas enforcement. Su
 
 Legenda: PLANNED berarti requirement yang akan diuji; CONDITIONAL berarti support hanya setelah profile/runtime specific proof; DEFERRED bukan fitur MVP.
 
-| Jalur | Chat/structured | Tools/workspace | Resume | Detailed usage | Status |
-| --- | --- | --- | --- | --- | --- |
-| OpenRouter gateway | PLANNED; supported model/provider only | Caller-controlled tool-call output bila enabled, tanpa autonomous sandbox | App conversation, bukan agent session | Provider evidence sesuai source capability | P2 |
-| Direct Anthropic gateway | PLANNED; model constraints apply | Sama batas gateway | App conversation | Provider-specific mapping | P2 proof |
-| Claude runtime | Agent workload | CONDITIONAL approved sandbox/tools | CONDITIONAL same runtime/version | Observed summary atau invocation sesuai adapter | P3 |
-| Codex runtime | Agent workload | CONDITIONAL | CONDITIONAL | Must map/test | P5 |
-| Gemini runtime | Agent workload | CONDITIONAL | CONDITIONAL | Must map/test | P6 |
-| Embedding/rerank/audio | DEFERRED | Tidak dipaksakan menjadi chat | Not assumed | Capability-specific units | P7 |
+| Jalur                    | Chat/structured                        | Tools/workspace                                                           | Resume                                | Detailed usage                                  | Status   |
+| ------------------------ | -------------------------------------- | ------------------------------------------------------------------------- | ------------------------------------- | ----------------------------------------------- | -------- |
+| OpenRouter gateway       | PLANNED; supported model/provider only | Caller-controlled tool-call output bila enabled, tanpa autonomous sandbox | App conversation, bukan agent session | Provider evidence sesuai source capability      | P2       |
+| Direct Anthropic gateway | PLANNED; model constraints apply       | Sama batas gateway                                                        | App conversation                      | Provider-specific mapping                       | P2 proof |
+| Claude runtime           | Agent workload                         | CONDITIONAL approved sandbox/tools                                        | CONDITIONAL same runtime/version      | Observed summary atau invocation sesuai adapter | P3       |
+| Codex runtime            | Agent workload                         | CONDITIONAL                                                               | CONDITIONAL                           | Must map/test                                   | P5       |
+| Gemini runtime           | Agent workload                         | CONDITIONAL                                                               | CONDITIONAL                           | Must map/test                                   | P6       |
+| Embedding/rerank/audio   | DEFERRED                               | Tidak dipaksakan menjadi chat                                             | Not assumed                           | Capability-specific units                       | P7       |
 
 ## 7. Routing dan fallback
 
@@ -90,3 +93,13 @@ OpenRouter routing dapat dikonfigurasi untuk parameter support dan ZDR (R02/R03 
 ## 8. Upgrade contract
 
 Pin adapter/runtime/package versions. Upgrade candidate mengulang contract, sandbox, usage, resume, dan quality tests pada affected profiles. Canary alias sebelum broader rollout. Rollback ke version lama hanya untuk new attempts; jangan resume incompatible checkpoint. Store approved version history agar audit dapat menjelaskan model/runtime/profile yang benar-benar dipakai.
+
+## 9. Application, connection, plugin, dan placement bindings
+
+Execution Profile adalah server-managed policy snapshot. Selain capability/runtime/model/limits, profile dapat mengikat `connection_policy_ref`, optional `plugin_ref`, `tool_policy_ref`, `workspace_policy`, `runner_pool_ref`, `data_policy_ref`, dan `budget_policy_ref`.
+
+Caller tidak mengirim provider secret, credential instance, runner ID, local plugin path, atau host filesystem path. Resolution order konseptual:
+
+`authenticated application -> profile revision -> allowed AI connections -> eligible credential instances -> eligible runner pool/nodes -> adapter/runtime`
+
+Connection selection dan placement harus fail closed jika tidak ada candidate yang memenuhi seluruh policy. Profile portability tidak menjanjikan plugin/runtime interchangeability; compatibility dipublikasikan per revision.

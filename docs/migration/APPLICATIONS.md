@@ -10,16 +10,16 @@ Track old path and new path separately during migration. Business operation idem
 
 ## 2. Per-application target
 
-| Consumer | Target change | Preserve | Acceptance |
-| --- | --- | --- | --- |
-| Scribe BE | Delegate AI execution/profile/artifact handling to runtime API | Job states, queue bisnis, validation/review, Drive publication | Same document quality, result manifest, failure/cancel semantics |
-| Scribe UI | Continue through BE; display execution progress/status and pending usage accurately | User/business workflow | Reconnect without duplicate job or lost final result |
-| Scribe plugin | Package immutable harness/scripts/schema with per-runtime manifest | Domain knowledge/templates | Claude conformance first; Codex/Gemini only after explicit tests |
-| Claude runner | Extract adapter + supervisor boundary, remove caller-controlled unsafe config | Useful runtime integration | Isolation, generation, cancellation, usage/late evidence tests |
-| Themis/sq-fare | Replace narrow inference provider seam | Fare rules/schema/domain evidence | Golden outputs, schema rejection, no silent model enum drift |
-| Farexlate | Map translate/verify/repair step calls to gateway | Glossary/TM/batch logic/QA/rendering | Per-stage quality/cost including repair attempts |
-| RAGnosis/ragnarok | Route selected generation/vision model calls | Retrieval/ACL/query/citation logic | Citation/evidence correctness, access isolation, interactive latency |
-| New chat app | Start with gateway profile, optional conversation ID | App-owned history/UI/consent | No fake job/plugin; streaming, cancel and usage correctness |
+| Consumer          | Target change                                                                       | Preserve                                                       | Acceptance                                                           |
+| ----------------- | ----------------------------------------------------------------------------------- | -------------------------------------------------------------- | -------------------------------------------------------------------- |
+| Scribe BE         | Delegate AI execution/profile/artifact handling to runtime API                      | Job states, queue bisnis, validation/review, Drive publication | Same document quality, result manifest, failure/cancel semantics     |
+| Scribe UI         | Continue through BE; display execution progress/status and pending usage accurately | User/business workflow                                         | Reconnect without duplicate job or lost final result                 |
+| Scribe plugin     | Package immutable harness/scripts/schema with per-runtime manifest                  | Domain knowledge/templates                                     | Claude conformance first; Codex/Gemini only after explicit tests     |
+| Claude runner     | Extract adapter + supervisor boundary, remove caller-controlled unsafe config       | Useful runtime integration                                     | Isolation, generation, cancellation, usage/late evidence tests       |
+| Themis/sq-fare    | Replace narrow inference provider seam                                              | Fare rules/schema/domain evidence                              | Golden outputs, schema rejection, no silent model enum drift         |
+| Farexlate         | Map translate/verify/repair step calls to gateway                                   | Glossary/TM/batch logic/QA/rendering                           | Per-stage quality/cost including repair attempts                     |
+| RAGnosis/ragnarok | Route selected generation/vision model calls                                        | Retrieval/ACL/query/citation logic                             | Citation/evidence correctness, access isolation, interactive latency |
+| New chat app      | Start with gateway profile, optional conversation ID                                | App-owned history/UI/consent                                   | No fake job/plugin; streaming, cancel and usage correctness          |
 
 Embedding/rerank migration is separate capability work. Changing embedding model/index is not an incidental provider switch; app owner handles index version/retrieval validation and rollback.
 
@@ -40,3 +40,9 @@ Maintain mapping business job/step -> platform execution/attempt and stable oper
 App owner approves domain correctness and workflow boundary. Platform owner approves operational evidence. Security approves data/credential scope. Accounting owner approves attribution/unknown treatment. Migrated means consumers use shared contract for intended calls and rollback is tested; it does not mean all domain logic or jobs moved to platform.
 
 Flow: [migration/evolution](../diagrams/08-evolution-migration.md). Plan phase P4 is gated; no production app changes are performed by this documentation update.
+
+## Registry onboarding checklist
+
+Sebelum app cutover, buat Application Registry entry dan mapping Keycloak, publish allowed profile revisions, bind AI Connections secara explicit, tetapkan budget/data policy, dan register plugin/remote-tool dependencies hanya bila workload membutuhkannya. App tidak membawa provider secret atau runner address ke execution request.
+
+Untuk app dengan dedicated provider account, connection binding harus membuktikan cross-app denial. Untuk shared account, quota group dan ownership/chargeback harus jelas. Jika workload memakai app-owned MCP/remote API, receiver idempotency/status contract diuji sebelum mutating tool diaktifkan.

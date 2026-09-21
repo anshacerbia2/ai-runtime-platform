@@ -12,12 +12,12 @@ Scripts dijalankan di sandbox/out-of-process worker, bukan proses API. Tool brok
 
 ## 2. Kelas tool
 
-| Kelas | Contoh | Aturan |
-| --- | --- | --- |
-| Pure/read-only | Parse file, inspect approved artifact | Read scope + timeout; tetap hitung compute/paid API cost |
-| Workspace-write | Render draft di workspace attempt | Isolated path, quotas, artifact manifest; tidak otomatis publish |
-| External mutation | Publish, update domain record, send webhook | Stable operation key, receiver dedup/status, approval bila perlu |
-| Unbounded/opaque mutation | Arbitrary shell/network dengan credential luas | Tidak eligible pada autonomous retry profile MVP |
+| Kelas                     | Contoh                                         | Aturan                                                           |
+| ------------------------- | ---------------------------------------------- | ---------------------------------------------------------------- |
+| Pure/read-only            | Parse file, inspect approved artifact          | Read scope + timeout; tetap hitung compute/paid API cost         |
+| Workspace-write           | Render draft di workspace attempt              | Isolated path, quotas, artifact manifest; tidak otomatis publish |
+| External mutation         | Publish, update domain record, send webhook    | Stable operation key, receiver dedup/status, approval bila perlu |
+| Unbounded/opaque mutation | Arbitrary shell/network dengan credential luas | Tidak eligible pada autonomous retry profile MVP                 |
 
 Filesystem/workspace-only script masih bisa exfiltrate lewat network; klasifikasi tool bukan satu-satunya security control. Egress dan credential scope harus enforce behavior yang diizinkan.
 
@@ -33,14 +33,17 @@ Store request digest. Same key + different input memberi conflict, bukan execute
 
 ```typescript
 interface StatefulTool {
-  execute(input: JsonValue, context: {
-    operationId: string;
-    idempotencyKey: string;
-    requestDigest: string;
-    authorizationRef: string;
-  }): Promise<ToolResult>;
+  execute(
+    input: JsonValue,
+    context: {
+      operationId: string;
+      idempotencyKey: string;
+      requestDigest: string;
+      authorizationRef: string;
+    },
+  ): Promise<ToolResult>;
   checkStatus(idempotencyKey: string): Promise<{
-    state: "COMMITTED" | "FAILED" | "UNKNOWN";
+    state: 'COMMITTED' | 'FAILED' | 'UNKNOWN';
     receiptRef?: string;
     failureGuaranteesNoEffect?: boolean;
   }>;
@@ -70,3 +73,13 @@ Bila tool membutuhkan approval, approve/deny harus berasal dari authenticated ac
 Sandbox killed tidak mengubah COMMITTED menjadi FAILED dan tidak mengubah UNKNOWN menjadi no effect. App menerima operation IDs dan status references untuk keputusan bisnis. Platform dapat reconcile fakta remote dan melakukan permitted same-key infrastructure replay; tidak memutuskan kompensasi bisnis seperti menghapus dokumen yang sudah dipublikasikan.
 
 Tests: duplicate request, changed payload same key, crash after receiver success before receipt persistence, expired idempotency retention, forged receipt, cross-tenant status lookup, stale owner dispatch, approval digest mismatch. Lihat G13/G14/G18 pada [acceptance](../testing/ACCEPTANCE.md).
+
+## 8. Plugin registry dan remote capability model
+
+Plugin adalah immutable, versioned execution package dengan `plugin_id`, version, artifact reference, digest/signature metadata, runtime compatibility, required permissions, dan lifecycle status. Profile boleh tidak memiliki plugin sama sekali.
+
+Worker materialize plugin ke sandbox setelah digest/policy verification. Plugin tidak boleh mengandalkan checkout path permanen pada runner host. Provider credential tidak diekspos ke plugin kecuali adapter contract secara eksplisit memerlukannya dan policy mengizinkan.
+
+Tool dibagi menjadi: platform-owned tool, packaged plugin tool, dan remote app/service-owned tool. Remote tool dapat memakai MCP atau typed HTTP/RPC. MCP adalah supported integration mechanism, bukan platform requirement untuk setiap app.
+
+Mutating tool tetap mengikuti [ADR-0010](../adr/0010-tool-side-effects.md): stable logical operation key harus bertahan melewati technical retry, dan receiver harus menyediakan deduplication/status semantics.

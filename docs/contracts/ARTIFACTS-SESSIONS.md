@@ -40,13 +40,21 @@ Idempotent replay submission memakai session revision awal, bukan mengirim ulang
 
 ## 6. Failure cases
 
-| Failure | Behavior |
-| --- | --- |
-| Upload grant expired | Renew authorized grant, no duplicate logical artifact by accident |
-| Worker dies mid-upload | Candidate incomplete, no official result promotion |
-| Object committed, DB finalization failed | Retry finalization idempotent jika authority masih sah; selain itu quarantine |
-| Redis lost | Final artifact/snapshot tetap lewat SoR/object store; stream may require resync |
-| Session expired | Explicit 410/resource expiry; app decides restart |
-| Old worker resumes same session | Reject stale generation/revision, no concurrent writer |
+| Failure                                  | Behavior                                                                        |
+| ---------------------------------------- | ------------------------------------------------------------------------------- |
+| Upload grant expired                     | Renew authorized grant, no duplicate logical artifact by accident               |
+| Worker dies mid-upload                   | Candidate incomplete, no official result promotion                              |
+| Object committed, DB finalization failed | Retry finalization idempotent jika authority masih sah; selain itu quarantine   |
+| Redis lost                               | Final artifact/snapshot tetap lewat SoR/object store; stream may require resync |
+| Session expired                          | Explicit 410/resource expiry; app decides restart                               |
+| Old worker resumes same session          | Reject stale generation/revision, no concurrent writer                          |
 
 Tests G19/G20/G24; diagram [artifact/session flows](../diagrams/06-streaming-artifacts.md).
+
+## 7. Optional workspace contract
+
+Workspace bukan requirement universal. Profile memilih `none`, `ephemeral`, atau `artifact_workspace`.
+
+Untuk `artifact_workspace`, input diberikan sebagai logical artifact refs; platform mematerialize ke isolated workspace. Plugin/runtime dapat menulis output lokal, lalu platform memvalidasi manifest, path boundary, size/type policy, checksum, dan mempromosikan file yang diizinkan ke Artifact Store. Worker-local path tidak pernah menjadi durable API result.
+
+Pola Scribe `in/`, `out/`, dan `result.json` adalah specialization yang kompatibel dengan workspace ini, bukan schema wajib platform. Generic result contract hanya menjelaskan execution outcome dan artifact references; validasi domain-specific tetap milik application/plugin owner.

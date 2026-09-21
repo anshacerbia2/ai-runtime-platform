@@ -5,9 +5,11 @@
 **Dasar:** pemisahan outcome dan ownership [ADR-0001](0001-application-ownership.md), serta accounting [ADR-0007](0007-durable-accounting.md). Review baseline tetap dilacak melalui O11.
 
 ## Context
+
 Empat dimensi status harus tetap independen. Syarat sukses external COMMITTED sekaligus accounting SETTLED akan menghalangi chat dengan external NONE dan hasil yang billing-nya terlambat.
 
 ## Decision
+
 Gunakan public execution status plus attempt dimensions authority/local compute/external/accounting. Completion memerlukan valid final result dan technical outcome, bukan settlement. Direct compute NOT_APPLICABLE, ordinary exit EXITED, finalized authority RELEASED sah. Unknown external effect dan pending cost tetap terlihat setelah terminal execution. No forced SIGKILL for ordinary failure.
 
 ## Alternatives considered

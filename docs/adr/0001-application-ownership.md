@@ -5,9 +5,11 @@
 **Dasar:** kebutuhan produk untuk aplikasi dengan dan tanpa business job. Review baseline tetap dilacak melalui O11.
 
 ## Context
+
 Platform melayani app yang memiliki business jobs sekaligus future direct-chat app tanpa job. Memusatkan seluruh workflow membuat platform bergantung domain dan memaksa chat menggunakan abstraksi palsu.
 
 ## Decision
+
 App memiliki job/state bisnis, instruksi domain, retrieval/validation/review, dan publication. Platform memiliki execution/attempt, policy, lifecycle, results/events, dan usage. Correlation process/step/conversation opsional; authenticated identity dan execution ID selalu ada setelah acceptance. Identitas organisasi direuse lewat adapter bila kontraknya tersedia, bukan membangun IdP atau workflow engine baru.
 
 ## Alternatives considered

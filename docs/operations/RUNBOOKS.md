@@ -63,3 +63,15 @@ Check earliest cursor, stream epoch, retention/byte eviction, and execution snap
 ## Ownership and escalation
 
 Platform on-call handles dispatch/storage; app owner resolves domain outcome; security handles credential/exfiltration; accounting owner approves adjustment/write-off. Named contacts, timers, regions, console procedures, and communication channels remain deployment decisions O02–O07 before production.
+
+## Runner fleet and AI connection operations
+
+**Drain runner:** set durable state DRAINING, hentikan placement baru, amati in-flight attempts sampai selesai/reconciled, lalu shutdown. Jangan menghapus lease/fence untuk mempercepat drain.
+
+**Runner unexpectedly offline:** remove node dari eligible placement berdasarkan lease/liveness, inspect in-flight attempts, jalankan orphan reconciliation/fencing, dan redispatch hanya jika retry policy aman.
+
+**Revoke AI connection/credential:** disable binding/instance secara durable, hentikan new placement, rotate/revoke secret di authority asal, lalu audit active executions yang mungkin sudah menerima credential. Jangan menganggap UI disable membatalkan provider call yang sudah diterima.
+
+**Shared quota saturation:** throttle seluruh bindings dalam quota group, bukan hanya runner yang pertama menerima 429. Verify provider scope sebelum menaikkan capacity.
+
+**Plugin revoke:** tandai version revoked untuk new admission, jangan mutate artifact lama; inspect executions yang sedang berjalan dan gunakan cancellation policy bila security incident mengharuskan.

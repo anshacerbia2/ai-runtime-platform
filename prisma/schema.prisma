@@ -1,0 +1,66 @@
+generator client {
+  provider               = "prisma-client"
+  output                 = "../apps/api/src/infrastructure/database/generated"
+  moduleFormat           = "esm"
+  generatedFileExtension = "ts"
+  importFileExtension    = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["m0"]
+}
+
+model Application {
+  id          String          @id @db.Text
+  displayName String          @map("display_name") @db.Text
+  tokenSha256 String          @unique(map: "applications_token_sha256_key") @map("token_sha256") @db.Char(64)
+  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  profiles    Profile[]
+  checks      ContractCheck[]
+
+  @@map("applications")
+  @@schema("m0")
+}
+
+model Profile {
+  applicationId String      @map("application_id") @db.Text
+  profileRef    String      @map("profile_ref") @db.Text
+  definition    Json        @db.JsonB
+  digest        String      @db.Char(64)
+  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([applicationId, profileRef])
+  @@map("profiles")
+  @@schema("m0")
+}
+
+model ContractCheck {
+  id              String      @id @db.Uuid
+  applicationId   String      @map("application_id") @db.Text
+  idempotencyKey  String      @map("idempotency_key") @db.Text
+  requestDigest   String      @map("request_digest") @db.Char(64)
+  contractVersion String      @map("contract_version") @db.Text
+  kind            String      @db.Text
+  valid           Boolean
+  requestSummary  Json        @map("request_summary") @db.JsonB
+  report          Json        @db.JsonB
+  createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  application     Application @relation(fields: [applicationId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([applicationId, idempotencyKey], map: "contract_checks_application_id_idempotency_key_key")
+  @@index([applicationId, createdAt(sort: Desc), id(sort: Desc)], map: "contract_checks_scope_time")
+  @@map("contract_checks")
+  @@schema("m0")
+}
+
+/// Read-only provenance of the pre-Prisma migration. Never erase applied history.
+model LegacySchemaMigration {
+  version   String   @id @db.Text
+  checksum  String   @db.Text
+  appliedAt DateTime @default(now()) @map("applied_at") @db.Timestamptz(6)
+
+  @@map("schema_migrations")
+  @@schema("m0")
+}

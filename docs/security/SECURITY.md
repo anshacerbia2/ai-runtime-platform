@@ -10,18 +10,18 @@ Prompt, retrieved text, artifact contents, tool responses, and model output are 
 
 ## 2. Threat-control-test matrix
 
-| Threat | Required control | Proof |
-| --- | --- | --- |
-| Cross-app/tenant read atau cancel | Token binding + per-resource authZ pada read/list/stream/cancel/artifact/session/usage | G01 |
-| Credential theft dari sandbox | No control-plane env; scoped short-lived grants; separate secret broker; no shared consumer config dir | G18 |
-| Host traversal/socket access | Nonprivileged sandbox, no host mounts/sockets, filesystem policy, symlink validation | G18/G19 |
-| SSRF/metadata exfiltration | Egress allowlist, DNS/redirect/IP revalidation, block metadata/private control ranges kecuali explicitly approved route | G18 |
-| Prompt injection requesting tools | Broker evaluates immutable policy/approval, not model claims | G13/G18 |
-| Stale/compromised worker changing outcome | Generation/revision checks; no direct DB writes; separate evidence intake | G04/G05/G12 |
-| Forged/duplicate financial evidence | Source identity, bounded intake, verification, dedup/adjustment | G12/G15 |
-| Resource exhaustion/noisy neighbor | Request/schema/file/log/token/process/memory/time limits, isolated queues/pools | G22/G25 |
-| Supply-chain package/runtime change | Version pinning, digest/provenance review, test and controlled rollout | G03/G18 |
-| Excess data retention | Classification, access/retention policy, deletion propagation and backup handling | G24 |
+| Threat                                    | Required control                                                                                                        | Proof       |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ----------- |
+| Cross-app/tenant read atau cancel         | Token binding + per-resource authZ pada read/list/stream/cancel/artifact/session/usage                                  | G01         |
+| Credential theft dari sandbox             | No control-plane env; scoped short-lived grants; separate secret broker; no shared consumer config dir                  | G18         |
+| Host traversal/socket access              | Nonprivileged sandbox, no host mounts/sockets, filesystem policy, symlink validation                                    | G18/G19     |
+| SSRF/metadata exfiltration                | Egress allowlist, DNS/redirect/IP revalidation, block metadata/private control ranges kecuali explicitly approved route | G18         |
+| Prompt injection requesting tools         | Broker evaluates immutable policy/approval, not model claims                                                            | G13/G18     |
+| Stale/compromised worker changing outcome | Generation/revision checks; no direct DB writes; separate evidence intake                                               | G04/G05/G12 |
+| Forged/duplicate financial evidence       | Source identity, bounded intake, verification, dedup/adjustment                                                         | G12/G15     |
+| Resource exhaustion/noisy neighbor        | Request/schema/file/log/token/process/memory/time limits, isolated queues/pools                                         | G22/G25     |
+| Supply-chain package/runtime change       | Version pinning, digest/provenance review, test and controlled rollout                                                  | G03/G18     |
+| Excess data retention                     | Classification, access/retention policy, deletion propagation and backup handling                                       | G24         |
 
 ## 3. Sandbox baseline
 
@@ -52,3 +52,13 @@ Stateful tools need both identity authorization and stable operation/receiver id
 Separate admin/runtime/usage verifier identities. Audit profile/credential/grant changes and manual budget adjustments. Security kill switch revokes new dispatch and starts safe cancellation; it does not imply past remote actions were undone. Incident response preserves evidence before cleanup according to policy.
 
 Deployment requires a named owner, threat-model review, sandbox evidence, credential agreement, data policy, and recovery plan. Multi-tenant production remains blocked without these. See [open decisions](../decisions/OPEN-QUESTIONS.md).
+
+## 8. Application isolation, connection secrecy, dan plugin supply chain
+
+Authorization dievaluasi pada authenticated application + profile revision + connection binding, bukan pada identifier yang dikirim caller. Mengetahui connection/plugin/runner ID tidak memberi authority.
+
+Actual provider credential dapat berupa API key/token, OAuth/service account, cloud workload identity, atau runtime/account session yang didukung adapter; material berasal dari secret manager/workload identity atau runner-local secret store. Secret/session tidak tampil di Admin UI, logs, database metadata, browser bundle, plugin manifest, registration, atau heartbeat. Injection harus minimum-scope dan minimum-lifetime.
+
+Plugin package wajib diverifikasi digest/status sebelum materialization. Sandbox menolak host path traversal, undeclared mounts, host secret access, dan egress di luar policy. Cross-app acceptance harus membuktikan App A tidak dapat menggunakan profile, plugin, artifact, credential instance, atau connection milik App B.
+
+Runner registration wajib authenticated dan node identity tidak boleh diambil alih hanya dengan spoofed heartbeat. Drain/disable adalah durable operator intent; stale node tidak kembali eligible hanya karena mengirim heartbeat lama.

@@ -5,9 +5,11 @@
 **Dasar:** single-owner execution dan pemisahan authority dari telemetry; terkait [ADR-0003](0003-tiered-storage.md) dan [ADR-0008](0008-late-usage.md). Review baseline tetap dilacak melalui O11.
 
 ## Context
+
 Lease expiry bisa terjadi saat process/remote operation masih hidup. Bare SET renewal dapat membuat ulang lease hilang. Redis check dan PG commit bukan transaksi tunggal.
 
 ## Decision
+
 PG mengalokasikan current assignment/generation/coordination epoch. Supervisor menerbitkan Redis lease; renewal hanya extend key existing dengan exact owner/generation/epoch/nonce. Missing/mismatch berarti loss. No periodic heartbeat PG writes. Durable revocation CAS mendahului reassignment; old generation ditolak setelah fence. Epoch rebuild fail-closed ketika Redis state tidak dapat dipercaya. Late usage terpisah.
 
 ## Alternatives considered

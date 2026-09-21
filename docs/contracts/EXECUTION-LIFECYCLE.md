@@ -8,17 +8,17 @@ Execution adalah satu permintaan AI yang di-admit. Attempt adalah satu percobaan
 
 ### Public execution status
 
-| Status | Arti | Jalur berikut yang diizinkan |
-| --- | --- | --- |
-| ACCEPTED | Admission + idempotency + reservation committed | QUEUED, RUNNING, CANCEL_REQUESTED, FAILED |
-| QUEUED | Menunggu agent/resource dispatch | RUNNING, CANCEL_REQUESTED, FAILED, TIMED_OUT |
-| RUNNING | Attempt aktif atau wait antar-step terotorisasi | COMPLETED, FAILED, CANCEL_REQUESTED, TIMED_OUT, RECONCILING, QUEUED |
-| CANCEL_REQUESTED | Durable intent menghentikan pekerjaan | CANCELLED, RECONCILING; completion yang sudah menang CAS tetap terminal |
-| RECONCILING | Authority/compute/remote outcome memerlukan pemeriksaan | QUEUED (safe retry), FAILED, TIMED_OUT, CANCELLED |
-| COMPLETED | Final result diterima platform dan requirements teknis terpenuhi | Tidak dihidupkan kembali; accounting dapat berubah |
-| FAILED | Execution berakhir gagal; reason/detail tetap eksplisit | Tidak dihidupkan kembali |
-| CANCELLED | Platform tidak akan dispatch langkah baru dan local termination telah dipastikan bila ada sandbox | External/accounting uncertainty tetap dapat direkonsiliasi |
-| TIMED_OUT | Deadline execution terlampaui; no further dispatch | Cleanup/remote/usage reconciliation dapat berlanjut |
+| Status           | Arti                                                                                              | Jalur berikut yang diizinkan                                            |
+| ---------------- | ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| ACCEPTED         | Admission + idempotency + reservation committed                                                   | QUEUED, RUNNING, CANCEL_REQUESTED, FAILED                               |
+| QUEUED           | Menunggu agent/resource dispatch                                                                  | RUNNING, CANCEL_REQUESTED, FAILED, TIMED_OUT                            |
+| RUNNING          | Attempt aktif atau wait antar-step terotorisasi                                                   | COMPLETED, FAILED, CANCEL_REQUESTED, TIMED_OUT, RECONCILING, QUEUED     |
+| CANCEL_REQUESTED | Durable intent menghentikan pekerjaan                                                             | CANCELLED, RECONCILING; completion yang sudah menang CAS tetap terminal |
+| RECONCILING      | Authority/compute/remote outcome memerlukan pemeriksaan                                           | QUEUED (safe retry), FAILED, TIMED_OUT, CANCELLED                       |
+| COMPLETED        | Final result diterima platform dan requirements teknis terpenuhi                                  | Tidak dihidupkan kembali; accounting dapat berubah                      |
+| FAILED           | Execution berakhir gagal; reason/detail tetap eksplisit                                           | Tidak dihidupkan kembali                                                |
+| CANCELLED        | Platform tidak akan dispatch langkah baru dan local termination telah dipastikan bila ada sandbox | External/accounting uncertainty tetap dapat direkonsiliasi              |
+| TIMED_OUT        | Deadline execution terlampaui; no further dispatch                                                | Cleanup/remote/usage reconciliation dapat berlanjut                     |
 
 Status terminal menyatakan keputusan workflow execution, bukan klaim semua proses remote berhenti. `TIMED_OUT` dengan compute UNKNOWN harus menampilkan cleanup_pending. `FAILED` reason `EXTERNAL_OUTCOME_UNKNOWN` menggantikan kombinasi enum ad hoc `FAILED_WITH_EXTERNAL_AMBIGUITY` dari principal; alias dapat dimap pada adapter, bukan digunakan diam-diam sebagai sukses.
 
@@ -28,12 +28,12 @@ Status terminal menyatakan keputusan workflow execution, bukan klaim semua prose
 
 ## 2. Empat dimensi dan record pendukung
 
-| Dimensi | Nilai baseline | Catatan |
-| --- | --- | --- |
-| Authority | UNASSIGNED, ACTIVE, LOST, FENCED, RELEASED | ACTIVE diverifikasi pada acceptance command; terminal record dapat RELEASED |
-| Local compute | NOT_APPLICABLE, STARTING, RUNNING, TERMINATING, EXITED, KILLED, UNKNOWN | Exit code/signal/termination receipt adalah evidence terpisah |
-| External operations | NONE, IN_FLIGHT, COMMITTED, FAILED, MIXED, UNKNOWN_IN_FLIGHT | Aggregate dari per-operation records, bukan mengganti detail masing-masing |
-| Accounting | UNRESERVED, RESERVED, PENDING_RECONCILIATION, SETTLED, OVERAGE_SETTLED | Completeness/cost basis/verification/reconciliation source terpisah |
+| Dimensi             | Nilai baseline                                                          | Catatan                                                                     |
+| ------------------- | ----------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| Authority           | UNASSIGNED, ACTIVE, LOST, FENCED, RELEASED                              | ACTIVE diverifikasi pada acceptance command; terminal record dapat RELEASED |
+| Local compute       | NOT_APPLICABLE, STARTING, RUNNING, TERMINATING, EXITED, KILLED, UNKNOWN | Exit code/signal/termination receipt adalah evidence terpisah               |
+| External operations | NONE, IN_FLIGHT, COMMITTED, FAILED, MIXED, UNKNOWN_IN_FLIGHT            | Aggregate dari per-operation records, bukan mengganti detail masing-masing  |
+| Accounting          | UNRESERVED, RESERVED, PENDING_RECONCILIATION, SETTLED, OVERAGE_SETTLED  | Completeness/cost basis/verification/reconciliation source terpisah         |
 
 External operations berarti domain-mutating tool operations. Direct model request yang masih berjalan dilacak sebagai provider invocation state, tidak memaksa external aggregate menjadi COMMITTED. Model call juga bisa tetap billable setelah disconnect.
 
@@ -51,15 +51,15 @@ External operations berarti domain-mutating tool operations. Direct model reques
 
 ## 4. Kombinasi yang wajib dapat direpresentasikan
 
-| Execution | Compute | External | Accounting | Interpretation |
-| --- | --- | --- | --- | --- |
-| COMPLETED | NOT_APPLICABLE | NONE | PENDING_RECONCILIATION | Chat final tersedia, billing belum lengkap |
-| COMPLETED | EXITED | COMMITTED | SETTLED | Required effect confirmed dan result selesai |
-| FAILED | EXITED | NONE | SETTLED | Runtime gagal biasa, usage terhitung |
-| FAILED | KILLED | UNKNOWN_IN_FLIGHT | PENDING_RECONCILIATION | Sandbox stop, external effect/biaya belum diketahui |
-| CANCELLED | KILLED | NONE | PENDING_RECONCILIATION | Local stop confirmed, provider billing belum selesai |
-| TIMED_OUT | UNKNOWN | UNKNOWN_IN_FLIGHT | RESERVED | Deadline lewat; cleanup dan financial exposure masih terbuka |
-| RECONCILING | UNKNOWN | NONE | RESERVED | Lease/ownership hilang, belum aman menyimpulkan outcome |
+| Execution   | Compute        | External          | Accounting             | Interpretation                                               |
+| ----------- | -------------- | ----------------- | ---------------------- | ------------------------------------------------------------ |
+| COMPLETED   | NOT_APPLICABLE | NONE              | PENDING_RECONCILIATION | Chat final tersedia, billing belum lengkap                   |
+| COMPLETED   | EXITED         | COMMITTED         | SETTLED                | Required effect confirmed dan result selesai                 |
+| FAILED      | EXITED         | NONE              | SETTLED                | Runtime gagal biasa, usage terhitung                         |
+| FAILED      | KILLED         | UNKNOWN_IN_FLIGHT | PENDING_RECONCILIATION | Sandbox stop, external effect/biaya belum diketahui          |
+| CANCELLED   | KILLED         | NONE              | PENDING_RECONCILIATION | Local stop confirmed, provider billing belum selesai         |
+| TIMED_OUT   | UNKNOWN        | UNKNOWN_IN_FLIGHT | RESERVED               | Deadline lewat; cleanup dan financial exposure masih terbuka |
+| RECONCILING | UNKNOWN        | NONE              | RESERVED               | Lease/ownership hilang, belum aman menyimpulkan outcome      |
 
 Tidak valid: COMPLETED tanpa final result, mutate official result dari fenced generation, SETTLED tanpa closure basis, atau UNKNOWN direpresentasikan sebagai zero charge.
 
@@ -76,3 +76,9 @@ Retry teknis memerlukan allowed category, attempt budget, deadline, safe operati
 Execution yang telah terminal tidak di-reopen oleh late usage. Koreksi metadata/accounting mempunyai revision dan audit entry sendiri. Business repair/publish/resubmit adalah keputusan app; gunakan new execution dengan correlation baru dan referensi predecessor jika diotorisasi.
 
 Diagram: [state and recovery flows](../diagrams/04-recovery-cancellation.md). Tests: G04, G05, G06, G12, G13 pada [acceptance](../testing/ACCEPTANCE.md).
+
+## Placement and connection resolution before dispatch
+
+Admission yang durable selesai sebelum placement. Sebelum attempt mendapat authority, control plane resolve authenticated application, profile revision, allowed AI Connection, credential instance/locality, eligible runner pool/node, dan quota group. Tidak ada candidate yang valid berarti request tetap ditolak/queued sesuai policy; platform tidak boleh fallback ke credential atau runner yang tidak authorized.
+
+Runner availability bukan execution authority. Setelah dispatch, attempt tetap memakai generation/fencing semantics yang sama walaupun runner registry berubah. Re-placement setelah node loss mengikuti recovery policy dan tidak mengasumsikan provider/tool side effect attempt lama telah berhenti.
