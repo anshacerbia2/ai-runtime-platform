@@ -1,11 +1,13 @@
 import type { ReactNode } from 'react';
 
-export type WorkspaceTab = 'playground' | 'contracts' | 'history' | 'phases';
+export type WorkspaceTab =
+  'playground' | 'control-plane' | 'contracts' | 'history' | 'phases';
 const tabs: { id: WorkspaceTab; number: string; label: string }[] = [
   { id: 'playground', number: '01', label: 'Contract Lab' },
-  { id: 'contracts', number: '02', label: 'Schema explorer' },
-  { id: 'history', number: '03', label: 'Riwayat validasi' },
-  { id: 'phases', number: '04', label: 'Panduan fase' },
+  { id: 'control-plane', number: '02', label: 'Control Plane' },
+  { id: 'contracts', number: '03', label: 'Schema explorer' },
+  { id: 'history', number: '04', label: 'Riwayat validasi' },
+  { id: 'phases', number: '05', label: 'Panduan fase' },
 ];
 
 interface Props {
@@ -26,16 +28,16 @@ export function WorkspaceShell({ tab, onNavigate, children }: Props) {
             onNavigate('playground');
           }}
         >
-          <span className="brand-mark">ar</span>
+          <span className="brand-mark">AI</span>
           <span>
-            AI Runtime<small>PLATFORM WORKSPACE</small>
+            AI Runtime<small>PLATFORM CONSOLE</small>
           </span>
         </a>
         <div className="workspace">
           <span className="dot" /> Local development{' '}
-          <span className="chip">M0</span>
+          <span className="chip">M1 · IN PROGRESS</span>
         </div>
-        <div className="nav-label">BUILD & UNDERSTAND</div>
+        <div className="nav-label">PLATFORM WORKSPACE</div>
         <nav aria-label="Navigasi utama">
           {tabs.map(({ id, number, label }) => (
             <button
@@ -56,8 +58,8 @@ export function WorkspaceShell({ tab, onNavigate, children }: Props) {
             Platform owns execution.
           </h3>
           <p>
-            Validasi M0 bukan eksekusi AI. Tidak ada job bisnis yang berpindah
-            ke platform.
+            Contract Lab tetap tersedia sebagai developer tool. Control Plane
+            sekarang berkembang sebagai fondasi durable M1.
           </p>
         </div>
         <div className="sidebar-bottom">
@@ -70,14 +72,14 @@ export function WorkspaceShell({ tab, onNavigate, children }: Props) {
             Workspace <b>/</b> {tabs.find((item) => item.id === tab)?.label}
           </span>
           <span className="mode">
-            CONTRACT-ONLY <span className="dot" />
+            M1 FOUNDATION <span className="dot" />
           </span>
         </header>
         <section className="page">
           {children}
           <footer className="page-footer">
-            <span>AI Runtime Platform · M0 Contract Lab</span>
-            <span>Data sintetis saja. Belum untuk produksi.</span>
+            <span>AI Runtime Platform · Local Console</span>
+            <span>M1 foundation · belum untuk produksi.</span>
           </footer>
         </section>
       </main>

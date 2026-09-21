@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadEnvFile } from 'node:process';
+import { hostingContract } from './hosting.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const envFile = resolve(root, '.env');
@@ -129,24 +130,68 @@ export function loadEnvironment() {
       reuseExistingServer: boolean('PLAYWRIGHT_REUSE_EXISTING_SERVER'),
     },
   };
-  if (config.runtimeMode !== 'm0-local') {
-    throw new Error('M0_RUNTIME_MODE must be m0-local.');
+  if (!['m0-local', 'm1-oidc'].includes(config.runtimeMode)) {
+    throw new Error('M0_RUNTIME_MODE must be m0-local or m1-oidc.');
   }
-  assertLoopback(config.apiHost, 'M0_API_HOST');
-  assertLoopback(config.webHost, 'M0_WEB_HOST');
-  assertLoopback(config.database.host, 'M0_DB_HOST');
-  if (config.database.name !== 'ai_runtime_m0') {
-    throw new Error('M0_DB_NAME must be ai_runtime_m0.');
+  const localOperatorToken = process.env.M1_LOCAL_OPERATOR_TOKEN;
+  const localRunnerToken = process.env.M1_LOCAL_RUNNER_TOKEN;
+  if (
+    localOperatorToken &&
+    (localOperatorToken.length < 32 ||
+      config.applications.some((app) => app.token === localOperatorToken))
+  ) {
+    throw new Error(
+      'Local operator token must be distinct and at least 32 characters.',
+    );
   }
-  if (config.applications.some((app) => app.token.length < 32)) {
-    throw new Error('M0 application tokens must be at least 32 characters.');
+  if (
+    localRunnerToken &&
+    (localRunnerToken.length < 32 ||
+      localRunnerToken === localOperatorToken ||
+      config.applications.some((app) => app.token === localRunnerToken))
+  ) {
+    throw new Error(
+      'Local runner token must be distinct and at least 32 characters.',
+    );
   }
-  for (const host of config.allowedHosts) {
-    assertLoopback(host, 'M0_ALLOWED_HOSTS');
-  }
-  for (const origin of config.allowedOrigins) {
-    const parsed = new URL(origin);
-    assertLoopback(parsed.hostname, 'M0_ALLOWED_ORIGINS');
+  const hosting =
+    config.runtimeMode === 'm1-oidc'
+      ? hostingContract({
+          publicOrigin: required('M1_PUBLIC_ORIGIN'),
+          appId: required('M1_APP_ID'),
+          clientId: required('M1_OIDC_CLIENT_ID'),
+          clientSecret: required('M1_OIDC_CLIENT_SECRET'),
+          callbackUri: required('M1_OIDC_CALLBACK_URI'),
+          logoutUri: required('M1_OIDC_LOGOUT_URI'),
+          proxySecret: required('M1_PROXY_SECRET'),
+        })
+      : undefined;
+  const oidc = hosting
+    ? {
+        issuer: required('M1_OIDC_ISSUER'),
+        audience: required('M1_OIDC_AUDIENCE'),
+        jwksUri: required('M1_OIDC_JWKS_URI'),
+        operatorClientId: hosting.clientId,
+        runnerClientId: process.env.M1_OIDC_RUNNER_CLIENT_ID,
+      }
+    : undefined;
+  if (config.runtimeMode === 'm0-local') {
+    assertLoopback(config.apiHost, 'M0_API_HOST');
+    assertLoopback(config.webHost, 'M0_WEB_HOST');
+    assertLoopback(config.database.host, 'M0_DB_HOST');
+    if (config.database.name !== 'ai_runtime_m0') {
+      throw new Error('M0_DB_NAME must be ai_runtime_m0.');
+    }
+    if (config.applications.some((app) => app.token.length < 32)) {
+      throw new Error('M0 application tokens must be at least 32 characters.');
+    }
+    for (const host of config.allowedHosts) {
+      assertLoopback(host, 'M0_ALLOWED_HOSTS');
+    }
+    for (const origin of config.allowedOrigins) {
+      const parsed = new URL(origin);
+      assertLoopback(parsed.hostname, 'M0_ALLOWED_ORIGINS');
+    }
   }
   if (config.database.managePostgres && config.database.pgBin === 'UNUSED') {
     throw new Error(
@@ -154,7 +199,14 @@ export function loadEnvironment() {
     );
   }
 
-  return Object.freeze({ ...config, databaseUrl: databaseUrl(config) });
+  return Object.freeze({
+    ...config,
+    localOperatorToken: hosting ? undefined : localOperatorToken,
+    localRunnerToken: hosting ? undefined : localRunnerToken,
+    hosting,
+    oidc,
+    databaseUrl: databaseUrl(config),
+  });
 }
 
 export const projectRoot = root;

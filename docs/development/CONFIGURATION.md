@@ -16,15 +16,15 @@ npm run setup
 
 ## Core HTTP
 
-| Variable                     | Meaning                                    |
-| ---------------------------- | ------------------------------------------ |
-| `M0_RUNTIME_MODE`            | Must be `m0-local`                         |
-| `M0_API_HOST`, `M0_API_PORT` | API bind address                           |
-| `M0_WEB_HOST`, `M0_WEB_PORT` | Vite bind address                          |
-| `M0_ALLOWED_HOSTS`           | Explicit comma-separated host allow-list   |
-| `M0_ALLOWED_ORIGINS`         | Explicit comma-separated origin allow-list |
-| `M0_API_BODY_LIMIT_BYTES`    | Fastify body cap                           |
-| `M0_API_REQUEST_TIMEOUT_MS`  | Fastify request timeout                    |
+| Variable                     | Meaning                                                                      |
+| ---------------------------- | ---------------------------------------------------------------------------- |
+| `M0_RUNTIME_MODE`            | `m0-local` for local lab/tests; `m1-oidc` for nonlocal OIDC/ATI One contract |
+| `M0_API_HOST`, `M0_API_PORT` | API bind address                                                             |
+| `M0_WEB_HOST`, `M0_WEB_PORT` | Vite bind address                                                            |
+| `M0_ALLOWED_HOSTS`           | Explicit comma-separated host allow-list                                     |
+| `M0_ALLOWED_ORIGINS`         | Explicit comma-separated origin allow-list                                   |
+| `M0_API_BODY_LIMIT_BYTES`    | Fastify body cap                                                             |
+| `M0_API_REQUEST_TIMEOUT_MS`  | Fastify request timeout                                                      |
 
 ## PostgreSQL and Prisma
 
@@ -52,6 +52,32 @@ npm run setup
 | `M0_TEST_APP_ID`, `M0_TEST_APP_NAME`, `M0_TEST_APP_TOKEN` | Cross-app isolation fixture       |
 
 Tokens are local M0 credentials only; they are replaced by Keycloak/Application Registry work in P1.
+
+## M1 identity and ATI One hosting
+
+For local M1 tests, optional credentials remain separate from application credentials:
+
+| Variable                  | Meaning                                                                    |
+| ------------------------- | -------------------------------------------------------------------------- |
+| `M1_LOCAL_OPERATOR_TOKEN` | Local-only operator/admin authority used by the Control Plane test/UI path |
+| `M1_LOCAL_RUNNER_TOKEN`   | Local-only runner registration authority                                   |
+
+For nonlocal `m1-oidc` mode, configuration is fail-closed:
+
+| Variable                | Meaning                                                              |
+| ----------------------- | -------------------------------------------------------------------- |
+| `M1_PUBLIC_ORIGIN`      | Exact HTTPS ATI One public origin                                    |
+| `M1_APP_ID`             | Internal-app catalogue id; public mount becomes `/apps/<app-id>/app` |
+| `M1_OIDC_CLIENT_ID`     | Dedicated confidential client id; must follow `<app-id>-app`         |
+| `M1_OIDC_CLIENT_SECRET` | Confidential client secret; never returned to browser/API            |
+| `M1_OIDC_CALLBACK_URI`  | Exact callback URI under the mounted public origin                   |
+| `M1_OIDC_LOGOUT_URI`    | Exact post-logout URI under the mounted public origin                |
+| `M1_PROXY_SECRET`       | Per-app ATI One proxy credential                                     |
+| `M1_OIDC_ISSUER`        | Trusted Keycloak issuer                                              |
+| `M1_OIDC_AUDIENCE`      | Required runtime API audience                                        |
+| `M1_OIDC_JWKS_URI`      | Trusted HTTPS JWKS endpoint on the issuer origin                     |
+
+The runtime validates issuer/audience/signature/expiry/nbf/azp plus role/scope separation. An application client is resolved through the durable Application Registry; operator and runner identities cannot silently become application callers.
 
 ## Development and browser tests
 

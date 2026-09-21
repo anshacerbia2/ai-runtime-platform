@@ -8,7 +8,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  schemas  = ["m0"]
+  schemas  = ["m0", "control"]
 }
 
 model Application {
@@ -63,4 +63,373 @@ model LegacySchemaMigration {
 
   @@map("schema_migrations")
   @@schema("m0")
+}
+
+enum ControlStatus {
+  ENABLED
+  DISABLED
+
+  @@schema("control")
+}
+
+enum ConnectionSharingMode {
+  DEDICATED
+  SHARED
+
+  @@schema("control")
+}
+
+enum CredentialResidency {
+  CENTRAL
+  RUNNER_LOCAL
+
+  @@schema("control")
+}
+
+model ControlApplication {
+  revision         Int                 @default(1)
+  id               String              @id @db.Text
+  displayName      String              @map("display_name") @db.Text
+  environment      String              @db.Text
+  keycloakClientId String              @unique(map: "applications_keycloak_client_id_key") @map("keycloak_client_id") @db.Text
+  status           ControlStatus       @default(ENABLED)
+  createdAt        DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+  bindings         CredentialBinding[]
+
+  profileRevisions ProfileRevision[]
+  budgets          BudgetAccount[]
+  executions       Execution[]
+  events           OutboxEvent[]
+  audit            AuditEntry[]
+
+  @@map("applications")
+  @@schema("control")
+}
+
+model AiConnection {
+  revision      Int                   @default(1)
+  id            String                @id @db.Text
+  displayName   String                @map("display_name") @db.Text
+  provider      String                @db.Text
+  authMode      String                @map("auth_mode") @db.Text
+  environment   String                @db.Text
+  sharingMode   ConnectionSharingMode @map("sharing_mode")
+  quotaGroupRef String?               @map("quota_group_ref") @db.Text
+  status        ControlStatus         @default(ENABLED)
+  createdAt     DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+  credentials   CredentialInstance[]
+  bindings      CredentialBinding[]
+
+  profiles ProfileRevision[]
+
+  @@map("ai_connections")
+  @@schema("control")
+}
+
+model CredentialInstance {
+  revision     Int                 @default(1)
+  id           String              @id @db.Text
+  connectionId String              @map("connection_id") @db.Text
+  secretRef    String?             @map("secret_ref") @db.Text
+  residency    CredentialResidency
+  runnerRef    String?             @map("runner_ref") @db.Text
+  status       ControlStatus       @default(ENABLED)
+  createdAt    DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+  connection   AiConnection        @relation(fields: [connectionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  runner RunnerNode? @relation(fields: [runnerRef], references: [id], onDelete: Restrict)
+
+  @@index([connectionId, status], map: "credential_instances_connection_status")
+  @@map("credential_instances")
+  @@schema("control")
+}
+
+model CredentialBinding {
+  revision      Int                @default(1)
+  id            String             @id @db.Uuid
+  applicationId String             @map("application_id") @db.Text
+  connectionId  String             @map("connection_id") @db.Text
+  profileRef    String?            @map("profile_ref") @db.Text
+  status        ControlStatus      @default(ENABLED)
+  createdAt     DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  application   ControlApplication @relation(fields: [applicationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  connection    AiConnection       @relation(fields: [connectionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([applicationId, connectionId, profileRef], map: "credential_bindings_scope_key")
+  @@index([applicationId, status], map: "credential_bindings_application_status")
+  @@map("credential_bindings")
+  @@schema("control")
+}
+
+model ProfileRevision {
+  id            String   @id @db.Uuid
+  applicationId String   @map("application_id")
+  profileRef    String   @map("profile_ref")
+  revision      Int
+  connectionId  String   @map("connection_id")
+  capability    String
+  holdUnits     BigInt   @map("hold_units")
+  accountIds    String[] @map("account_ids")
+  digest        String   @db.Char(64)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  application ControlApplication @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  connection  AiConnection       @relation(fields: [connectionId], references: [id], onDelete: Restrict)
+  aliases     ProfileAlias[]
+  executions  Execution[]
+
+  @@unique([id, applicationId])
+  @@unique([applicationId, profileRef, revision])
+  @@map("profile_revisions")
+  @@schema("control")
+}
+
+model ProfileAlias {
+  applicationId String  @map("application_id")
+  profileRef    String  @map("profile_ref")
+  revision      Int
+  enabled       Boolean @default(true)
+
+  profile ProfileRevision @relation(fields: [applicationId, profileRef, revision], references: [applicationId, profileRef, revision], onDelete: Restrict)
+  version Int             @default(1)
+
+  @@id([applicationId, profileRef])
+  @@map("profile_aliases")
+  @@schema("control")
+}
+
+model BudgetAccount {
+  id            String  @id
+  applicationId String? @map("application_id")
+  quotaGroupRef String? @map("quota_group_ref")
+  unit          String
+  period        String
+  limitUnits    BigInt  @map("limit_units")
+  heldUnits     BigInt  @default(0) @map("held_units")
+  postedUnits   BigInt  @default(0) @map("posted_units")
+  revision      Int     @default(1)
+
+  application  ControlApplication? @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  reservations Reservation[]
+  projection   BudgetProjection?
+
+  @@map("budget_accounts")
+  @@schema("control")
+}
+
+model Execution {
+  id                String             @id @db.Uuid
+  applicationId     String             @map("application_id")
+  idempotencyKey    String             @map("idempotency_key")
+  requestDigest     String             @map("request_digest") @db.Char(64)
+  profileRevisionId String             @map("profile_revision_id") @db.Uuid
+  profileSnapshot   Json               @map("profile_snapshot")
+  status            String             @default("ACCEPTED")
+  revision          Int                @default(1)
+  cancelRequestedAt DateTime?          @map("cancel_requested_at") @db.Timestamptz(6)
+  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  attempts          Attempt[]
+  reservations      Reservation[]
+  observations      UsageObservation[]
+  ledger            LedgerEntry[]
+  artifacts         ArtifactMetadata[]
+
+  application ControlApplication @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  profile     ProfileRevision    @relation(fields: [profileRevisionId, applicationId], references: [id, applicationId], onDelete: Restrict)
+
+  @@unique([applicationId, idempotencyKey])
+  @@index([applicationId, createdAt, id])
+  @@map("executions")
+  @@schema("control")
+}
+
+model Attempt {
+  id          String    @id @db.Uuid
+  executionId String    @map("execution_id") @db.Uuid
+  number      Int
+  generation  Int       @default(1)
+  status      String    @default("PREPARED")
+  authority   String    @default("UNASSIGNED")
+  compute     String    @default("NOT_APPLICABLE")
+  external    String    @default("NONE")
+  execution   Execution @relation(fields: [executionId], references: [id], onDelete: Restrict)
+
+  observations UsageObservation[]
+
+  @@unique([id, executionId])
+  @@unique([executionId, number])
+  @@map("attempts")
+  @@schema("control")
+}
+
+model Reservation {
+  executionId   String    @map("execution_id") @db.Uuid
+  accountId     String    @map("account_id")
+  originalUnits BigInt    @map("original_units")
+  heldUnits     BigInt    @map("held_units")
+  postedUnits   BigInt    @default(0) @map("posted_units")
+  state         String    @default("RESERVED")
+  revision      Int       @default(1)
+  execution     Execution @relation(fields: [executionId], references: [id], onDelete: Restrict)
+
+  account BudgetAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  entries LedgerEntry[]
+
+  @@id([executionId, accountId])
+  @@map("reservations")
+  @@schema("control")
+}
+
+model UsageObservation {
+  id              String    @id @db.Uuid
+  executionId     String    @map("execution_id") @db.Uuid
+  attemptId       String    @map("attempt_id") @db.Uuid
+  sourceEventId   String    @map("source_event_id")
+  sourceRevision  Int       @map("source_revision")
+  digest          String    @db.Char(64)
+  coverage        String[]
+  cumulativeUnits BigInt?   @map("cumulative_units")
+  completeness    String
+  costBasis       String    @map("cost_basis")
+  verification    String
+  reason          String
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  execution       Execution @relation(fields: [executionId], references: [id], onDelete: Restrict)
+
+  attempt Attempt       @relation(fields: [attemptId, executionId], references: [id, executionId], onDelete: Restrict)
+  entries LedgerEntry[]
+
+  @@unique([id, executionId])
+  @@unique([executionId, sourceEventId, sourceRevision])
+  @@map("usage_observations")
+  @@schema("control")
+}
+
+model LedgerEntry {
+  id              String    @id @db.Uuid
+  executionId     String    @map("execution_id") @db.Uuid
+  accountId       String    @map("account_id")
+  observationId   String    @map("observation_id") @db.Uuid
+  commandId       String    @map("command_id")
+  deltaUnits      BigInt    @map("delta_units")
+  previousEntryId String?   @map("previous_entry_id") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  execution       Execution @relation(fields: [executionId], references: [id], onDelete: Restrict)
+
+  reservation Reservation      @relation(fields: [executionId, accountId], references: [executionId, accountId], onDelete: Restrict)
+  observation UsageObservation @relation(fields: [observationId, executionId], references: [id, executionId], onDelete: Restrict)
+  previous    LedgerEntry?     @relation("adjustment", fields: [previousEntryId, executionId, accountId], references: [id, executionId, accountId], onDelete: Restrict)
+  adjustments LedgerEntry[]    @relation("adjustment")
+
+  @@unique([id, executionId, accountId])
+  @@unique([accountId, commandId])
+  @@map("ledger_entries")
+  @@schema("control")
+}
+
+model OutboxEvent {
+  id            String    @id @db.Uuid
+  applicationId String?   @map("application_id")
+  topic         String
+  aggregateId   String    @map("aggregate_id")
+  revision      Int
+  payload       Json
+  deliveredAt   DateTime? @map("delivered_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  application ControlApplication? @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  receipts    InboxReceipt[]
+
+  @@unique([topic, aggregateId, revision])
+  @@map("outbox_events")
+  @@schema("control")
+}
+
+model InboxReceipt {
+  consumer   String
+  eventId    String   @map("event_id") @db.Uuid
+  receivedAt DateTime @default(now()) @map("received_at") @db.Timestamptz(6)
+
+  event OutboxEvent @relation(fields: [eventId], references: [id], onDelete: Restrict)
+
+  @@id([consumer, eventId])
+  @@map("inbox_receipts")
+  @@schema("control")
+}
+
+model BudgetProjection {
+  accountId String @id @map("account_id")
+  revision  Int
+  snapshot  Json
+
+  account BudgetAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
+
+  @@map("budget_projections")
+  @@schema("control")
+}
+
+model AuditEntry {
+  id            String   @id @db.Uuid
+  applicationId String?  @map("application_id")
+  actor         String
+  action        String
+  resourceId    String   @map("resource_id")
+  revision      Int
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  application ControlApplication? @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+
+  @@index([applicationId, createdAt, id])
+  @@map("audit_entries")
+  @@schema("control")
+}
+
+model ArtifactMetadata {
+  id          String    @id @db.Uuid
+  executionId String    @map("execution_id") @db.Uuid
+  name        String
+  digest      String    @db.Char(64)
+  sizeBytes   BigInt    @map("size_bytes")
+  mediaType   String    @map("media_type")
+  status      String    @default("PENDING")
+  execution   Execution @relation(fields: [executionId], references: [id], onDelete: Restrict)
+
+  @@map("artifact_metadata")
+  @@schema("control")
+}
+
+model RunnerPool {
+  id             String @id
+  environment    String
+  region         String
+  minimumVersion String @map("minimum_version")
+  status         String @default("ENABLED")
+  revision       Int    @default(1)
+
+  nodes RunnerNode[]
+
+  @@map("runner_pools")
+  @@schema("control")
+}
+
+model RunnerNode {
+  id              String   @id
+  ownerSubject    String   @map("owner_subject")
+  poolId          String   @map("pool_id")
+  version         String
+  capabilities    String[]
+  connectionIds   String[] @map("connection_ids")
+  capacity        Int
+  status          String   @default("RUNNING")
+  revision        Int      @default(1)
+  lastHeartbeatAt DateTime @default(now()) @map("last_heartbeat_at") @db.Timestamptz(6)
+
+  pool        RunnerPool           @relation(fields: [poolId], references: [id], onDelete: Restrict)
+  credentials CredentialInstance[]
+
+  @@map("runner_nodes")
+  @@schema("control")
 }

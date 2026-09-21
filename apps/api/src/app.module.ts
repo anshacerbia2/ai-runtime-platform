@@ -5,6 +5,7 @@ import type { RuntimeConfig } from './infrastructure/config/environment-config.j
 import { IdentityModule } from './modules/identity/identity.module.js';
 import { LocalAuthGuard } from './modules/identity/presentation/http/local-auth.guard.js';
 import { ContractLabModule } from './modules/contract-lab/contract-lab.module.js';
+import { ControlPlaneModule } from './modules/control-plane/control-plane.module.js';
 import { HttpExceptionFilter } from './shared/presentation/http-exception.filter.js';
 
 @Module({})
@@ -16,6 +17,7 @@ export class AppModule {
         RuntimeConfigModule.register(config),
         IdentityModule,
         ContractLabModule,
+        ControlPlaneModule,
       ],
       providers: [
         { provide: APP_GUARD, useClass: LocalAuthGuard },

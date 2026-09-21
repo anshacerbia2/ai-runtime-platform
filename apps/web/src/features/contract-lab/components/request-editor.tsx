@@ -1,5 +1,8 @@
 import type { ContractKind } from '@ai-runtime/contracts';
 import { newIdempotencyKey } from '../../../shared/lib/json.js';
+import { Button } from '../../../shared/ui/button.js';
+import { Panel, PanelHeader } from '../../../shared/ui/panel.js';
+import { Badge } from '../../../shared/ui/badge.js';
 
 interface Props {
   kind: ContractKind;
@@ -15,11 +18,8 @@ interface Props {
 
 export function RequestEditor(props: Props) {
   return (
-    <section className="panel">
-      <div className="panel-head">
-        <h2>Request editor</h2>
-        <span className="tag">JSON</span>
-      </div>
+    <Panel>
+      <PanelHeader title="Request editor" aside={<Badge>JSON</Badge>} />
       <div className="editor-options">
         <label>
           Kontrak
@@ -35,9 +35,9 @@ export function RequestEditor(props: Props) {
             <option value="execution">POST /v1/executions · planned</option>
           </select>
         </label>
-        <button className="text-button" onClick={props.onFormat}>
+        <Button variant="text" onClick={props.onFormat}>
           Format JSON
-        </button>
+        </Button>
       </div>
       <textarea
         aria-label="Payload JSON"
@@ -55,25 +55,25 @@ export function RequestEditor(props: Props) {
             onChange={(event) => props.onKey(event.target.value)}
             spellCheck={false}
           />
-          <button
-            className="text-button"
+          <Button
+            variant="text"
             onClick={() => props.onKey(newIdempotencyKey())}
           >
             Key baru
-          </button>
+          </Button>
         </div>
         <small>Key yang sama + payload sama mengembalikan record semula.</small>
       </div>
       <div className="panel-footer">
         <span>Hanya validasi & simpan metadata</span>
-        <button
-          className="primary"
+        <Button
+          variant="primary"
           onClick={() => void props.onValidate()}
           disabled={props.busy}
         >
           {props.busy ? 'Memeriksa…' : 'Validasi & simpan'} <span>↗</span>
-        </button>
+        </Button>
       </div>
-    </section>
+    </Panel>
   );
 }

@@ -37,7 +37,7 @@ export function PhaseGuide() {
     <div className="phase-list">
       {phases.map(([id, title, description]) => (
         <section
-          className={'panel phase ' + (id === 'M0' ? 'current' : '')}
+          className={'panel phase ' + (id === 'M1' ? 'current' : '')}
           key={id}
         >
           <div className="phase-badge">{id}</div>
@@ -45,13 +45,15 @@ export function PhaseGuide() {
             <h2>{title}</h2>
             <p>{description}</p>
           </div>
-          <span className="tag">{id === 'M0' ? 'BISA DICOBA' : 'PLANNED'}</span>
+          <span className="tag">
+            {id === 'M0' ? 'BASELINE' : id === 'M1' ? 'IN PROGRESS' : 'PLANNED'}
+          </span>
         </section>
       ))}
       <div className="notice">
-        M0 teknis dapat dicoba. Review arsitektur O11 dan persetujuan produksi
-        tetap memerlukan owner. Pilihan framework bukan bukti seluruh gate
-        selesai.
+        M0 menjadi baseline developer tool. M1 sedang berjalan: durable registry
+        sudah ada, sementara Keycloak, management authority, admission, dan
+        accounting masih harus melewati gate sebelum production.
       </div>
       <section className="panel command-panel">
         <h2>Perintah lokal</h2>

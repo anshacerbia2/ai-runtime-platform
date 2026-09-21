@@ -52,7 +52,7 @@ export function ContractLabPage({
         />
       </div>
       <div className="flow-strip">
-        <b>Alur M0</b>
+        <b>Contract validation flow</b>
         <span>Frontend</span>
         <i>→</i>
         <span>Nest use case</span>

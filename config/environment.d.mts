@@ -1,4 +1,14 @@
 export interface RuntimeEnvironment {
+  readonly localOperatorToken?: string;
+  readonly localRunnerToken?: string;
+  readonly hosting?: import('./hosting.mjs').HostingConfig;
+  readonly oidc?: {
+    issuer: string;
+    audience: string;
+    jwksUri: string;
+    operatorClientId: string;
+    runnerClientId?: string;
+  };
   readonly runtimeMode: string;
   readonly apiHost: string;
   readonly apiPort: number;

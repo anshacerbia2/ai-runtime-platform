@@ -2,11 +2,8 @@ interface ErrorBody {
   error?: { code?: string; message?: string };
 }
 
-export async function requestJson<T>(
-  path: string,
-  options: RequestInit = {},
-): Promise<T> {
-  const response = await fetch('/api/m0/' + path, {
+async function fetchJson<T>(url: string, options: RequestInit): Promise<T> {
+  const response = await fetch(url, {
     ...options,
     headers: { 'Content-Type': 'application/json', ...options.headers },
   });
@@ -24,6 +21,17 @@ export async function requestJson<T>(
     );
   }
   return data as T;
+}
+
+export function requestJson<T>(path: string, options: RequestInit = {}) {
+  return fetchJson<T>('/api/m0/' + path, options);
+}
+
+export function requestPlatformJson<T>(
+  path: string,
+  options: RequestInit = {},
+) {
+  return fetchJson<T>(path, options);
 }
 
 export function errorMessage(error: unknown): string {

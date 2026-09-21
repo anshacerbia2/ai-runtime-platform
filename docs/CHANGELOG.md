@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased — 22 September 2026 — M1 durable foundation local implementation
+
+Implemented the local P1/M1 durable foundation: application/operator/runner identity separation, OIDC/JWKS verification boundary, operator control-plane mutations with CAS/audit, Application/AI Connection/Credential Binding registries, immutable profile revisions/aliases, durable admission/idempotency/execution/attempt/cancel intent, budgets/reservations, usage observations and append-only ledger adjustments, outbox/inbox, artifact metadata, runner pool/node metadata, additive migrations, and local Control Plane UI. Added dedicated M1 unit/integration evidence for G01/G02/G07/G08/G09/G15/G26–G29. Live ATI Keycloak/ATI One, concrete secret-manager, Redis hot runner state, provider/runtime execution, and production readiness remain pending.
+
 ## Unreleased — 21 September 2026 — ATI One internal app and frontend CDD
 
 Documented AI Runtime Platform as an ATI One internal app with a dedicated confidential Keycloak client, same-origin mount-path/SSO/proxy trust rules, and separate platform authorization. Added the target frontend architecture: Component-Driven Development, AI Platform semantic design tokens as visual source of truth, layered primitives/components/compositions/features/pages, isolated component states, accessibility, visual regression, and staged migration from M0 hardcoded CSS. Added ADR-0023 and ADR-0024. No runtime/source implementation was changed by this documentation update.

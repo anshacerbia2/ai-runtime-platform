@@ -22,6 +22,23 @@ export default defineConfig({
       deny: ['**/.local/**', '**/.env*', '**/*.pem', '**/.git/**'],
     },
     proxy: {
+      '/api/m1': {
+        target: `http://${config.apiHost}:${config.apiPort}`,
+        changeOrigin: true,
+        configure(proxy) {
+          proxy.on('proxyReq', (out) => {
+            if (!config.localOperatorToken) {
+              throw new Error(
+                'M1_LOCAL_OPERATOR_TOKEN is required for the local Control Plane UI.',
+              );
+            }
+            out.setHeader(
+              'Authorization',
+              `Bearer ${config.localOperatorToken}`,
+            );
+          });
+        },
+      },
       '/api': {
         target: `http://${config.apiHost}:${config.apiPort}`,
         changeOrigin: true,

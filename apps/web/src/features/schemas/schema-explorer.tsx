@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { prettyJson } from '../../shared/lib/json.js';
+import { Button } from '../../shared/ui/button.js';
+import { Panel, PanelHeader } from '../../shared/ui/panel.js';
 
 export function SchemaExplorer({
   schemas,
@@ -21,18 +23,20 @@ export function SchemaExplorer({
   }
 
   return (
-    <section className="panel">
-      <div className="panel-head">
-        <h2>Contract registry</h2>
-        <a
-          className="text-button"
-          href="/api/m0/openapi.json"
-          target="_blank"
-          rel="noreferrer"
-        >
-          Buka M0 OpenAPI ↗
-        </a>
-      </div>
+    <Panel>
+      <PanelHeader
+        title="Contract registry"
+        aside={
+          <a
+            className="text-button"
+            href="/api/m0/openapi.json"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Buka OpenAPI ↗
+          </a>
+        }
+      />
       <div className="schema-tools">
         <label>
           Schema
@@ -49,15 +53,15 @@ export function SchemaExplorer({
             ))}
           </select>
         </label>
-        <button className="secondary" onClick={() => void copy()}>
+        <Button onClick={() => void copy()}>
           {copied ? 'Tersalin' : 'Salin schema'}
-        </button>
+        </Button>
       </div>
       <p className="schema-disclaimer">
         Schema /v1 adalah draft kontrak. API /v1 belum dijalankan di M0;
         endpoint aktif hanya /api/m0/*.
       </p>
       <pre className="schema-code">{prettyJson(schemas[name])}</pre>
-    </section>
+    </Panel>
   );
 }

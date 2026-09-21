@@ -15,6 +15,16 @@ export async function seedDatabase(
       // One-time tooling coordination, not a periodic worker heartbeat.
       await transaction.$executeRaw`SELECT pg_advisory_xact_lock(${621408321})`;
       for (const application of config.applications) {
+        await transaction.controlApplication.upsert({
+          where: { id: application.id },
+          create: {
+            id: application.id,
+            displayName: application.name,
+            environment: 'local',
+            keycloakClientId: application.id,
+          },
+          update: {},
+        });
         await transaction.application.upsert({
           where: { id: application.id },
           create: {

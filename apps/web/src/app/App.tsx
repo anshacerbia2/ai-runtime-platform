@@ -10,6 +10,7 @@ import { ContractLabPage } from '../features/contract-lab/contract-lab-page.js';
 import { HistoryPage } from '../features/history/history-page.js';
 import { SchemaExplorer } from '../features/schemas/schema-explorer.js';
 import { PhaseGuide } from '../features/roadmap/phase-guide.js';
+import { ControlPlanePage } from '../features/control-plane/control-plane-page.js';
 import { useWorkspace } from './use-workspace.js';
 
 export function App() {
@@ -36,6 +37,7 @@ export function App() {
           onError={setError}
         />
       )}
+      {tab === 'control-plane' && <ControlPlanePage />}
       {tab === 'history' && (
         <HistoryPage onError={setError} onRefresh={refreshHealth} />
       )}

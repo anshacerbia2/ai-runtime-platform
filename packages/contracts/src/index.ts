@@ -10,3 +10,10 @@ export * from './validation/metadata.js';
 export * from './fixtures/examples.js';
 export * from './fixtures/profiles.js';
 export * from './schema-bundle.js';
+export {
+  ManagementCommand,
+  AdmissionCommand,
+  UsageCommand,
+  RunnerRegistration,
+  ArtifactCommand,
+} from './control-plane.js';

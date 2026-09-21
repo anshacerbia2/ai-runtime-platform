@@ -13,6 +13,7 @@ const errorStatus = {
   POLICY_DENIED: 403,
   NOT_FOUND: 404,
   IDEMPOTENCY_CONFLICT: 409,
+  RESOURCE_EXHAUSTED: 429,
   DEPENDENCY_UNAVAILABLE: 503,
 } as const;
 
@@ -51,7 +52,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       } else if (declaredStatus === 404) {
         status = 404;
         code = 'NOT_FOUND';
-        message = 'Endpoint belum tersedia. M0 hanya menyediakan /api/m0/*.';
+        message = 'Endpoint tidak tersedia.';
       }
     }
     if (status === 503) {

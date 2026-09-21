@@ -81,6 +81,26 @@ test('NestJS/Fastify health depends on real PostgreSQL', async () => {
   assert.equal(response.json().database, 'PostgreSQL');
 });
 
+test('M1 control plane registry is durable and exposes no secret material', async () => {
+  const response = await application.inject({
+    method: 'GET',
+    url: '/api/m1/control-plane',
+    headers,
+  });
+  assert.equal(response.statusCode, 200);
+  const body = response.json();
+  assert.equal(body.application.id, config.applications[0]!.id);
+  assert.deepEqual(body.bindings, []);
+  assert.deepEqual(body.profiles, []);
+  assert.deepEqual(body.budgets, []);
+  assert.deepEqual(body.executions, []);
+  assert.equal(JSON.stringify(body).includes('secretRef'), false);
+  assert.equal(
+    JSON.stringify(body).includes(config.applications[0]!.token),
+    false,
+  );
+});
+
 test('missing credentials rejected', async () => {
   const response = await http.inject({
     url: '/api/m0/history',

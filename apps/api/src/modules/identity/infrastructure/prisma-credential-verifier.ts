@@ -13,6 +13,15 @@ export class PrismaCredentialVerifier implements CredentialVerifier {
       select: { id: true },
     });
 
-    return application ? { applicationId: application.id } : null;
+    if (!application) {
+      return null;
+    }
+    const registered = await this.database.controlApplication.findUnique({
+      where: { id: application.id },
+      select: { status: true },
+    });
+    return registered?.status === 'ENABLED'
+      ? { applicationId: application.id }
+      : null;
   }
 }

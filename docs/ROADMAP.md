@@ -1,6 +1,6 @@
 # AI Runtime Platform — Roadmap
 
-**Baseline 0.2 + adopted extensions through ADR-0024.** Roadmap berbasis dependency dan gate, bukan janji tanggal. M0 tetap runnable; M1 registry foundation FE/BE/PostgreSQL sudah mulai tersedia lokal, sementara Keycloak production auth, runtime AI, gateway, dan ledger produksi belum selesai. Lihat [M0](milestones/M0.md) dan [M1](milestones/M1.md).
+**Baseline 0.2 + adopted extensions through ADR-0024.** Roadmap berbasis dependency dan gate, bukan janji tanggal. M0 tetap runnable; M1 local P1 foundation sekarang implemented dan lulus acceptance lokal, sementara live ATI Keycloak/ATI One, Redis hot-state deployment, provider runtime, dan production readiness belum selesai. Lihat [M0](milestones/M0.md) dan [M1](milestones/M1.md).
 
 ## Stack implementasi tetap
 
@@ -12,17 +12,17 @@ Satu AI Runtime Platform dengan canonical capability catalogue (`chat`, `generat
 
 ## Milestones
 
-| Milestone                        | Outcome                                                                  | Dependency               | Exit evidence                                     | Status                                                      |
-| -------------------------------- | ------------------------------------------------------------------------ | ------------------------ | ------------------------------------------------- | ----------------------------------------------------------- |
-| M0 — Contract baseline           | API, state, usage, stream, profile, tool schemas disepakati              | Review docs              | P0 review + blocking decisions resolved           | IN PROGRESS; contract lab runnable, formal review pending   |
-| M1 — Durable foundation          | App/connection/credential/runner registries, identity, ledger, execution | M0                       | Admission, cross-app isolation, persistence tests | IN PROGRESS; registry foundation FE/BE/PostgreSQL available |
-| M2 — Direct & Aggregator Gateway | OpenRouter-first + Direct Anthropic proof; chat/structured/stream        | M1                       | Adapter conformance and restricted routing tests  | PLANNED                                                     |
-| M3 — Claude Agent Runtime        | Distributed runner placement, plugin/workspace, tools, artifacts         | M1 + shared M2 contracts | Fleet, agent, cancellation, orphan, tool tests    | PLANNED                                                     |
-| M3.5 — Production Readiness Gate | Measured reliability/security/accounting confidence                      | M1–M3                    | Applicable gate report and rollback drill         | BLOCKED; not yet implemented                                |
-| M4 — Application migration       | Scribe/simple inference/Farexlate/RAG adopt without losing job ownership | M3.5                     | Per-app quality, canary, audit, rollback sign-off | PLANNED                                                     |
-| M5 — Codex runtime               | Tested second agent implementation                                       | M3.5 + workload          | Runtime conformance + plugin acceptance           | PLANNED                                                     |
-| M6 — Gemini runtime              | Tested third agent implementation                                        | M3.5 + workload          | Runtime conformance + plugin acceptance           | PLANNED                                                     |
-| M7 — Expansion                   | Additional capabilities/providers/scale justified by usage               | Demand and ADR           | Capability-specific gates                         | FUTURE                                                      |
+| Milestone                        | Outcome                                                                  | Dependency               | Exit evidence                                     | Status                                                    |
+| -------------------------------- | ------------------------------------------------------------------------ | ------------------------ | ------------------------------------------------- | --------------------------------------------------------- |
+| M0 — Contract baseline           | API, state, usage, stream, profile, tool schemas disepakati              | Review docs              | P0 review + blocking decisions resolved           | IN PROGRESS; contract lab runnable, formal review pending |
+| M1 — Durable foundation          | App/connection/credential/runner registries, identity, ledger, execution | M0                       | Admission, cross-app isolation, persistence tests | LOCAL COMPLETE; external deployment evidence pending      |
+| M2 — Direct & Aggregator Gateway | OpenRouter-first + Direct Anthropic proof; chat/structured/stream        | M1                       | Adapter conformance and restricted routing tests  | PLANNED                                                   |
+| M3 — Claude Agent Runtime        | Distributed runner placement, plugin/workspace, tools, artifacts         | M1 + shared M2 contracts | Fleet, agent, cancellation, orphan, tool tests    | PLANNED                                                   |
+| M3.5 — Production Readiness Gate | Measured reliability/security/accounting confidence                      | M1–M3                    | Applicable gate report and rollback drill         | BLOCKED; not yet implemented                              |
+| M4 — Application migration       | Scribe/simple inference/Farexlate/RAG adopt without losing job ownership | M3.5                     | Per-app quality, canary, audit, rollback sign-off | PLANNED                                                   |
+| M5 — Codex runtime               | Tested second agent implementation                                       | M3.5 + workload          | Runtime conformance + plugin acceptance           | PLANNED                                                   |
+| M6 — Gemini runtime              | Tested third agent implementation                                        | M3.5 + workload          | Runtime conformance + plugin acceptance           | PLANNED                                                   |
+| M7 — Expansion                   | Additional capabilities/providers/scale justified by usage               | Demand and ADR           | Capability-specific gates                         | FUTURE                                                    |
 
 ## Decisions retained
 

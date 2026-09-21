@@ -6,7 +6,7 @@ export class AuthenticateApplication {
   constructor(private readonly credentials: CredentialVerifier) {}
 
   async execute(credential: string | undefined): Promise<ApplicationIdentity> {
-    if (!credential || credential.length > 512) {
+    if (!credential || credential.length > 16384) {
       throw new ApplicationError(
         'UNAUTHENTICATED',
         'Application credential required.',

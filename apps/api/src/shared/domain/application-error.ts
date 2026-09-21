@@ -4,6 +4,7 @@ export type ApplicationErrorCode =
   | 'POLICY_DENIED'
   | 'NOT_FOUND'
   | 'IDEMPOTENCY_CONFLICT'
+  | 'RESOURCE_EXHAUSTED'
   | 'DEPENDENCY_UNAVAILABLE';
 
 export class ApplicationError extends Error {

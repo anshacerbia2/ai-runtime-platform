@@ -2,7 +2,7 @@
 
 Shared AI execution platform untuk aplikasi yang membutuhkan direct chat, structured inference, atau agent/tools. **App owns business workflow; platform owns AI execution.**
 
-**M0 Contract Lab · 0.3.0-m0 tetap runnable.** M1 registry foundation pertama juga sedang **IN PROGRESS** di working implementation: Application/AI Connection/Credential metadata + read-only Control Plane slice tersedia lokal, sementara Keycloak, management mutations, admission/accounting, runner hot state, provider execution, agent, dan billing belum selesai. Arsitektur target tetap baseline 0.2 plus adopted extensions.
+**M0 Contract Lab · 0.3.0-m0 tetap runnable.** M1 durable foundation sekarang **LOCAL IMPLEMENTATION COMPLETE** untuk P1 test scope: application/operator/runner identity boundary, control-plane mutations, profiles, admission/idempotency, budgets/reservations, usage/ledger, outbox/inbox, audit, artifacts, dan runner registry foundation tersedia serta lulus acceptance lokal. Live ATI Keycloak/ATI One, Redis hot runner state, concrete secret manager, provider execution, agent runtime, dan production readiness belum dibuktikan. Arsitektur target tetap baseline 0.2 plus adopted extensions.
 
 **Fixed implementation stack:** NestJS + Fastify HTTP adapter + Prisma + PostgreSQL; frontend React/TypeScript + Vite. Struktur dan aturan dependency: [CODE-STRUCTURE](docs/architecture/CODE-STRUCTURE.md). Keputusan stack: [ADR-0016](docs/adr/0016-nestjs-fastify.md)–[ADR-0018](docs/adr/0018-clean-architecture-quality.md). Platform-control/fleet decisions: [ADR-0019](docs/adr/0019-application-connections-credentials.md)–[ADR-0022](docs/adr/0022-distributed-runner-fleet.md). Stack sudah diterapkan pada M0; fitur produksi tetap mengikuti gate.
 
@@ -62,4 +62,4 @@ Completion tidak menunggu settlement. Reservasi durable dibuat sebelum dispatch;
 
 [ADR](docs/adr/README.md) menjadi rujukan keputusan arsitektur yang aktif. Kontrak dan spesifikasi merinci pelaksanaannya; [decision traceability](docs/reviews/RECONCILIATION.md) memetakan keputusan ke dokumen dan gate. Riwayat review tersimpan dalam Git, bukan prasyarat membaca desain saat ini. [Open decisions](docs/decisions/OPEN-QUESTIONS.md) mencatat requirement deployment/data/credential/SLO dan review yang belum selesai.
 
-Document checks dilaporkan di [VALIDATION](docs/reviews/VALIDATION.md). Gate G01–G25 adalah requirement pengujian masa implementasi dan belum dijalankan; rendering diagram bukan bukti distributed-system correctness. Riwayat perubahan: [CHANGELOG](docs/CHANGELOG.md).
+Document checks dilaporkan di [VALIDATION](docs/reviews/VALIDATION.md). P1 gate G01/G02/G07/G08/G09/G15/G26–G29 sekarang mempunyai evidence lokal di [M1](docs/milestones/M1.md); gate produksi/nonlocal dan fase berikutnya tetap belum lulus. Rendering diagram bukan bukti distributed-system correctness. Riwayat perubahan: [CHANGELOG](docs/CHANGELOG.md).

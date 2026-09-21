@@ -1,6 +1,6 @@
 # AI Runtime Platform — Implementation Plan
 
-**Arsitektur baseline 0.2; M0 technical slice tersedia dalam 0.3.0-m0.** P0 review closure tetap IN PROGRESS; P1–P7 masih PLANNED. [M0 evidence](milestones/M0.md) dan [panduan lokal](development/M0.md).
+**Arsitektur baseline 0.2; M0 technical slice tersedia dalam 0.3.0-m0.** P0 review closure tetap IN PROGRESS. P1 local implementation scope sudah selesai dengan evidence lokal; external/nonlocal integration dan production readiness tetap pending. P2–P7 belum diimplementasikan. [M0 evidence](milestones/M0.md), [M1 evidence](milestones/M1.md), dan [panduan lokal](development/M0.md).
 
 Dokumen ini menjelaskan urutan kerja, dependency, deliverable, dan gate. M0 menambahkan Contract Lab FE/BE/DB sesuai [ADR-0015](adr/0015-testable-milestone-slices.md); ini bukan implementasi gateway/agent/ledger produksi. Deliverable di bawah tetap dibedakan dari demonstrasi lokal. Rujukan keputusan: [ADR](adr/README.md). Gambaran sistem: [Architecture](architecture/ARCHITECTURE.md). Pemetaan keputusan ke spesifikasi/gate: [decision traceability](reviews/RECONCILIATION.md).
 
@@ -34,7 +34,7 @@ Tidak termasuk saat ini: business-job database bersama, universal agent translat
 
 ### P1 — Durable control plane dan accounting foundation
 
-**Status:** IN PROGRESS — registry foundation FE/BE/PostgreSQL tersedia; Keycloak, management authority/mutations, admission/accounting, runner hot state, dan P1 gates belum selesai. Evidence: [M1](milestones/M1.md).
+**Status:** LOCAL IMPLEMENTATION COMPLETE — durable identity/control-plane/admission/accounting foundation dan P1 local acceptance evidence tersedia. Live ATI Keycloak/ATI One, concrete secret-manager, Redis hot runner state, dan nonlocal production evidence tetap pending. Evidence: [M1](milestones/M1.md).
 
 **Dependency:** P0. **Owner roles:** platform backend + storage/security.
 

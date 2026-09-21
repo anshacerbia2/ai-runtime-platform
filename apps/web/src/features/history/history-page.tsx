@@ -5,6 +5,8 @@ import {
 } from '../../shared/api/lab-client.js';
 import { errorMessage } from '../../shared/api/http-client.js';
 import { prettyJson } from '../../shared/lib/json.js';
+import { Button } from '../../shared/ui/button.js';
+import { Panel, PanelHeader } from '../../shared/ui/panel.js';
 
 export function HistoryPage({
   onError,
@@ -55,17 +57,15 @@ export function HistoryPage({
   }
 
   return (
-    <section className="panel">
-      <div className="panel-head">
-        <h2>Metadata validasi</h2>
-        <button
-          className="secondary"
-          disabled={busy}
-          onClick={() => void load()}
-        >
-          Refresh dari DB
-        </button>
-      </div>
+    <Panel>
+      <PanelHeader
+        title="Metadata validasi"
+        aside={
+          <Button disabled={busy} onClick={() => void load()}>
+            Refresh dari DB
+          </Button>
+        }
+      />
       <div className="table-wrap">
         <table>
           <thead>
@@ -125,6 +125,6 @@ export function HistoryPage({
         Yang tersimpan: digest, bentuk request, profile, hasil validasi, dan
         waktu. Prompt mentah, provider key, dan job bisnis tidak disimpan.
       </div>
-    </section>
+    </Panel>
   );
 }

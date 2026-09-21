@@ -56,10 +56,10 @@ Connection detail menunjukkan allowed apps/profiles, auth mode tanpa secret, cre
 - duplicate runner registration tidak mengambil alih identity aktif tanpa authenticated ownership protocol;
 - menambah runner untuk quota group yang sama tidak memperbesar upstream quota secara asumsi.
 
-## 8. Planned management operations
+## 8. M1 management operations
 
-Target operasi mencakup list/get/create/update lifecycle untuk applications/connections/bindings/profiles/plugins/runner pools, runner drain/disable, connection enable/disable/rotate-reference, dan audit read. Destructive changes harus versioned atau reversible bila memungkinkan.
+M1 mengimplementasikan operator-scoped read/mutation untuk Applications, AI Connections, Credential metadata, Bindings, Execution Profiles/aliases, Budgets, Runner Pools/Nodes, audit read, durable admission/cancel intent, usage/accounting evidence, artifact metadata, dan inbox/outbox processing. Mutations memakai revision/CAS dan menghasilkan audit evidence; application caller tidak memperoleh management authority.
 
-Exact URL schema, operator RBAC, secret-manager product, registration credential, dan health-check policy diselesaikan pada P1 contract implementation dan open-decision closure.
+Plugin management dan P3 runner placement/heartbeat execution tetap di fase berikutnya. Concrete secret-manager product, live Keycloak/ATI One registration, dan production health/rotation policy tetap deployment/open-decision work; API tidak mengembalikan secret material.
 
 Related decisions: [ADR-0019](../adr/0019-application-connections-credentials.md), [ADR-0020](../adr/0020-plugin-registry-execution-packaging.md), [ADR-0021](../adr/0021-workspace-remote-tools.md), [ADR-0022](../adr/0022-distributed-runner-fleet.md).

@@ -21,7 +21,11 @@ export async function createApplication(
     logger: logging
       ? {
           level: 'info',
-          redact: ['req.headers.authorization', 'req.headers.cookie'],
+          redact: [
+            'req.headers.authorization',
+            'req.headers.cookie',
+            'req.headers.x-ati-one-proxy',
+          ],
         }
       : false,
   });

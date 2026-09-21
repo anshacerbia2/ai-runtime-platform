@@ -5,6 +5,10 @@ const headings = {
     'Uji kontrak, pahami alurnya.',
     'Coba request aplikasi sebelum menghubungkan provider atau menjalankan agent.',
   ],
+  'control-plane': [
+    'Control plane yang durable.',
+    'Lihat application registry, AI connections, dan credential bindings tanpa mengekspos secret.',
+  ],
   contracts: [
     'Satu sumber kontrak.',
     'JSON Schema dihasilkan dari definisi TypeScript yang juga dipakai backend.',
@@ -27,16 +31,18 @@ export function PageHeading({
   version?: string;
 }) {
   const [title, description] = headings[tab];
+  const milestone =
+    tab === 'control-plane' ? 'MILESTONE ONE' : 'DEVELOPER TOOL';
   return (
     <div className="page-heading">
       <div>
-        <div className="eyebrow">MILESTONE ZERO</div>
+        <div className="eyebrow">{milestone}</div>
         <h1>{title}</h1>
         <p>{description}</p>
       </div>
       <div className="release">
-        v{version ?? '1.0.0-m0'}
-        <small>LOCAL PREVIEW</small>
+        {version ? `contract ${version}` : 'control plane'}
+        <small>LOCAL CONSOLE</small>
       </div>
     </div>
   );

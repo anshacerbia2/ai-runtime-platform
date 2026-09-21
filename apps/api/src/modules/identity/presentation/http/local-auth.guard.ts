@@ -5,18 +5,20 @@ import {
   type ExecutionContext,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { AuthenticateApplication } from '../../application/authenticate-application.js';
+import { AuthenticatePrincipal } from '../../application/authenticate-principal.js';
 import {
   APPLICATION_IDENTITY,
+  PRINCIPAL,
   type AuthenticatedRequest,
 } from './authenticated-request.js';
 import { PUBLIC_ROUTE } from '../../../../shared/presentation/public-route.decorator.js';
+import { ApplicationError } from '../../../../shared/domain/application-error.js';
 
 @Injectable()
 export class LocalAuthGuard implements CanActivate {
   constructor(
-    @Inject(AuthenticateApplication)
-    private readonly authenticate: AuthenticateApplication,
+    @Inject(AuthenticatePrincipal)
+    private readonly authenticate: AuthenticatePrincipal,
     @Inject(Reflector) private readonly reflector: Reflector,
   ) {}
 
@@ -34,7 +36,22 @@ export class LocalAuthGuard implements CanActivate {
     const token = authorization?.startsWith('Bearer ')
       ? authorization.slice(7)
       : undefined;
-    request[APPLICATION_IDENTITY] = await this.authenticate.execute(token);
+    const principal = await this.authenticate.execute(token);
+    request[PRINCIPAL] = principal;
+    if (principal.kind === 'application' && principal.applicationId) {
+      request[APPLICATION_IDENTITY] = {
+        applicationId: principal.applicationId,
+      };
+    }
+    if (
+      request.url.startsWith('/api/m0/') &&
+      principal.kind !== 'application'
+    ) {
+      throw new ApplicationError(
+        'POLICY_DENIED',
+        'Application caller required.',
+      );
+    }
     return true;
   }
 }
