@@ -7,7 +7,7 @@ export class ReadHistoryUseCase {
 
   async list(identity: ApplicationIdentity, limit: number, afterId?: string) {
     if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
-      throw new ApplicationError('INVALID_REQUEST', 'limit must be 1–100.');
+      throw new ApplicationError('INVALID_REQUEST', 'limit must be 1â€“100.');
     }
     if (
       afterId &&

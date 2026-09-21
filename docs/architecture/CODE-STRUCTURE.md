@@ -5,6 +5,10 @@
 ## Struktur repository
 
 ```text
+.env.example                   # exhaustive local/CI config contract; no secrets
+config/
+  environment.mjs             # single validated environment read boundary
+  environment.d.mts           # typed shape for TypeScript consumers
 apps/
   api/src/
     main.ts                     # startup, listen, shutdown
@@ -60,6 +64,7 @@ scripts/
   check-architecture.mjs
   check-docs.mjs
   dev.mjs
+  init-env.mjs                 # explicit .env initializer; refuses overwrite
 ```
 
 Legacy SQL in `db/migrations/` is retained for checksum/history compatibility, not a second active migration system. Prisma generated files, local cluster, backups, screenshots, and logs remain Git-ignored.

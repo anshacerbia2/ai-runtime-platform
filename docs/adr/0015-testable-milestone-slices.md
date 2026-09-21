@@ -20,7 +20,7 @@ Bangun vertical slice lokal: React + TypeScript/Vite frontend, Fastify backend, 
 
 M0 menyimpan hasil pemeriksaan kontrak ke schema `m0`, bukan membuat execution AI, reserve budget, menjalankan plugin, atau mengaku mengukur token. Demo profiles berlabel contract-only. Frontend memakai proxy server-side; local application credentials tidak dikirim ke browser. Tidak ada provider credential atau provider network call pada M0.
 
-Database lokal native dipilih karena binary PostgreSQL tersedia pada workstation; cluster/data/port milik repo ini, tidak mengubah service atau database lain. Script menolak database non-loopback dan nama database di luar `ai_runtime_m0`. DATABASE_URL opsional hanya untuk database lokal khusus dengan nama tersebut. Deployment produksi tetap keputusan terpisah.
+Database lokal native dipilih karena binary PostgreSQL tersedia pada workstation; cluster/data/port milik repo ini, tidak mengubah service atau database lain. M0 sekarang memakai satu validated environment gate melalui `.env`/process environment; script menolak database non-loopback dan nama database di luar `ai_runtime_m0`. Tidak ada `DATABASE_URL` path kedua, PostgreSQL auto-detection, atau hidden local JSON config. Deployment produksi tetap keputusan terpisah.
 
 OpenAPI/JSON Schema dibuat dari shared contracts dan diuji terhadap drift. UI menyediakan payload examples, validation report, schema explorer, history, serta panduan fase. Nilai valid hanya berarti kontrak M0 lolos, bukan runtime/profile produksi telah verified. Session, artifact existence, real auth federation, rate/budget enforcement, dan distributed recovery tetap fase berikutnya.
 

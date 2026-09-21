@@ -33,7 +33,49 @@ jobs:
           --health-retries 10
     env:
       CI: 'true'
-      DATABASE_URL: postgresql://runtime_m0:disposable_ci_only@127.0.0.1:5432/ai_runtime_m0
+      M0_RUNTIME_MODE: m0-local
+      M0_API_HOST: 127.0.0.1
+      M0_API_PORT: '4311'
+      M0_WEB_HOST: 127.0.0.1
+      M0_WEB_PORT: '4310'
+      M0_ALLOWED_HOSTS: 127.0.0.1,localhost
+      M0_ALLOWED_ORIGINS: http://127.0.0.1:4310,http://localhost:4310,http://127.0.0.1:4311
+      M0_API_BODY_LIMIT_BYTES: '65536'
+      M0_API_REQUEST_TIMEOUT_MS: '15000'
+      M0_DB_HOST: 127.0.0.1
+      M0_DB_PORT: '5432'
+      M0_DB_NAME: ai_runtime_m0
+      M0_DB_USER: runtime_m0
+      M0_DB_PASSWORD: disposable_ci_only
+      M0_MANAGE_POSTGRES: 'false'
+      PG_BIN: UNUSED
+      M0_POSTGRES_DATA_DIR: .local/postgres-ci
+      M0_POSTGRES_LOG_FILE: .local/postgres-ci.log
+      M0_DB_POOL_MAX: '6'
+      M0_DB_CONNECTION_TIMEOUT_MS: '3000'
+      M0_DB_IDLE_TIMEOUT_MS: '10000'
+      M0_DB_STATEMENT_TIMEOUT_MS: '5000'
+      M0_DB_APPLICATION_NAME: ai-runtime-m0-prisma-ci
+      M0_SEED_TX_MAX_WAIT_MS: '5000'
+      M0_SEED_TX_TIMEOUT_MS: '15000'
+      M0_DEV_API_READY_TIMEOUT_MS: '15000'
+      M0_DEV_API_PROBE_TIMEOUT_MS: '1000'
+      M0_DEV_API_POLL_INTERVAL_MS: '150'
+      M0_DEV_CHILD_STOP_TIMEOUT_MS: '5000'
+      M0_POSTGRES_START_TIMEOUT_SECONDS: '30'
+      M0_APP_ID: m0-playground
+      M0_APP_NAME: Local Contract Playground
+      M0_APP_TOKEN: ci_playground_token_00000000000000000000000000000000
+      M0_TEST_APP_ID: m0-test-other
+      M0_TEST_APP_NAME: Isolation Test App
+      M0_TEST_APP_TOKEN: ci_isolation_token_00000000000000000000000000000000
+      PLAYWRIGHT_BROWSER_NAME: chromium
+      PLAYWRIGHT_CHANNEL: none
+      PLAYWRIGHT_TEST_TIMEOUT_MS: '30000'
+      PLAYWRIGHT_WEB_SERVER_TIMEOUT_MS: '90000'
+      PLAYWRIGHT_VIEWPORT_WIDTH: '1440'
+      PLAYWRIGHT_VIEWPORT_HEIGHT: '1100'
+      PLAYWRIGHT_REUSE_EXISTING_SERVER: 'false'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:

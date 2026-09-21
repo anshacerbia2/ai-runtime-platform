@@ -1,6 +1,9 @@
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { schemaBundle, CONTRACT_VERSION } from '@ai-runtime/contracts';
 import { resolve } from 'node:path';
+import { loadEnvironment } from '../config/environment.mjs';
+
+const environment = loadEnvironment();
 const security = [{ localBearer: [] }];
 const ok = { description: 'Successful local contract-lab response' };
 const ref = (name: string) => ({ $ref: '#/components/schemas/' + name });
@@ -12,7 +15,7 @@ const lab = {
     description:
       'Local-only schema validation and metadata persistence. NO provider calls, execution scheduling, budget ledger, or production authentication.',
   },
-  servers: [{ url: 'http://127.0.0.1:4311' }],
+  servers: [{ url: `http://${environment.apiHost}:${environment.apiPort}` }],
   security,
   paths: {
     '/health/live': { get: { security: [], responses: { '200': ok } } },

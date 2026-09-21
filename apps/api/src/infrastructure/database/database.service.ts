@@ -5,7 +5,7 @@ import {
   type OnModuleDestroy,
 } from '@nestjs/common';
 import { RUNTIME_CONFIG } from '../config/runtime-config.module.js';
-import type { LocalConfig } from '../config/local-config.js';
+import type { RuntimeConfig } from '../config/environment-config.js';
 import { PrismaClient } from './generated/client.js';
 import { databaseOptions } from './client.js';
 
@@ -14,8 +14,8 @@ export class DatabaseService
   extends PrismaClient
   implements OnModuleInit, OnModuleDestroy
 {
-  constructor(@Inject(RUNTIME_CONFIG) config: LocalConfig) {
-    super(databaseOptions(config.databaseUrl));
+  constructor(@Inject(RUNTIME_CONFIG) config: RuntimeConfig) {
+    super(databaseOptions(config));
   }
 
   async check() {

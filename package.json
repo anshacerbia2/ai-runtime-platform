@@ -12,6 +12,7 @@
     "node": ">=24.11.1 <25"
   },
   "scripts": {
+    "env:init": "node scripts/init-env.mjs",
     "setup": "npm run build -w @ai-runtime/contracts && npm run db:generate && node scripts/setup-local.mjs",
     "dev": "node scripts/dev.mjs",
     "db:start": "node scripts/setup-local.mjs --db-only",
@@ -31,7 +32,7 @@
     "verify": "npm run format:check && npm run lint && npm run architecture:check && npm run typecheck && npm test && npm run test:unit && npm run test:integration && npm run contracts:check && npm run build && npm run docs:check",
     "db:generate": "prisma generate",
     "test:unit": "tsx --test apps/api/test/unit/*.test.ts && node --test scripts/test/*.test.mjs",
-    "lint": "eslint apps packages scripts tests playwright.config.ts prisma.config.ts",
+    "lint": "eslint apps packages scripts config tests playwright.config.ts prisma.config.ts",
     "lint:fix": "npm run lint -- --fix",
     "architecture:check": "node scripts/check-architecture.mjs",
     "typecheck:tests": "tsc -p apps/api/tsconfig.test.json && tsc -p packages/contracts/tsconfig.test.json && tsc -p tsconfig.tools.json",

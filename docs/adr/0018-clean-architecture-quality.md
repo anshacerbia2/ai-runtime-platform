@@ -47,3 +47,9 @@ Dev startup menunggu API siap sebelum frontend terbuka. Backend dikompilasi Type
 Baseline harus lulus `format:check`, lint, dependency rules, source/test typecheck, contract tests, framework-free use-case tests, Prisma integration tests, generated-schema drift, build, docs links, dan browser tests. Bukti dicatat di [M0](../milestones/M0.md). Struktur nyata dan reading path: [CODE-STRUCTURE](../architecture/CODE-STRUCTURE.md).
 
 Tidak ada label atau skor “standar FAANG” yang menggantikan evidence. Batas platform tidak berubah: M0 belum menjalankan AI dan belum siap deployment produksi. Setiap fase menambah kemampuan nyata FE/BE/DB tanpa kembali ke controller/query/UI monolitik.
+
+## Configuration boundary
+
+Runtime/tooling configuration follows the same explicit-boundary principle as code dependencies. M0 has one environment read boundary at `config/environment.mjs`; local `.env` and CI environment provide the values. Consumers receive validated config objects instead of reading arbitrary environment variables themselves.
+
+Required configuration has no silent fallback. A new configurable setting must be declared in `.env.example`, validated in the canonical loader, documented in [CONFIGURATION](../development/CONFIGURATION.md), and covered by tests where correctness depends on it. Hidden JSON/YAML config or a second `DATABASE_URL` path is not allowed.

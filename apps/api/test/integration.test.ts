@@ -6,22 +6,22 @@ import { resolve } from 'node:path';
 import type { FastifyInstance, InjectOptions } from 'fastify';
 import { ChatRequest, examples, type CheckResult } from '@ai-runtime/contracts';
 import { createApplication } from '../dist/bootstrap.js';
-import { loadConfig } from '../src/infrastructure/config/local-config.js';
+import { loadConfig } from '../src/infrastructure/config/environment-config.js';
 import { createDatabaseClient } from '../src/infrastructure/database/client.js';
 import { seedDatabase } from '../src/infrastructure/database/seed.js';
 
 const config = loadConfig();
-const database = createDatabaseClient(config.databaseUrl);
+const database = createDatabaseClient(config);
 let application: Awaited<ReturnType<typeof createApplication>>;
 let http: FastifyInstance;
 const applicationId = config.applications[0]!.id;
 const headers = {
   authorization: `Bearer ${config.applications[0]!.token}`,
-  host: '127.0.0.1:4311',
+  host: `${config.apiHost}:${config.apiPort}`,
 };
 const otherHeaders = {
   authorization: `Bearer ${config.applications[1]!.token}`,
-  host: '127.0.0.1:4311',
+  host: `${config.apiHost}:${config.apiPort}`,
 };
 const body = {
   kind: 'chat',
@@ -84,7 +84,7 @@ test('NestJS/Fastify health depends on real PostgreSQL', async () => {
 test('missing credentials rejected', async () => {
   const response = await http.inject({
     url: '/api/m0/history',
-    headers: { host: '127.0.0.1' },
+    headers: { host: config.apiHost },
   });
   assert.equal(response.statusCode, 401);
   assert.equal(response.json().error.code, 'UNAUTHENTICATED');
@@ -323,7 +323,7 @@ test('cursor pagination preserves PostgreSQL microsecond ordering', async () => 
 test('public liveness does not require application credentials', async () => {
   const response = await http.inject({
     url: '/health/live',
-    headers: { host: '127.0.0.1' },
+    headers: { host: config.apiHost },
   });
   assert.equal(response.statusCode, 200);
   assert.equal(response.json().mode, 'contract-only');

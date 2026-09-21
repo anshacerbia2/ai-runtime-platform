@@ -1,7 +1,7 @@
-import { loadConfig } from '../infrastructure/config/local-config.js';
+import { loadConfig } from '../infrastructure/config/environment-config.js';
 import { createDatabaseClient } from '../infrastructure/database/client.js';
 
-const database = createDatabaseClient(loadConfig().databaseUrl);
+const database = createDatabaseClient(loadConfig());
 try {
   console.table(
     await database.contractCheck.groupBy({

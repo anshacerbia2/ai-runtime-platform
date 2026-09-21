@@ -1,225 +1,153 @@
-import {
-  existsSync,
-  readFileSync,
-  writeFileSync,
-  mkdirSync,
-  unlinkSync,
-} from 'node:fs';
-import { resolve, dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { randomBytes } from 'node:crypto';
+import { existsSync, writeFileSync, mkdirSync, unlinkSync } from 'node:fs';
+import { resolve, dirname, join, isAbsolute } from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import net from 'node:net';
 import pg from 'pg';
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const local = join(root, '.local');
-const configPath = join(local, 'config.json');
+import { loadEnvironment, projectRoot } from '../config/environment.mjs';
+
+const config = loadEnvironment();
 const ext = process.platform === 'win32' ? '.exe' : '';
-const log = (s) => console.log('[M0 setup] ' + s);
-function binaryDir() {
-  if (process.env.PG_BIN) {
-    return process.env.PG_BIN;
-  }
-  const found = spawnSync('pg_config', ['--bindir'], { encoding: 'utf8' });
-  if (found.status === 0) {
-    return found.stdout.trim();
-  }
-  if (process.platform === 'win32') {
-    for (const v of ['18', '17', '16', '15']) {
-      const dir = `C:\\Program Files\\PostgreSQL\\${v}\\bin`;
-      if (existsSync(join(dir, 'initdb.exe'))) {
-        return dir;
-      }
-    }
-  }
-  throw new Error(
-    'PostgreSQL binaries not found. Set PG_BIN or provide DATABASE_URL for a dedicated LOCAL ai_runtime_m0 database. See docs/development/M0.md.',
-  );
-}
-async function portFree(port) {
-  return new Promise((yes, no) => {
-    const s = net.createServer();
-    s.once('error', no);
-    s.listen(port, '127.0.0.1', () => s.close(() => yes(true)));
+const log = (message) => console.log(`[M0 setup] ${message}`);
+const projectPath = (value) =>
+  isAbsolute(value) ? value : resolve(projectRoot, value);
+const dataDir = projectPath(config.database.dataDir);
+const logFile = projectPath(config.database.logFile);
+const pgCtl = join(config.database.pgBin, `pg_ctl${ext}`);
+
+async function assertPortFree(host, port) {
+  await new Promise((resolvePort, reject) => {
+    const server = net.createServer();
+    server.once('error', reject);
+    server.listen(port, host, () => server.close(resolvePort));
   });
 }
-let config;
+
+function postgresStatus() {
+  return spawnSync(pgCtl, ['status', '-D', dataDir]).status === 0;
+}
 try {
   if (process.argv.includes('--stop')) {
-    if (!existsSync(configPath)) {
-      log('No project database configured.');
-      process.exit(0);
-    }
-    config = JSON.parse(readFileSync(configPath, 'utf8'));
-    if (config.owner !== 'ai-runtime-platform-m0') {
-      throw new Error('Unrecognized database owner marker.');
-    }
-    if (config.externalDatabase) {
-      log('External database is not managed or stopped by this script.');
-      process.exit(0);
-    }
-    const status = spawnSync(join(config.pgBin, 'pg_ctl' + ext), [
-      'status',
-      '-D',
-      join(local, 'postgres'),
-    ]);
-    if (status.status === 0) {
-      execFileSync(
-        join(config.pgBin, 'pg_ctl' + ext),
-        ['stop', '-D', join(local, 'postgres'), '-m', 'fast', '-w'],
-        { stdio: 'inherit' },
+    if (!config.database.managePostgres) {
+      log(
+        'M0_MANAGE_POSTGRES=false; no database process is managed by this repo.',
       );
+      process.exit(0);
     }
-    log('Only this project cluster was stopped; data retained.');
+    if (postgresStatus()) {
+      execFileSync(pgCtl, ['stop', '-D', dataDir, '-m', 'fast', '-w'], {
+        stdio: 'inherit',
+      });
+    }
+    log(
+      'Only the env-declared project PostgreSQL cluster was stopped; data retained.',
+    );
     process.exit(0);
   }
-  mkdirSync(local, { recursive: true });
-  if (existsSync(configPath)) {
-    config = JSON.parse(readFileSync(configPath, 'utf8'));
-    if (config.owner !== 'ai-runtime-platform-m0') {
-      throw new Error('Unrecognized config: not overwriting.');
-    }
-    if (
-      process.env.DATABASE_URL &&
-      process.env.DATABASE_URL !== config.databaseUrl
-    ) {
-      throw new Error(
-        'DATABASE_URL differs from existing local config; refusing implicit switch.',
-      );
-    }
-  } else {
-    const password = randomBytes(24).toString('hex');
-    config = {
-      owner: 'ai-runtime-platform-m0',
-      externalDatabase: !!process.env.DATABASE_URL,
-      databaseUrl:
-        process.env.DATABASE_URL ??
-        `postgresql://runtime_m0:${password}@127.0.0.1:54329/ai_runtime_m0`,
-      apiPort: 4311,
-      webPort: 4310,
-      dbPort: 54329,
-      applications: [
-        {
-          id: 'm0-playground',
-          name: 'Local Contract Playground',
-          token: randomBytes(32).toString('hex'),
-        },
-        {
-          id: 'm0-test-other',
-          name: 'Isolation Test App',
-          token: randomBytes(32).toString('hex'),
-        },
-      ],
-    };
-    if (!config.externalDatabase) {
-      config.pgBin = binaryDir();
-    }
-    writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n', {
-      mode: 0o600,
-      flag: 'wx',
-    });
-  }
-  const url = new URL(config.databaseUrl);
-  if (
-    !['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname) ||
-    url.pathname !== '/ai_runtime_m0'
-  ) {
-    throw new Error(
-      'Only LOCAL ai_runtime_m0 database is supported. No production database.',
-    );
-  }
-  if (!config.externalDatabase) {
-    const data = join(local, 'postgres');
-    const ctl = join(config.pgBin, 'pg_ctl' + ext);
-    if (!existsSync(join(data, 'PG_VERSION'))) {
-      if (existsSync(data)) {
+
+  if (config.database.managePostgres) {
+    mkdirSync(dirname(dataDir), { recursive: true });
+    mkdirSync(dirname(logFile), { recursive: true });
+    if (!existsSync(join(dataDir, 'PG_VERSION'))) {
+      if (existsSync(dataDir)) {
         throw new Error(
-          'Partial database directory found; inspect manually. No automatic deletion.',
+          `Partial database directory found at ${dataDir}; inspect manually. No automatic deletion.`,
         );
       }
-      const pw = join(local, 'initdb-password.tmp');
-      writeFileSync(pw, decodeURIComponent(url.password) + '\n', {
+      const passwordFile = resolve(dirname(dataDir), 'initdb-password.tmp');
+      writeFileSync(passwordFile, `${config.database.password}\n`, {
         mode: 0o600,
+        flag: 'wx',
       });
       try {
         execFileSync(
-          join(config.pgBin, 'initdb' + ext),
+          join(config.database.pgBin, `initdb${ext}`),
           [
             '-D',
-            data,
+            dataDir,
             '-U',
-            'runtime_m0',
+            config.database.user,
             '--auth=scram-sha-256',
             '--encoding=UTF8',
             '--locale=C',
-            '--pwfile=' + pw,
+            `--pwfile=${passwordFile}`,
           ],
           { stdio: 'inherit' },
         );
       } finally {
-        unlinkSync(pw);
+        unlinkSync(passwordFile);
       }
     }
-    if (spawnSync(ctl, ['status', '-D', data]).status !== 0) {
-      await portFree(config.dbPort);
+
+    if (!postgresStatus()) {
+      await assertPortFree(config.database.host, config.database.port);
       execFileSync(
-        ctl,
+        pgCtl,
         [
           'start',
           '-D',
-          data,
+          dataDir,
           '-l',
-          join(local, 'postgres.log'),
+          logFile,
           '-o',
-          `-h 127.0.0.1 -p ${config.dbPort}`,
+          `-h ${config.database.host} -p ${config.database.port}`,
           '-w',
           '-t',
-          '30',
+          String(config.dev.postgresStartTimeoutSeconds),
         ],
         { stdio: 'inherit' },
       );
     }
     const adminUrl = new URL(config.databaseUrl);
     adminUrl.pathname = '/postgres';
+    adminUrl.search = '';
     const admin = new pg.Client({
       connectionString: adminUrl.toString(),
-      connectionTimeoutMillis: 3000,
+      connectionTimeoutMillis: config.database.connectionTimeoutMs,
     });
     await admin.connect();
     try {
       const check = await admin.query(
-        "SELECT 1 FROM pg_database WHERE datname='ai_runtime_m0'",
+        'SELECT 1 FROM pg_database WHERE datname=$1',
+        [config.database.name],
       );
       if (!check.rows.length) {
+        if (config.database.name !== 'ai_runtime_m0') {
+          throw new Error('Unexpected M0 database name.');
+        }
         await admin.query('CREATE DATABASE ai_runtime_m0');
       }
     } finally {
       await admin.end();
     }
   }
+
   const client = new pg.Client({
     connectionString: config.databaseUrl,
-    connectionTimeoutMillis: 3000,
+    connectionTimeoutMillis: config.database.connectionTimeoutMs,
   });
   await client.connect();
   const version = await client.query('SHOW server_version');
   await client.end();
   log(
-    'PostgreSQL ' +
-      version.rows[0].server_version +
-      ' reachable on loopback. Secrets are not printed.',
+    `PostgreSQL ${version.rows[0].server_version} reachable at ${config.database.host}:${config.database.port}. Secrets are not printed.`,
   );
   if (!process.argv.includes('--db-only')) {
     execFileSync(
       process.execPath,
-      [join(root, 'scripts/database/migrate.mjs')],
-      { cwd: root, stdio: 'inherit' },
+      [join(projectRoot, 'scripts/database/migrate.mjs')],
+      {
+        cwd: projectRoot,
+        stdio: 'inherit',
+      },
     );
   }
   log(
-    'Ready. Start UI + API with npm run dev. Data: .local/postgres (git-ignored).',
+    `Ready. Configuration authority: environment/.env. Data: ${config.database.dataDir}.`,
   );
 } catch (error) {
-  console.error('[M0 setup failed]', error.message);
+  console.error(
+    '[M0 setup failed]',
+    error instanceof Error ? error.message : String(error),
+  );
   process.exitCode = 1;
 }

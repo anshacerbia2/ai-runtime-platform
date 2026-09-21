@@ -10,10 +10,12 @@ Shared AI execution platform untuk aplikasi yang membutuhkan direct chat, struct
 
 ```powershell
 npm ci
+npm run env:init
+# review .env
 npm run dev
 ```
 
-Buka `http://127.0.0.1:4310`. Node 24 dan PostgreSQL binaries diperlukan; bootstrap memakai cluster khusus proyek ini. [Panduan M0](docs/development/M0.md) menjelaskan port, database, cara uji, dan penghentian. [Status/evidence M0](docs/milestones/M0.md) memisahkan slice teknis dari review kontrak yang masih terbuka.
+Alamat FE/API, PostgreSQL, browser-test settings, credentials, dan timeout berasal dari root `.env`; M0 tidak memakai hidden local config atau silent fallback. Node 24 dan PostgreSQL binaries diperlukan bila `M0_MANAGE_POSTGRES=true`. [Panduan M0](docs/development/M0.md) menjelaskan cara uji; [Configuration](docs/development/CONFIGURATION.md) mendefinisikan single env gate; [Status/evidence M0](docs/milestones/M0.md) memisahkan slice teknis dari review kontrak yang masih terbuka.
 
 ## Mulai membaca
 

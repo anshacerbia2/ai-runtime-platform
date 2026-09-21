@@ -8,12 +8,15 @@ import {
 import type { FastifyInstance } from 'fastify';
 import { AppModule } from './app.module.js';
 import { registerLocalRequestPolicy } from './infrastructure/http/local-request-policy.js';
-import type { LocalConfig } from './infrastructure/config/local-config.js';
+import type { RuntimeConfig } from './infrastructure/config/environment-config.js';
 
-export async function createApplication(config: LocalConfig, logging = false) {
+export async function createApplication(
+  config: RuntimeConfig,
+  logging = false,
+) {
   const adapter = new FastifyAdapter({
-    bodyLimit: 65536,
-    requestTimeout: 15000,
+    bodyLimit: config.apiBodyLimitBytes,
+    requestTimeout: config.apiRequestTimeoutMs,
     genReqId: () => randomUUID(),
     logger: logging
       ? {

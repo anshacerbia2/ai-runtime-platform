@@ -46,12 +46,13 @@ ADRs record decisions and trade-offs; architecture explains the system; detailed
 
 ## Operations and migration
 
-| Document                                                      | Purpose                                     |
-| ------------------------------------------------------------- | ------------------------------------------- |
-| [docs/operations/DEPLOYMENT.md](operations/DEPLOYMENT.md)     | Deployment dan Operability Blueprint        |
-| [docs/operations/SLO-CAPACITY.md](operations/SLO-CAPACITY.md) | SLI, SLO, Capacity, dan Parameter Register  |
-| [docs/operations/RUNBOOKS.md](operations/RUNBOOKS.md)         | Operational Runbooks                        |
-| [docs/migration/APPLICATIONS.md](migration/APPLICATIONS.md)   | Application Adoption dan Migration Playbook |
+| Document                                                          | Purpose                                     |
+| ----------------------------------------------------------------- | ------------------------------------------- |
+| [docs/operations/DEPLOYMENT.md](operations/DEPLOYMENT.md)         | Deployment dan Operability Blueprint        |
+| [docs/operations/SLO-CAPACITY.md](operations/SLO-CAPACITY.md)     | SLI, SLO, Capacity, dan Parameter Register  |
+| [docs/operations/RUNBOOKS.md](operations/RUNBOOKS.md)             | Operational Runbooks                        |
+| [docs/migration/APPLICATIONS.md](migration/APPLICATIONS.md)       | Application Adoption dan Migration Playbook |
+| [docs/development/CONFIGURATION.md](development/CONFIGURATION.md) | Single Environment Configuration Gate       |
 
 ## Decisions and verification
 

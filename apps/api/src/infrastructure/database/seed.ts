@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { canonicalJson, profiles } from '@ai-runtime/contracts';
-import type { LocalConfig } from '../config/local-config.js';
+import type { RuntimeConfig } from '../config/environment-config.js';
 import type { PrismaClient } from './generated/client.js';
 
 const digest = (value: string) =>
@@ -8,7 +8,7 @@ const digest = (value: string) =>
 
 export async function seedDatabase(
   database: PrismaClient,
-  config: LocalConfig,
+  config: RuntimeConfig,
 ) {
   await database.$transaction(
     async (transaction) => {
@@ -57,6 +57,6 @@ export async function seedDatabase(
         }
       }
     },
-    { maxWait: 5000, timeout: 15000 },
+    { maxWait: config.seedTxMaxWaitMs, timeout: config.seedTxTimeoutMs },
   );
 }

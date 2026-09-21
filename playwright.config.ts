@@ -1,23 +1,33 @@
 import { defineConfig } from '@playwright/test';
+import { loadEnvironment } from './config/environment.mjs';
+
+const config = loadEnvironment();
+const baseURL = `http://${config.webHost}:${config.webPort}`;
+
 export default defineConfig({
   testDir: 'tests/e2e',
   fullyParallel: false,
   workers: 1,
   reporter: 'list',
-  timeout: 30000,
+  timeout: config.playwright.timeoutMs,
   use: {
-    baseURL: 'http://127.0.0.1:4310',
-    browserName: 'chromium',
+    baseURL,
+    browserName: config.playwright.browserName as
+      'chromium' | 'firefox' | 'webkit',
     channel:
-      process.env.PLAYWRIGHT_CHANNEL ??
-      (process.platform === 'win32' ? 'msedge' : undefined),
-    viewport: { width: 1440, height: 1100 },
+      config.playwright.channel === 'none'
+        ? undefined
+        : config.playwright.channel,
+    viewport: {
+      width: config.playwright.viewportWidth,
+      height: config.playwright.viewportHeight,
+    },
     trace: 'retain-on-failure',
   },
   webServer: {
     command: 'npm run dev',
-    url: 'http://127.0.0.1:4310',
-    reuseExistingServer: !process.env.CI,
-    timeout: 90000,
+    url: baseURL,
+    reuseExistingServer: config.playwright.reuseExistingServer,
+    timeout: config.playwright.webServerTimeoutMs,
   },
 });

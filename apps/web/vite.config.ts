@@ -1,27 +1,21 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { loadEnvironment } from '../../config/environment.mjs';
+
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-let config:
-  | { apiPort: number; webPort: number; applications: { token: string }[] }
-  | undefined;
-try {
-  config = JSON.parse(
-    readFileSync(resolve(root, '.local/config.json'), 'utf8'),
-  );
-} catch {
-  /* Static builds do not need development credentials. */
-}
+const config = loadEnvironment();
+const application = config.applications[0];
+
 export default defineConfig({
   root: resolve(root, 'apps/web'),
   plugins: [react()],
   server: {
-    host: '127.0.0.1',
-    port: config?.webPort ?? 4310,
+    host: config.webHost,
+    port: config.webPort,
     strictPort: true,
-    allowedHosts: ['localhost', '127.0.0.1'],
+    allowedHosts: [...config.allowedHosts],
     cors: false,
     fs: {
       strict: true,
@@ -29,16 +23,11 @@ export default defineConfig({
     },
     proxy: {
       '/api': {
-        target: `http://127.0.0.1:${config?.apiPort ?? 4311}`,
+        target: `http://${config.apiHost}:${config.apiPort}`,
         changeOrigin: true,
         configure(proxy) {
           proxy.on('proxyReq', (out) => {
-            if (config?.applications[0]) {
-              out.setHeader(
-                'Authorization',
-                'Bearer ' + config.applications[0].token,
-              );
-            }
+            out.setHeader('Authorization', `Bearer ${application!.token}`);
           });
         },
       },

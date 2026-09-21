@@ -1,23 +1,20 @@
 import type { FastifyInstance } from 'fastify';
-import type { LocalConfig } from '../config/local-config.js';
+import type { RuntimeConfig } from '../config/environment-config.js';
 
 /** Transport-only local guard. It is not an OIDC or production access policy. */
 export function registerLocalRequestPolicy(
   server: FastifyInstance,
-  config: LocalConfig,
+  config: RuntimeConfig,
 ) {
-  const allowedOrigins = new Set([
-    `http://127.0.0.1:${config.webPort}`,
-    `http://localhost:${config.webPort}`,
-    `http://127.0.0.1:${config.apiPort}`,
-  ]);
+  const allowedHosts = new Set(config.allowedHosts);
+  const allowedOrigins = new Set(config.allowedOrigins);
   server.addHook('onRequest', async (request, response) => {
     response
       .header('X-Request-ID', request.id)
       .header('Cache-Control', 'no-store')
       .header('X-Content-Type-Options', 'nosniff');
     const host = request.headers.host?.split(':')[0];
-    const invalidHost = host && !['localhost', '127.0.0.1'].includes(host);
+    const invalidHost = host && !allowedHosts.has(host);
     const invalidOrigin =
       request.headers.origin && !allowedOrigins.has(request.headers.origin);
     if (invalidHost || invalidOrigin) {

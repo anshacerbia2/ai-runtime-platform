@@ -99,8 +99,16 @@ Pemeriksaan source, dependency, database, migration, dan browser terbaru dicatat
 
 ADR-0019–ADR-0022, Control Plane contract, distributed-runner diagram, architecture/boundaries, API/profile/plugin/artifact contracts, data/accounting/security/reliability/deployment/runbooks, acceptance gates, migration, PLAN, ROADMAP, glossary/index/changelog, dan M0 scope notes were synchronized for the new requirements.
 
-Current automated documentation check after the platform-control/fleet synchronization was **64 Markdown files, 489 local links, 0 missing file targets**. After adding the canonical capability catalogue, the current check is **65 Markdown files, 503 local links, 0 missing file targets**. Repository-wide Prettier check passed after both synchronizations.
+Current automated documentation check after the platform-control/fleet synchronization was **64 Markdown files, 489 local links, 0 missing file targets**. After adding the canonical capability catalogue, that check became **65 Markdown files, 503 local links, 0 missing file targets**. After documenting and implementing the single environment configuration gate, the current check is **66 Markdown files, 509 local links, 0 missing file targets**. Repository-wide Prettier check passed after both synchronizations.
 
 Production gates now span **G01–G35**. G26–G35 cover application/connection isolation, secret handling, dedicated/shared connection semantics, runner registration/lifecycle, runner-local credential locality, shared quota groups, plugin supply-chain checks, optional workspace containment, optional remote-tool/MCP semantics, and fleet failover/fencing. These gates remain NOT RUN until the corresponding implementation exists.
 
 No claim is made that M0 implements Keycloak federation, Admin control-plane management, AI Connection/Credential Binding, Plugin Registry, distributed runner placement, Vault integration, remote MCP tools, or production workspace/artifact promotion.
+
+## 10. Single environment configuration gate — 21 September 2026
+
+M0 local runtime/tooling configuration was consolidated behind `config/environment.mjs`. Local development uses Git-ignored `.env`; CI supplies the same required variables explicitly. Vite, Nest/Fastify, Prisma, Playwright, PostgreSQL setup/migration, contract export, dev runner, and tests now consume that validated boundary.
+
+Automated environment-boundary tests verify required values fail closed, boolean values are explicit, application/scripts source does not directly read env variables outside the gate, and no active source reads `.local/config.json`. Legacy `.local/config.json` was deleted after migration; with it absent, setup, **21 integration tests**, and **4 E2E tests** passed.
+
+`DATABASE_URL` is no longer an alternate input path, PostgreSQL binary discovery was removed, and required port/browser/timeout/pool/path values have no silent fallback. This is M0 local configuration evidence only; Keycloak/Vault/production deployment configuration remains future work.
