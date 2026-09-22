@@ -1,0 +1,364 @@
+﻿.contract-workbench {
+  display: grid;
+  gap: var(--ds-space-6);
+}
+.scenario-section {
+  display: grid;
+  gap: var(--ds-space-2);
+}
+.scenario-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--ds-space-3);
+}
+.scenario-grid button {
+  display: grid;
+  gap: var(--ds-space-1);
+  padding: var(--ds-pad-card-tight) var(--ds-pad-card);
+  border: 0;
+  border-radius: var(--ds-radius-lg);
+  background: var(--ds-surface-panel);
+  box-shadow: var(--ds-shadow-sm);
+  color: var(--ds-text-body);
+  font-size: var(--fs-meta);
+  text-align: left;
+  transition:
+    box-shadow var(--ds-transition-fast),
+    background var(--ds-transition-fast);
+}
+.scenario-grid button:hover {
+  box-shadow: var(--ds-shadow-md);
+}
+.scenario-grid button[aria-pressed='true'] {
+  background: var(--ds-surface-accent);
+  box-shadow: var(--ds-inset-accent), var(--ds-shadow-sm);
+}
+.scenario-grid button strong {
+  color: var(--ds-text-primary);
+  font-size: var(--ds-font-size-sm);
+  font-weight: var(--fw-medium);
+}
+.scenario-kicker {
+  font-family: var(--ds-font-mono);
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-regular);
+  letter-spacing: var(--ls-label);
+  color: var(--ds-text-faint);
+}
+.scenario-grid button[aria-pressed='true'] .scenario-kicker {
+  color: var(--ds-action-primary);
+}
+
+// --- Three-pane stage -------------------------------------------------------
+.workbench-stage {
+  display: grid;
+  grid-template-columns:
+    minmax(200px, 0.32fr) minmax(440px, 1fr)
+    minmax(320px, 0.68fr);
+  gap: var(--ds-space-6);
+  align-items: start;
+}
+.workbench-scenarios {
+  position: sticky;
+  top: calc(var(--ds-topbar-height) + var(--ds-space-4));
+  min-width: 0;
+}
+.workbench-scenarios .section-heading {
+  display: grid;
+  gap: var(--ds-space-1);
+  align-items: start;
+}
+.workbench-scenarios .section-heading h2 {
+  font-size: var(--ds-font-size-card);
+}
+.workbench-scenarios .section-hint {
+  display: none;
+}
+.workbench-scenarios .scenario-grid {
+  grid-template-columns: 1fr;
+}
+.workbench-editor,
+.workbench-result {
+  overflow: hidden;
+}
+.editor-toolbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--ds-space-3);
+  padding: var(--ds-pad-card-tight) var(--ds-pad-card);
+  border-bottom: 1px solid var(--ds-border-subtle);
+}
+.editor-toolbar .ds-field {
+  min-width: 240px;
+}
+.idempotency-box {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.5fr) minmax(0, 1fr);
+  gap: var(--ds-space-3);
+  align-items: center;
+  padding: var(--ds-pad-card-tight) var(--ds-pad-card);
+  border-top: 1px solid var(--ds-border-subtle);
+  background: var(--ds-surface-subtle);
+}
+.idempotency-box small {
+  display: block;
+  margin-top: var(--ds-space-1);
+  color: var(--ds-text-faint);
+  font-size: var(--fs-micro);
+}
+.idempotency-control {
+  display: flex;
+  gap: var(--ds-space-2);
+}
+.workbench-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-3);
+  padding: var(--ds-pad-card-tight) var(--ds-pad-card);
+  border-top: 1px solid var(--ds-border-subtle);
+  color: var(--ds-text-muted);
+  font-size: var(--fs-meta);
+}
+
+// Was a gradient card. It states a boundary, so it reads as a note.
+.execution-boundary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-4);
+  padding: var(--ds-pad-card);
+  border: 0;
+  border-radius: var(--ds-radius-lg);
+  background: var(--ds-surface-panel);
+  box-shadow: var(--ds-shadow-sm);
+  font-size: var(--fs-meta);
+}
+.execution-boundary strong {
+  display: block;
+  margin-top: var(--ds-space-1);
+  color: var(--ds-text-primary);
+  font-size: var(--ds-font-size-sm);
+  font-weight: var(--fw-medium);
+}
+.boundary-flow {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  flex-wrap: wrap;
+}
+.result-content {
+  padding: var(--ds-pad-card);
+}
+// Explicit flow spacing: the blocks here (verdict, metadata, warnings, action)
+// otherwise relied on whichever margins each happened to carry.
+.result-content > * + * {
+  margin-top: var(--ds-space-4);
+}
+.result-verdict {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-3);
+}
+.result-verdict strong {
+  display: block;
+  color: var(--ds-text-primary);
+  font-size: var(--ds-font-size-card);
+  font-weight: var(--fw-semibold);
+}
+.result-verdict span {
+  display: block;
+  margin-top: var(--ds-space-1);
+  color: var(--ds-text-muted);
+  font-size: var(--fs-meta);
+}
+.result-verdict.is-invalid .result-symbol {
+  background: var(--ds-status-danger-soft);
+  color: var(--ds-status-danger);
+}
+.result-symbol {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-status-success-soft);
+  color: var(--ds-status-success);
+  font-size: var(--fs-meta);
+  font-weight: var(--fw-semibold);
+}
+.result-meta,
+.issue-list {
+  display: grid;
+  gap: var(--ds-space-2);
+}
+.result-meta {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+// Metadata tiles: label over value, in a well.
+.result-meta > div {
+  padding: var(--ds-space-3) var(--ds-space-4);
+  border: 0;
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-surface-subtle);
+}
+.result-meta dt {
+  font-size: var(--fs-micro);
+  line-height: var(--ds-line-snug);
+  color: var(--ds-text-faint);
+}
+.result-meta dd {
+  margin: var(--ds-space-1) 0 0;
+  color: var(--ds-text-primary);
+  font-size: var(--fs-meta);
+  font-weight: var(--fw-medium);
+  line-height: var(--ds-line-snug);
+}
+
+// --- Resolved profile -------------------------------------------------------
+// A footer section of the panel, not a metadata tile: it takes the card gutter
+// and a divider, and steps its own rhythm instead of one uniform gap.
+.profile-summary {
+  padding: var(--ds-pad-card);
+  border-top: 1px solid var(--ds-border-subtle);
+}
+.profile-summary > strong {
+  display: block;
+  margin-top: var(--ds-space-2);
+  color: var(--ds-text-primary);
+  font-size: var(--ds-font-size-card);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-snug);
+}
+.profile-summary > p {
+  margin-top: var(--ds-space-2);
+  font-size: var(--fs-meta);
+  line-height: var(--ds-line-normal);
+  color: var(--ds-text-muted);
+}
+// The badges are a row of badges; they were inheriting the tile well above.
+.profile-summary > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-2);
+  margin-top: var(--ds-space-4);
+  padding: 0;
+  background: none;
+}
+
+// --- Secondary layouts ------------------------------------------------------
+.audit-layout,
+.schema-layout,
+.delivery-layout {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.34fr) minmax(0, 0.66fr);
+  gap: var(--ds-space-6);
+  align-items: start;
+}
+.schema-list,
+.milestone-list,
+.command-list {
+  display: grid;
+  gap: var(--ds-space-2);
+}
+.milestone-row,
+.command-row {
+  padding: var(--ds-pad-card-tight);
+  border: 0;
+  border-radius: var(--ds-radius-lg);
+  background: var(--ds-surface-panel);
+  box-shadow: var(--ds-shadow-sm);
+  font-size: var(--fs-meta);
+}
+.milestone-id {
+  font-family: var(--ds-font-label);
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-semibold);
+  color: var(--ds-text-faint);
+}
+.audit-inspector,
+.schema-viewer {
+  min-width: 0;
+}
+.fact-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: var(--ds-space-2) var(--ds-pad-card);
+}
+.fact-list > div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--ds-space-4);
+  padding: var(--ds-space-3) 0;
+  border-bottom: 1px solid var(--ds-border-subtle);
+  font-size: var(--fs-meta);
+}
+.fact-list > div:last-child {
+  border-bottom: 0;
+}
+.fact-list dt {
+  color: var(--ds-text-muted);
+}
+.fact-list dd {
+  margin: 0;
+  color: var(--ds-text-primary);
+  font-weight: var(--fw-medium);
+  text-align: right;
+}
+
+@media (max-width: 1280px) {
+  .workbench-stage {
+    grid-template-columns: minmax(200px, 0.34fr) minmax(0, 1fr);
+  }
+  .workbench-result {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 1100px) {
+  .workbench-stage {
+    grid-template-columns: 1fr;
+  }
+  .workbench-scenarios {
+    position: static;
+  }
+  .workbench-scenarios .scenario-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .scenario-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .audit-layout,
+  .schema-layout,
+  .delivery-layout {
+    grid-template-columns: 1fr;
+  }
+  .execution-boundary {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+@media (max-width: 680px) {
+  .scenario-grid {
+    grid-template-columns: 1fr;
+  }
+  .editor-toolbar,
+  .workbench-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .editor-toolbar .ds-field {
+    min-width: 0;
+  }
+  .idempotency-box {
+    grid-template-columns: 1fr;
+  }
+  .idempotency-control {
+    flex-direction: column;
+  }
+  .result-meta {
+    grid-template-columns: 1fr;
+  }
+}

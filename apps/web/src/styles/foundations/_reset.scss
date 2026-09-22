@@ -1,0 +1,62 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+html {
+  min-width: 320px;
+  background: var(--ds-surface-canvas);
+}
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: var(--ds-surface-canvas);
+  color: var(--ds-text-body);
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-font-size-sm);
+  line-height: var(--ds-line-normal);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+button {
+  cursor: pointer;
+}
+a {
+  color: var(--ds-action-primary);
+  text-decoration: none;
+}
+a:hover {
+  color: var(--ds-action-primary-hover);
+  text-decoration: underline;
+}
+::selection {
+  background: var(--ds-action-soft);
+  color: var(--ds-text-primary);
+}
+:focus-visible {
+  outline: none;
+  box-shadow: var(--ds-focus-ring);
+}
+#root {
+  min-height: 100vh;
+}
+
+// Operators keep this open for hours; honour the system preference outright.
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

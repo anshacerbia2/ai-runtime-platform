@@ -36,7 +36,7 @@ Saat ini deployment diasumsikan berada dalam satu organisasi, sehingga Organizat
 
 ## Hubungan dengan platform lain
 
-Repository lain tidak otomatis menjadi dependency runtime hanya karena ada di folder yang sama. Identity integration memakai Keycloak/ATI One contract yang ditetapkan untuk aplikasi ini; platform tidak membangun IdP baru.
+Repository lain tidak otomatis menjadi dependency runtime hanya karena ada di folder yang sama. Identity integration memakai shared Keycloak realm melalui confidential client milik aplikasi ini; platform tidak membangun IdP baru. ATI One hanya katalog penaut, bukan tier autentikasi atau hosting ([ADR-0025](../adr/0025-external-app-standalone-auth.md)).
 
 Scheduling bisnis tetap di aplikasi/scheduling platform. Retry/backoff/lease reconciliation internal adalah mekanisme eksekusi, bukan penjadwalan bisnis. Notification produk tetap di app/notification platform; baseline AI Runtime menyediakan status/SSE, tidak menambahkan notification engine. Foundation observability/idempotency package dapat direuse setelah contract review, tidak diasumsikan kompatibel.
 

@@ -6,7 +6,7 @@ Dokumen ini menjabarkan kebutuhan produk dan keputusan aktif pada [ADR](../adr/R
 
 ## Implementasi dan stack
 
-Backend menggunakan NestJS dengan FastifyAdapter; persistence memakai Prisma/PostgreSQL melalui repository ports. Domain dan use case tidak mengimpor Nest/Fastify/Prisma. Frontend React/Vite dipisah per feature. [Code structure](CODE-STRUCTURE.md) adalah peta source aktual; [ADR-0016](../adr/0016-nestjs-fastify.md), [ADR-0017](../adr/0017-prisma-postgresql.md), dan [ADR-0018](../adr/0018-clean-architecture-quality.md) merekam alasan, alternatif, serta trade-off. Implementasi yang tersedia tetap M0 contract-only, bukan semua komponen target di diagram.
+Backend menggunakan NestJS dengan FastifyAdapter; persistence memakai Prisma/PostgreSQL melalui repository ports. Domain dan use case tidak mengimpor Nest/Fastify/Prisma. Frontend React/Next.js App Router dipisah per feature, dengan BFF tier yang memegang session dan token custody serta meneruskan ke API. [Code structure](CODE-STRUCTURE.md) adalah peta source aktual; [ADR-0016](../adr/0016-nestjs-fastify.md), [ADR-0017](../adr/0017-prisma-postgresql.md), [ADR-0018](../adr/0018-clean-architecture-quality.md), dan [ADR-0026](../adr/0026-nextjs-bff.md) merekam alasan, alternatif, serta trade-off. Implementasi yang tersedia tetap M0 contract-only, bukan semua komponen target di diagram.
 
 ## 1. Tujuan dan batas produk
 

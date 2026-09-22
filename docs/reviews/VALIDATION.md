@@ -97,11 +97,11 @@ Pemeriksaan source, dependency, database, migration, dan browser terbaru dicatat
 
 ## 9. Platform-control/fleet synchronization — 21 September 2026
 
-ADR-0019–ADR-0024, Control Plane contract, ATI One internal-app/frontend architecture, distributed-runner diagram, architecture/boundaries, API/profile/plugin/artifact contracts, data/accounting/security/reliability/deployment/runbooks, acceptance gates, migration, PLAN, ROADMAP, glossary/index/changelog, dan milestone scope notes were synchronized for the current requirements.
+ADR-0019–ADR-0024, Control Plane contract, the then-current ATI One internal-app/frontend architecture, distributed-runner diagram, architecture/boundaries, API/profile/plugin/artifact contracts, data/accounting/security/reliability/deployment/runbooks, acceptance gates, migration, PLAN, ROADMAP, glossary/index/changelog, dan milestone scope notes were synchronized for the requirements current on 21 September 2026. ADR-0025/0026 later supersede the hosting/BFF portion; see section 12.
 
-Current automated documentation check after the platform-control/fleet synchronization was **64 Markdown files, 489 local links, 0 missing file targets**. After adding the canonical capability catalogue, that check became **65 Markdown files, 503 local links, 0 missing file targets**. After documenting and implementing the single environment configuration gate, that check became **66 Markdown files, 509 local links, 0 missing file targets**. After the current application-scope, M1-status, ATI One internal-app, and CDD/token alignment, that check was **70 Markdown files, 534 local links, 0 missing file targets**. After the M1 durable-foundation implementation/evidence update, the latest check is **70 Markdown files, 535 local links, 0 missing file targets**. Modified documentation is Prettier-formatted.
+Automated documentation checks evolved from **64 Markdown files / 489 local links**, to **65 / 503**, **66 / 509**, **70 / 534**, and then **70 / 535**, always with 0 missing file targets. Those are historical checkpoints. The current post-ADR-0025/0026 count is recorded in section 12.
 
-Production gates now span **G01–G38**. G26–G35 cover application/connection isolation, secret handling, dedicated/shared connection semantics, runner registration/lifecycle, runner-local credential locality, shared quota groups, plugin supply-chain checks, optional workspace containment, optional remote-tool/MCP semantics, and fleet failover/fencing. G36–G38 cover ATI One internal-app mount/SSO/callback behavior, proxy/cookie isolation, and CDD/design-token/accessibility/visual-regression quality. Local M1 evidence now covers the P1 scenarios G01/G02/G07/G08/G09/G15/G26–G29; this is not a production gate PASS and does not imply live ATI/Keycloak, Redis, provider/runtime, or P3.5 evidence.
+At that checkpoint, production gates spanned **G01–G38**. G26–G35 covered application/connection isolation, secret handling, dedicated/shared connection semantics, runner registration/lifecycle, runner-local credential locality, shared quota groups, plugin supply-chain checks, optional workspace containment, optional remote-tool/MCP semantics, and fleet failover/fencing. The old G36–G38 internal-app wording is superseded by section 12. Local M1 evidence covers P1 scenarios G01/G02/G07/G08/G09/G15/G26–G29; this is not a production gate PASS and does not imply live Keycloak, BFF, Redis, provider/runtime, or P3.5 evidence.
 
 M0 still does not implement Keycloak federation, Admin control-plane management, AI Connection/Credential Binding, Plugin Registry, distributed runner placement, Vault integration, remote MCP tools, or production workspace/artifact promotion. M1 now implements the local P1 durable foundation: application/operator/runner authority separation, OIDC/JWKS verifier behavior, management mutations, profiles, admission/idempotency, accounting/ledger, outbox/inbox, audit, artifact metadata, and runner registry foundation. Local P1 acceptance evidence is recorded in [M1](../milestones/M1.md); live ATI Keycloak/ATI One, Redis hot-state deployment, concrete secret-manager, and production gates remain incomplete.
 
@@ -109,7 +109,7 @@ M0 still does not implement Keycloak federation, Admin control-plane management,
 
 M0 local runtime/tooling configuration was consolidated behind `config/environment.mjs`. Local development uses Git-ignored `.env`; CI supplies the same required variables explicitly. Vite, Nest/Fastify, Prisma, Playwright, PostgreSQL setup/migration, contract export, dev runner, and tests now consume that validated boundary.
 
-Automated environment-boundary tests verify required values fail closed, boolean values are explicit, application/scripts source does not directly read env variables outside the gate, and no active source reads `.local/config.json`. Legacy `.local/config.json` was deleted after migration. The current M0+M1 suite now passes **30 contract tests, 24 unit/tooling tests, 30 integration tests, and 5 E2E tests**.
+Automated environment-boundary tests verify required values fail closed, boolean values are explicit, application/scripts source does not directly read env variables outside the gate, and no active source reads `.local/config.json`. Legacy `.local/config.json` was deleted after migration. The current M0+M1 suite now passes **30 contract tests, 24 unit/tooling tests, 30 integration tests, and 6 E2E tests**.
 
 `DATABASE_URL` is no longer an alternate input path, PostgreSQL binary discovery was removed, and required port/browser/timeout/pool/path values have no silent fallback. M1 extends the same single environment gate with separate local operator/runner credentials and fail-closed `m1-oidc` ATI One/OIDC configuration. The OIDC verifier is tested locally with generated signing keys/JWKS transport; live ATI Keycloak and production secret-manager/deployment evidence remain future work.
 
@@ -121,9 +121,27 @@ Local frontend evidence includes:
 
 - `npm run ui:check` PASS: raw color literals, obvious raw visual dimensions, and inline-style bypasses are rejected outside the token source;
 - frontend TypeScript typecheck PASS;
-- Playwright **5/5 PASS** across Contract Lab, validation replay, History, Schema Explorer, Delivery Plan, M1 Control Plane resources, desktop screenshot, and phone-width overflow checks;
+- Playwright **6/6 PASS** across Contract Lab, validation replay, History, Schema Explorer, Delivery Plan, M1 Control Plane resources, custom Select keyboard/type-ahead/outside-click behavior, desktop screenshot, and phone-width overflow checks;
 - mobile page width remains bounded while data tables retain their own scroll regions;
 - browser-visible Control Plane responses remain free of `secretRef`, `secret_ref`, and secret URI material;
 - reduced-motion and focus-visible behavior are provided by the shared design-system layer.
 
-This is local UI/architecture evidence. Live ATI One iframe/mount behavior, silent SSO, real Keycloak redirect/logout behavior, and production visual review remain external G36–G38 evidence.
+This is local UI/architecture evidence. The old ATI One iframe/mount evidence item is superseded; current nonlocal web-identity/BFF evidence is defined by G36–G39 in section 12 and the Acceptance Catalogue.
+
+> Superseded in part on 22 September 2026. ATI One mount/iframe behavior is no longer an evidence item; see section 12. The CDD/design-token evidence above stands unchanged.
+
+## 12. External-app delivery and Next.js BFF adoption — 22 September 2026
+
+This is a **documentation-only** synchronization. No runtime or source implementation was changed, and nothing in it constitutes implementation evidence.
+
+Web delivery moved from ATI One internal-app hosting to external-app delivery on the platform's own public origin, and the web tier adopted Next.js App Router with a Backend-for-Frontend. Added [ADR-0025](../adr/0025-external-app-standalone-auth.md) and [ADR-0026](../adr/0026-nextjs-bff.md); [ADR-0023](../adr/0023-ati-one-internal-app.md) is partially superseded, with its dedicated-client, cookie-isolation, and authorization-boundary decisions still in force.
+
+Retired: the `/apps/<app-id>/app` mount prefix, per-app proxy-origin verification, mount-scoped cookie paths, the frame-compatibility requirement, and `M1_PROXY_SECRET`. Framing is now denied. Added: a platform-owned entry page with an explicit Authorization Code sign-in, server-side token custody, `M1_SESSION_SECRET`, and a server-rendered `docs/` surface.
+
+Gate changes: G36 restated from ATI One mount/SSO to entry-page sign-in and callback registration; G37 restated from proxy/cookie isolation to BFF token custody; G38 restated from internal-app viewports to standard viewports; **G39 added** for the BFF boundary. Production gates now span **G01–G39**.
+
+Synchronized documents: frontend/code-structure/architecture/boundaries, security, deployment, configuration, acceptance, ADR catalogue, M1 milestone scope, PLAN, ROADMAP, INDEX, README, open questions, control-plane contract, and changelog.
+
+The automated documentation check after this synchronization is **72 Markdown files, 585 local links, 0 missing file targets**, and `prettier --check .` passes. These verify link integrity and formatting only; they assert nothing about the decisions themselves.
+
+Implementation deliberately not started: the Vite-to-Next.js move, the BFF tier, the entry page, and the affected tooling (`scripts/dev.mjs`, `scripts/check-ui-tokens.mjs`, `scripts/lib/dependency-rules.mjs`, `config/hosting.mjs`, `playwright.config.ts`, `apps/web/package.json`). Those files still encode the internal-app/Vite contract and are known to be inconsistent with this documentation until the implementation lands.

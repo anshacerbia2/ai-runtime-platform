@@ -1,6 +1,6 @@
 # Code Structure — NestJS, Fastify, Prisma, dan Clean Architecture
 
-**Implementasi:** M0 Contract Lab, 21 September 2026. Rancangan produksi tetap lebih luas daripada fitur yang sudah tersedia. Rujukan keputusan: [ADR-0016](../adr/0016-nestjs-fastify.md), [ADR-0017](../adr/0017-prisma-postgresql.md), [ADR-0018](../adr/0018-clean-architecture-quality.md).
+**Implementasi:** M0 Contract Lab, 21 September 2026. Rancangan produksi tetap lebih luas daripada fitur yang sudah tersedia. Rujukan keputusan: [ADR-0016](../adr/0016-nestjs-fastify.md), [ADR-0017](../adr/0017-prisma-postgresql.md), [ADR-0018](../adr/0018-clean-architecture-quality.md), [ADR-0026](../adr/0026-nextjs-bff.md).
 
 ## Struktur repository
 
@@ -37,24 +37,37 @@ apps/
         presentation/http/      # controllers, query parsing, response presenter
         contract-lab.module.ts
     cli/                        # seed/inspect entrypoints, not HTTP handlers
-  web/src/
-    app/                        # feature selection and shared workspace state
-    design-system/
-      tokens/                   # raw visual values -> semantic --ds-* contract
-      primitives/               # leaf controls
-      components/               # Badge, Panel, MetricCard, DataTable, EmptyState
-      compositions/             # AppShell, Sidebar, TopBar, PageRegion, PageHeader
-      system.css                # semantic-token consumer styles
-    features/
-      contract-lab/             # engineering workbench
-      control-plane/            # M1 operator resource console
-      history/                  # persisted validation audit surface
-      schemas/                  # technical schema catalogue
-      roadmap/                  # delivery reference
-    shared/
-      api/                      # typed HTTP client and response parsing
-      ui/                       # exceptional shared feedback only
-      lib/                      # small pure helpers
+  web/                          # Next.js App Router + BFF (ADR-0026)
+    next.config.ts
+    src/
+      app/                      # routes and route handlers only
+        (public)/               # unauthenticated entry page
+        (console)/              # authenticated shell and feature routes
+        auth/                   # login, callback, logout route handlers
+        api/[...path]/          # authenticated forwarding to apps/api
+      server/                   # server-only; Node built-ins permitted here
+        auth/                   # OIDC client, code exchange, refresh
+        session/                # cookie sealing, session read/write
+        api-gateway/            # server-side calls into apps/api
+        docs/                   # docs/ Markdown reader
+      design-system/
+        primitives/             # leaf controls
+        components/             # Badge, Panel, MetricCard, DataTable, EmptyState
+        compositions/           # AppShell, Sidebar, TopBar, PageRegion, PageHeader
+      features/
+        contract-lab/           # engineering workbench
+        control-plane/          # M1 operator resource console
+        history/                # persisted validation audit surface
+        schemas/                # technical schema catalogue
+        roadmap/                # delivery reference
+      shared/
+        api/                    # typed response parsing
+        ui/                     # exceptional shared feedback only
+        lib/                    # small pure helpers
+      styles/
+        tokens/                 # raw visual values -> semantic --ds-* contract
+        foundations/ layouts/ components/ features/
+        main.scss               # single stylesheet entry point
 packages/contracts/src/
   schemas/                      # requests, execution, events, profiles, errors
   validation/                   # bounded policies, metadata, canonical digest input
@@ -81,7 +94,7 @@ Legacy SQL in `db/migrations/` is retained for checksum/history compatibility, n
 Dependency statis: `presentation -> application -> domain`; `infrastructure -> application ports/domain`; Nest composition boleh menghubungkan seluruhnya. Application tidak mengimpor concrete adapter. Runtime flow berbeda dari arah import:
 
 ```text
-Browser feature -> HTTP client -> Nest controller
+Browser feature -> BFF route handler (session -> bearer token) -> Nest controller
   -> ValidateContractUseCase
     -> ContractPolicy port -> ZodContractPolicy
     -> ValidationRepository port -> PrismaValidationRepository -> PostgreSQL
@@ -94,7 +107,9 @@ Authentication memiliki port/use case sendiri. Query history selalu application-
 
 Mulai dari `apps/api/src/modules/contract-lab/presentation/http/validations.controller.ts`, lalu `application/validate-contract.use-case.ts`, `application/ports/validation-repository.port.ts`, dan `infrastructure/prisma-validation.repository.ts`. Buka `contract-lab.module.ts` untuk melihat implementasi port yang di-inject. Unit tests menunjukkan use case dapat dijalankan tanpa HTTP/Nest/database.
 
-Frontend sekarang mengikuti [FRONTEND](FRONTEND.md) secara langsung: `app/App.tsx` hanya memilih feature surface; `design-system/tokens` memegang raw visual values; `design-system/primitives`, `components`, dan `compositions` menyediakan reusable contracts; feature modules memiliki domain state/orchestration; `shared/api` tetap menjadi network/runtime-parsing boundary. `apps/web/src/styles.css` hanya mengimpor token dan system stylesheet. No `any` digunakan sebagai jalan pintas terhadap bentuk data yang belum diketahui.
+Frontend mengikuti [FRONTEND](FRONTEND.md) secara langsung: `app/` hanya memegang route dan route handler; `server/` memegang session, OIDC, forwarding, dan pembaca Markdown; `styles/tokens` memegang ATI source tokens + semantic aliases; `design-system/primitives`, `components`, dan `compositions` menyediakan reusable contracts; `styles/foundations`, `styles/layouts`, `styles/components`, dan `styles/features` memegang SCSS per layer; feature modules memiliki domain state/orchestration; `shared/api` tetap menjadi runtime-parsing boundary. `apps/web/src/styles/main.scss` adalah satu stylesheet entry point. No `any` digunakan sebagai jalan pintas terhadap bentuk data yang belum diketahui.
+
+Selain arah layering di atas berlaku **execution-context boundary**: Node built-ins hanya boleh diimpor di bawah `apps/web/src/server/`, dan route handler tetap tipis dengan mendelegasikan ke sana. Larangan mengimpor Nest, Prisma, atau database driver di bawah `apps/web/` berlaku mutlak pada kedua context. BFF tidak memegang domain logic, validation authority, atau koneksi database; setiap operasi domain adalah panggilan ke `apps/api`.
 
 ## Quality gates
 

@@ -53,11 +53,21 @@ Separate admin/runtime/usage verifier identities. Audit profile/credential/grant
 
 Deployment requires a named owner, threat-model review, sandbox evidence, credential agreement, data policy, and recovery plan. Production remains blocked without these controls and the applicable application-isolation evidence. See [open decisions](../decisions/OPEN-QUESTIONS.md).
 
-## 8. ATI One internal-app identity boundary
+## 8. External-app identity boundary dan BFF token custody
 
-AI Runtime Platform is hosted as an ATI One internal app but keeps its own confidential Keycloak OIDC client and application session. ATI One catalogue entitlement is an outer product-entry control; platform operation authorization remains enforced by AI Runtime Platform.
+AI Runtime Platform dilayani pada public origin miliknya sendiri dan terdaftar di ATI One sebagai **external app**. ATI One tidak mem-proxy, me-mount, mem-frame, atau mengautentikasi request platform ini; katalog hanya menautkan. Konsekuensinya, portal entitlement bukan input bagi keputusan akses — seluruh keputusan akses adalah milik platform. Lihat [ADR-0025](../adr/0025-external-app-standalone-auth.md).
 
-The mounted app follows the ATI One internal-app security contract: exact mount-prefixed redirect/logout URIs, namespaced/path-scoped cookies, silent `prompt=none` SSO when a realm session exists, top-level interactive login fallback, and per-app proxy-origin verification for upstream requests. The platform never reads or reuses ATI One portal session cookies. See [ADR-0023](../adr/0023-ati-one-internal-app.md).
+Entry point adalah halaman publik dengan satu aksi sign-in yang memulai OIDC **Authorization Code** ke shared Keycloak realm (login UI dilayani deployment ai-portal). Platform tidak pernah merender credential form dan tidak pernah menerima password. Direct Access Grant / ROPC ditolak.
+
+**Token custody.** Authorization-code exchange, client secret, refresh, dan session cookie dimiliki BFF tier ([ADR-0026](../adr/0026-nextjs-bff.md)). Access dan refresh token tidak pernah mencapai browser; browser hanya memegang opaque session cookie yang `Secure`, `HttpOnly`, `SameSite=Lax`, ter-namespace ke client ini, dan ber-scope `/`. Client secret tidak boleh muncul dalam client bundle, dan ketiadaannya dibuktikan dengan pemindaian build output.
+
+**Trust boundary hop.** Browser -> BFF diautentikasi session cookie; BFF -> API diautentikasi bearer access token milik session tersebut. API menerapkan per-operation authorization yang sama untuk semua caller, sehingga BFF adalah client tanpa privilege tambahan dan tidak dapat mengklaim identity yang tidak dibawa token. Ini menggantikan — dan lebih ketat daripada — per-app proxy credential yang dipensiunkan, karena hop kedua kini membawa principal yang dapat diverifikasi, bukan shared secret.
+
+**Perubahan postur frame.** Karena tidak lagi di-embed portal, response menolak framing (`frame-ancestors 'none'`). Ini memulihkan proteksi clickjacking yang sebelumnya harus dilepas demi internal-app hosting.
+
+**Shared production issuer.** Mengautentikasi ke Keycloak production dari deployment non-production adalah trade yang disengaja dengan kewajiban yang mengikat: client id dan secret berbeda per environment; redirect URI loopback/non-production tidak boleh terdaftar pada client yang dipakai production; production client secret tidak boleh berada di `.env` workstation; dan local development tetap berjalan pada mode `m0-local` tanpa menghubungi issuer production. Bila kewajiban ini tidak dapat dipenuhi, realm atau client non-production terpisah diperlukan sebelum pekerjaan nonlocal berjalan.
+
+Platform tidak pernah membaca atau memakai ulang ATI One portal session cookie. Riwayat kontrak internal-app yang dipensiunkan ada di [ADR-0023](../adr/0023-ati-one-internal-app.md).
 
 ## 9. Application isolation, connection secrecy, dan plugin supply chain
 

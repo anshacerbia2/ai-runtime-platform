@@ -1,6 +1,6 @@
 # Architecture Decision Records
 
-**Baseline 0.2 · 20 September 2026; extensions ADR-0016–ADR-0024 adopted 21 September 2026.** ADR adalah rujukan keputusan arsitektur yang aktif: konteks, keputusan, alternatif, konsekuensi, verification, dan revisit trigger. Status adopted in documentation tidak berarti implemented/tested. Review baseline tetap dilacak melalui O11 pada [OPEN-QUESTIONS](../decisions/OPEN-QUESTIONS.md).
+**Baseline 0.2 · 20 September 2026; extensions ADR-0016–ADR-0024 adopted 21 September 2026; ADR-0025–ADR-0026 adopted 22 September 2026.** ADR adalah rujukan keputusan arsitektur yang aktif: konteks, keputusan, alternatif, konsekuensi, verification, dan revisit trigger. Status adopted in documentation tidak berarti implemented/tested. Review baseline tetap dilacak melalui O11 pada [OPEN-QUESTIONS](../decisions/OPEN-QUESTIONS.md).
 
 ## Decision catalogue
 
@@ -30,6 +30,8 @@
 | [ADR-0022](0022-distributed-runner-fleet.md)            | Distributed runner fleet dan placement                                     | [DEPLOYMENT](../operations/DEPLOYMENT.md)                  |
 | [ADR-0023](0023-ati-one-internal-app.md)                | ATI One internal-app delivery + dedicated Keycloak client                  | [FRONTEND](../architecture/FRONTEND.md)                    |
 | [ADR-0024](0024-component-driven-ui-tokens.md)          | CDD + AI Platform semantic design-token contract                           | [FRONTEND](../architecture/FRONTEND.md)                    |
+| [ADR-0025](0025-external-app-standalone-auth.md)        | External-app delivery + standalone Keycloak sign-in entry                  | [SECURITY](../security/SECURITY.md)                        |
+| [ADR-0026](0026-nextjs-bff.md)                          | Next.js App Router + Backend-for-Frontend tier                             | [FRONTEND](../architecture/FRONTEND.md)                    |
 
 ## Otoritas dan traceability
 

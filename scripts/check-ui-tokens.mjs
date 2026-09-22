@@ -3,7 +3,10 @@ import { resolve, relative } from 'node:path';
 
 const root = process.cwd();
 const sourceRoot = resolve(root, 'apps/web/src');
-const tokenRoot = resolve(sourceRoot, 'design-system/tokens');
+const tokenRoots = [
+  resolve(sourceRoot, 'design-system/tokens'),
+  resolve(sourceRoot, 'styles/tokens'),
+];
 const violations = [];
 
 function walk(directory) {
@@ -13,7 +16,10 @@ function walk(directory) {
       walk(path);
       continue;
     }
-    if (!/\.(?:css|tsx?|mjs)$/.test(entry.name) || path.startsWith(tokenRoot)) {
+    if (
+      !/\.(?:css|scss|tsx?|mjs)$/.test(entry.name) ||
+      tokenRoots.some((tokenRoot) => path.startsWith(tokenRoot))
+    ) {
       continue;
     }
     const text = readFileSync(path, 'utf8');

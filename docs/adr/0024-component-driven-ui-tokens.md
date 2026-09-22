@@ -1,4 +1,4 @@
-# ADR-0024 — Component-Driven Frontend and AI Platform Design Tokens
+# ADR-0024 — Component-Driven Frontend and ATI Portal Design Tokens
 
 **Date:** 21 September 2026
 **Status:** implemented locally; external ATI One visual/integration evidence remains separate
@@ -6,18 +6,19 @@
 
 ## Context
 
-M0 Contract Lab proves product flow, but its current `apps/web/src/styles.css` contains hardcoded page/component visual values. That is acceptable as a prototype artifact, not as the production frontend architecture.
+The original M0 Contract Lab proved product flow with a monolithic `apps/web/src/styles.css`. That prototype stylesheet has now been retired; the production frontend uses layered SCSS and ATI Portal-aligned design tokens.
 
 As the UI grows into application registry, connection/model management, runtime operations, tools/plugins, evaluation, usage, and observability, page-specific CSS would create divergent controls and expensive accessibility/design fixes.
 
-The visual source of truth is the **AI Platform design-token contract**. ATI One defines hosting/integration, not this product's visual-token authority.
+The visual primitive source is the **ATI Portal design-token set**. AI Runtime Platform owns a semantic adapter on top of those primitives so feature/component code never consumes portal raw values directly. ATI One hosting/integration remains a separate concern.
 
 ## Decision
 
 AI Runtime Platform SHALL use **Component-Driven Development (CDD)** with token-strict styling.
 
 ```text
-AI Platform design tokens
+ATI Portal design-token primitives
+  -> AI Runtime semantic tokens
   -> primitives
   -> reusable components
   -> compositions
@@ -37,9 +38,9 @@ Application/component code SHALL NOT introduce raw visual values for:
 - motion duration/easing;
 - z-index.
 
-Raw values belong only in the token source/adapter that imports or compiles the AI Platform token contract.
+Raw values belong only in the token source/adapter that mirrors the ATI Portal token contract and maps it into AI Runtime semantic roles.
 
-The original M0 hardcoded stylesheet has been migrated. The canonical raw visual values now live only in `apps/web/src/design-system/tokens/tokens.css`; the rest of the frontend consumes semantic tokens.
+The original M0 hardcoded stylesheet has been migrated. The ATI Portal token values are mirrored into `apps/web/src/styles/tokens/_ati.scss`, then mapped through `_semantic.scss`; all foundations, layouts, components, and feature styles consume semantic tokens through SCSS.
 
 Components consume semantic roles such as:
 
@@ -136,4 +137,4 @@ Visual regression should focus first on canonical component states; whole-page s
 
 ## Revisit trigger
 
-Revisit if the AI Platform token contract or frontend framework changes materially. CDD and semantic token consumption remain principles even if the concrete toolchain changes.
+Revisit if the ATI Portal token contract or frontend framework changes materially. CDD and semantic token consumption remain principles even if the concrete toolchain changes.

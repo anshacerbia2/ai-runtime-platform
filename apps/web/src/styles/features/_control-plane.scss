@@ -1,0 +1,152 @@
+﻿.control-plane {
+  display: grid;
+  gap: var(--ds-space-6);
+}
+
+// Was a navy gradient hero. A control plane opens with its state, not a banner,
+// so this is now a plain summary panel.
+.control-plane-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--ds-space-6);
+  padding: var(--ds-pad-card);
+  background: var(--ds-surface-panel);
+}
+.control-plane-hero h2 {
+  margin-top: var(--ds-space-1);
+  font-size: var(--ds-font-size-card);
+}
+.control-plane-hero p {
+  max-width: 680px;
+  margin-top: var(--ds-space-1);
+  font-size: var(--fs-meta);
+  color: var(--ds-text-muted);
+  line-height: var(--ds-line-normal);
+}
+.hero-badges {
+  display: flex;
+  gap: var(--ds-space-2);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+// --- Resource tabs ----------------------------------------------------------
+// Underline tabs rather than a pill rail: they read as navigation within a
+// page, not as a segmented control that changes a setting.
+.resource-tabs {
+  display: flex;
+  gap: var(--ds-space-6);
+  padding: 0;
+  overflow-x: auto;
+  border: 0;
+  border-bottom: 1px solid var(--ds-border-subtle);
+  background: transparent;
+}
+.resource-tab {
+  position: relative;
+  min-height: 32px;
+  padding: 0 var(--ds-space-1);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ds-text-muted);
+  font-size: var(--ds-font-size-sm);
+  font-weight: var(--fw-medium);
+  white-space: nowrap;
+  transition: color var(--ds-transition-fast);
+}
+.resource-tab::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  background: transparent;
+}
+.resource-tab:hover {
+  color: var(--ds-text-primary);
+}
+.resource-tab.is-active {
+  color: var(--ds-text-primary);
+  font-weight: var(--fw-semibold);
+}
+.resource-tab.is-active::after {
+  background: var(--ds-action-primary);
+}
+
+.control-overview,
+.resource-stack {
+  display: grid;
+  gap: var(--ds-space-6);
+}
+.control-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--ds-space-6);
+}
+.capability-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-2);
+  padding: var(--ds-pad-card);
+}
+.panel-actions,
+.inline-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  flex-wrap: wrap;
+}
+.privacy-note,
+.reference-note {
+  border: 0;
+  background: var(--ds-surface-subtle);
+  color: var(--ds-text-muted);
+}
+.notice {
+  border: 0;
+  background: var(--ds-status-warning-soft);
+  color: var(--ds-status-warning);
+}
+.schema-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-4);
+  padding: var(--ds-space-4) var(--ds-space-5);
+  border: 0;
+  border-radius: var(--ds-radius-lg);
+  background: var(--ds-surface-subtle);
+  font-size: var(--fs-meta);
+}
+.issue-card {
+  padding: var(--ds-pad-card-tight);
+  border: 0;
+  border-radius: var(--ds-radius-lg);
+  background: var(--ds-surface-panel);
+  box-shadow: var(--ds-shadow-sm);
+}
+.issue-card strong {
+  color: var(--ds-text-primary);
+  font-weight: var(--fw-medium);
+}
+.issue-card p {
+  margin-top: var(--ds-space-1);
+  font-size: var(--fs-meta);
+  color: var(--ds-text-muted);
+}
+
+@media (max-width: 900px) {
+  .control-plane-hero {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+  .hero-badges {
+    justify-content: flex-start;
+  }
+  .control-summary-grid {
+    grid-template-columns: 1fr;
+  }
+}

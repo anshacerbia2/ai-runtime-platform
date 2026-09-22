@@ -1,0 +1,582 @@
+// Shell mirrored from the new-cms reference, measurement for measurement.
+// Tailwind source values are noted so any later drift is checkable.
+.ds-app-shell {
+  --ds-rail: var(--ds-sidebar-width);
+  min-height: 100vh;
+  overflow-x: hidden;
+  background: var(--ds-surface-canvas);
+}
+.ds-app-shell.is-collapsed {
+  --ds-rail: var(--ds-sidebar-collapsed);
+}
+
+// --- Sidebar ---------------------------------------------------------------
+// aside: fixed left-0 top-0 h-screen border-r flex flex-col py-8 z-50
+.ds-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  width: var(--ds-rail);
+  height: 100vh;
+  padding: var(--ds-space-8) 0;
+  border-right: 1px solid var(--ds-nav-border);
+  background: var(--ds-nav-surface);
+  user-select: none;
+  transition: width var(--ds-transition-shell);
+}
+// Inner wrapper: flex flex-col h-full w-full overflow-hidden
+.ds-sidebar-inner {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+// Brand slot: mb-10 flex items-center px-4
+.ds-brand-slot {
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--ds-space-10);
+  padding: 0 var(--ds-space-4);
+}
+.ds-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-3);
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+// The one place the ATI logo-crossbar gradient is used.
+.ds-brand-mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--ds-radius-lg);
+  background: var(--ds-brand-gradient);
+  color: var(--ds-text-inverse);
+  font-size: var(--ds-font-size-sm);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-tight);
+}
+.ds-brand-name {
+  min-width: 0;
+  color: var(--ds-text-primary);
+  font-size: var(--ds-font-size-card);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-snug);
+  white-space: nowrap;
+  overflow: hidden;
+  transition:
+    opacity var(--ds-transition-shell),
+    width var(--ds-transition-shell);
+}
+
+// --- Navigation ------------------------------------------------------------
+// nav: flex-1 space-y-6 px-4 overflow-y-auto overflow-x-hidden no-scrollbar
+.ds-navigation {
+  flex: 1;
+  padding: 0 var(--ds-space-4);
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.ds-navigation::-webkit-scrollbar {
+  display: none;
+}
+.ds-navigation > * + * {
+  margin-top: var(--ds-space-6);
+}
+
+// Group caption: text-[9px] font-bold uppercase tracking-[0.25em] mb-2 px-3.
+// A plain block, exactly as in the reference — not a grid item, which is what
+// lets it collapse cleanly (grid items keep an automatic minimum size).
+.ds-nav-label {
+  margin-bottom: var(--ds-space-2);
+  padding: 0 var(--ds-space-3);
+  font-family: var(--ds-font-label);
+  font-size: var(--fs-pico);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-wider);
+  text-transform: uppercase;
+  color: var(--ds-nav-label);
+  white-space: nowrap;
+  overflow: hidden;
+  transition: opacity var(--ds-transition-shell);
+}
+
+// Item list: space-y-0.5
+.ds-nav-items > * + * {
+  margin-top: var(--ds-space-0-5);
+}
+
+// Item: flex items-center rounded-xl overflow-hidden relative w-full py-2
+.ds-nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: var(--ds-space-2) 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--ds-radius-lg);
+  background: transparent;
+  color: var(--ds-nav-text);
+  text-align: left;
+  transition:
+    background var(--ds-transition-shell),
+    color var(--ds-transition-shell);
+}
+.ds-nav-item:hover {
+  background: var(--ds-nav-hover);
+  color: var(--ds-nav-text-active);
+}
+.ds-nav-item.is-active {
+  background: var(--ds-nav-active);
+  color: var(--ds-nav-text-active);
+}
+
+// Icon column: w-12 flex-shrink-0 justify-center
+.ds-nav-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 48px;
+}
+.ds-nav-icon svg {
+  width: 18px;
+  height: 18px;
+  opacity: 0.6;
+  transition:
+    opacity var(--ds-transition-shell),
+    transform var(--ds-transition-shell);
+}
+.ds-nav-item:hover .ds-nav-icon svg {
+  opacity: 1;
+}
+.ds-nav-item.is-active .ds-nav-icon svg {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+// Label: font-bold text-[10px] tracking-[0.15em] uppercase whitespace-nowrap
+.ds-nav-text {
+  min-width: 0;
+  font-size: var(--fs-nano);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  transition:
+    opacity var(--ds-transition-shell),
+    transform var(--ds-transition-shell);
+}
+
+// Active indicator: absolute left-0 w-1 h-4 rounded-r-full, h-6 on hover
+.ds-nav-rail {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 4px;
+  height: 16px;
+  border-radius: 0 var(--ds-radius-pill) var(--ds-radius-pill) 0;
+  background: var(--ds-nav-marker);
+  transform: translateY(-50%);
+  transition: height var(--ds-transition-shell);
+}
+.ds-nav-item.is-active:hover .ds-nav-rail {
+  height: 24px;
+}
+
+// --- Collapsed rail --------------------------------------------------------
+// Captions fade but keep their box, exactly as the reference does: the empty
+// band is what preserves the group rhythm between icon clusters.
+.ds-sidebar.is-collapsed .ds-brand-slot {
+  justify-content: center;
+  padding-inline: 0;
+}
+.ds-sidebar.is-collapsed .ds-brand {
+  justify-content: center;
+  width: auto;
+  // A zero-width flex item still earns its gap, which would offset the mark
+  // by half the gap and leave the logo visibly off-centre in the rail.
+  gap: 0;
+}
+.ds-sidebar.is-collapsed .ds-brand-name {
+  width: 0;
+  opacity: 0;
+  visibility: hidden;
+}
+.ds-sidebar.is-collapsed .ds-nav-label {
+  opacity: 0;
+  visibility: hidden;
+}
+.ds-sidebar.is-collapsed .ds-nav-text {
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(var(--ds-space-4));
+}
+
+// Floating toggle: absolute -right-3.5 w-8 h-8 rounded-full shadow border
+.ds-sidebar-toggle {
+  position: absolute;
+  top: 50%;
+  right: -14px;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--ds-nav-border);
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-nav-surface);
+  box-shadow: var(--ds-shadow-lg);
+  color: var(--ds-text-primary);
+  transform: translateY(-50%);
+}
+.ds-sidebar-toggle svg {
+  width: 16px;
+  height: 16px;
+  transition: transform var(--ds-transition-shell);
+}
+.ds-sidebar-toggle:hover svg {
+  transform: translateX(-2px);
+}
+.ds-sidebar.is-collapsed .ds-sidebar-toggle:hover svg {
+  transform: translateX(2px);
+}
+.ds-sidebar-scrim {
+  display: none;
+}
+
+// --- Main region -----------------------------------------------------------
+.ds-app-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 100vh;
+  margin-left: var(--ds-rail);
+  transition: margin-left var(--ds-transition-shell);
+}
+.ds-app-main > main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  margin-top: var(--ds-topbar-height);
+}
+
+// header: fixed top-0 right-0 h-20 bg-background/80 backdrop-blur-xl border-b
+.ds-topbar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: var(--ds-rail);
+  z-index: 40;
+  height: var(--ds-topbar-height);
+  border-bottom: 1px solid var(--ds-border-subtle);
+  background: var(--ds-topbar-glass);
+  backdrop-filter: blur(20px);
+  transition: left var(--ds-transition-shell);
+}
+// inner: h-full px-4 md:px-10 flex justify-between items-center
+.ds-topbar-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 100%;
+  padding: 0 var(--ds-space-4);
+}
+.ds-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-4);
+  min-width: 0;
+}
+// right: flex items-center gap-5
+.ds-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-5);
+}
+
+// Mobile trigger: lg:hidden p-2 rounded-xl
+.ds-topbar-menu {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: var(--ds-radius-lg);
+  background: transparent;
+  color: var(--ds-text-primary);
+}
+.ds-topbar-menu:hover {
+  background: var(--ds-surface-subtle);
+}
+.ds-topbar-menu svg {
+  width: 22px;
+  height: 22px;
+}
+
+// Search: rounded-full py-2.5 pl-11 pr-6 text-[13px] w-72
+.ds-search {
+  position: relative;
+  flex: none;
+}
+.ds-search-icon {
+  position: absolute;
+  top: 50%;
+  left: var(--ds-space-4);
+  width: 18px;
+  height: 18px;
+  color: var(--ds-text-muted);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+.ds-search input {
+  width: 288px;
+  min-height: 42px;
+  padding: 0 var(--ds-space-6) 0 var(--ds-search-inset);
+  border: 1px solid var(--ds-border-subtle);
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-surface-subtle);
+  box-shadow: none;
+  font-size: var(--fs-meta);
+  font-weight: var(--fw-medium);
+}
+.ds-search input:focus {
+  background: var(--ds-surface-panel);
+}
+
+// Access level: 9px caption over an 11px uppercase value
+.ds-access-level {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--ds-space-0-5);
+}
+.ds-access-caption {
+  font-size: var(--fs-pico);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-wider);
+  text-transform: uppercase;
+  color: var(--ds-text-muted);
+}
+.ds-access-value {
+  font-size: var(--fs-nav-value);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-tight);
+  text-transform: uppercase;
+  color: var(--ds-text-primary);
+}
+
+// Bell: p-2.5 rounded-xl border shadow-sm
+.ds-icon-button {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--ds-border-subtle);
+  border-radius: var(--ds-radius-lg);
+  background: var(--ds-surface-panel);
+  box-shadow: var(--ds-shadow-xs);
+  color: var(--ds-text-muted);
+  transition:
+    background var(--ds-transition-fast),
+    color var(--ds-transition-fast);
+}
+.ds-icon-button:hover {
+  background: var(--ds-surface-subtle);
+  color: var(--ds-text-primary);
+}
+.ds-icon-button svg {
+  width: 18px;
+  height: 18px;
+}
+.ds-bell-dot {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 6px;
+  height: 6px;
+  border: 1px solid var(--ds-surface-panel);
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-status-danger);
+}
+
+// Account: pl-4 border-l, avatar w-10 h-10 rounded-xl
+.ds-account {
+  position: relative;
+  padding-left: var(--ds-space-4);
+  border-left: 1px solid var(--ds-border-subtle);
+}
+.ds-avatar {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: var(--ds-radius-lg);
+  background: var(--ds-action-primary);
+  box-shadow: var(--ds-shadow-sm);
+  color: var(--ds-text-inverse);
+  font-size: var(--ds-font-size-sm);
+  font-weight: var(--fw-bold);
+}
+.ds-account-menu {
+  position: absolute;
+  top: calc(100% + var(--ds-space-2));
+  right: 0;
+  z-index: 60;
+  display: grid;
+  gap: var(--ds-space-px);
+  width: 224px;
+  padding: var(--ds-space-1);
+  border-radius: var(--ds-radius-lg);
+  background: var(--ds-surface-panel);
+  box-shadow: var(--ds-shadow-overlay);
+}
+.ds-account-identity {
+  display: grid;
+  gap: var(--ds-space-px);
+  padding: var(--ds-space-2) var(--ds-space-3);
+}
+.ds-account-identity strong {
+  color: var(--ds-text-primary);
+  font-size: var(--fs-meta);
+  font-weight: var(--fw-bold);
+}
+.ds-account-identity span {
+  color: var(--ds-text-muted);
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-medium);
+}
+.ds-account-item {
+  padding: var(--ds-space-3);
+  border: 0;
+  border-radius: var(--ds-radius-md);
+  background: transparent;
+  color: var(--ds-text-muted);
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-label);
+  text-align: left;
+  text-transform: uppercase;
+}
+.ds-account-item:hover {
+  background: var(--ds-surface-subtle);
+  color: var(--ds-text-primary);
+}
+
+// --- Page region -----------------------------------------------------------
+// main: py-6 md:py-10, inner px-6 md:px-12
+.ds-page-region {
+  width: min(100%, var(--ds-content-max));
+  margin: 0 auto;
+  padding: var(--ds-space-6) var(--ds-content-gutter) var(--ds-space-12);
+}
+.ds-page-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--ds-space-4);
+  margin-top: var(--ds-space-12);
+  padding-top: var(--ds-space-6);
+  border-top: 1px solid var(--ds-border-subtle);
+  color: var(--ds-text-faint);
+  font-size: var(--fs-pico);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-wider);
+  text-transform: uppercase;
+}
+
+// --- Breakpoints -----------------------------------------------------------
+// md: 768px — wider page gutters and header padding
+@media (min-width: 768px) {
+  .ds-topbar-inner {
+    padding-inline: var(--ds-space-10);
+  }
+  .ds-page-region {
+    padding-top: var(--ds-space-10);
+  }
+}
+
+// lg: 1024px — the rail becomes a rail; below this it is an off-canvas drawer
+@media (max-width: 1023px) {
+  .ds-app-shell {
+    --ds-rail: 0px;
+  }
+  .ds-sidebar {
+    width: var(--ds-sidebar-width);
+    box-shadow: var(--ds-shadow-overlay);
+    transform: translateX(0);
+    transition: transform var(--ds-transition-shell);
+  }
+  .ds-sidebar.is-collapsed {
+    transform: translateX(-100%);
+  }
+  // Off-canvas, not narrow: the drawer keeps its full labels.
+  .ds-sidebar.is-collapsed .ds-brand-slot {
+    justify-content: flex-start;
+    padding-inline: var(--ds-space-4);
+  }
+  .ds-sidebar.is-collapsed .ds-brand {
+    justify-content: flex-start;
+    width: 100%;
+  }
+  .ds-sidebar.is-collapsed .ds-brand-name,
+  .ds-sidebar.is-collapsed .ds-nav-text {
+    width: auto;
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+  }
+  .ds-sidebar.is-collapsed .ds-nav-label {
+    opacity: 1;
+    visibility: visible;
+  }
+  .ds-sidebar-toggle {
+    display: none;
+  }
+  .ds-app-shell:not(.is-collapsed) .ds-sidebar-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 45;
+    display: block;
+    background: var(--ds-scrim);
+    backdrop-filter: blur(4px);
+  }
+}
+
+// xl: 1280px — the reference widens the rail here
+@media (min-width: 1280px) {
+  .ds-app-shell {
+    --ds-sidebar-width: 280px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .ds-topbar-menu {
+    display: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .ds-search,
+  .ds-access-level {
+    display: none;
+  }
+  .ds-page-footer {
+    flex-direction: column;
+    gap: var(--ds-space-2);
+  }
+}

@@ -3,6 +3,16 @@ import { newIdempotencyKey } from '../../../shared/lib/json.js';
 import { Button } from '../../../design-system/primitives/button.js';
 import { Panel, PanelHeader } from '../../../design-system/components/panel.js';
 import { Badge } from '../../../design-system/components/badge.js';
+import {
+  Select,
+  type SelectOption,
+} from '../../../design-system/primitives/select.js';
+
+const contractOptions: SelectOption[] = [
+  { value: 'chat', label: 'POST /v1/chat · planned runtime' },
+  { value: 'generate', label: 'POST /v1/generate · planned runtime' },
+  { value: 'execution', label: 'POST /v1/executions · planned runtime' },
+];
 
 interface Props {
   kind: ContractKind;
@@ -25,35 +35,32 @@ export function RequestEditor(props: Props) {
         aside={<Badge tone="info">JSON</Badge>}
       />
       <div className="editor-toolbar">
-        <label className="ds-field">
-          <span>Contract</span>
-          <select
-            aria-label="Jenis kontrak"
+        <div className="ds-field">
+          <span id="contract-kind-label">Contract</span>
+          <Select
+            label="Jenis kontrak"
             value={props.kind}
-            onChange={(event) =>
-              props.onKind(event.target.value as ContractKind)
-            }
-          >
-            <option value="chat">POST /v1/chat · planned runtime</option>
-            <option value="generate">
-              POST /v1/generate · planned runtime
-            </option>
-            <option value="execution">
-              POST /v1/executions · planned runtime
-            </option>
-          </select>
-        </label>
+            options={contractOptions}
+            onChange={(next) => props.onKind(next as ContractKind)}
+          />
+        </div>
         <Button variant="ghost" size="sm" onClick={props.onFormat}>
           Format JSON
         </Button>
       </div>
-      <textarea
-        aria-label="Payload JSON"
-        className="code-editor"
-        spellCheck={false}
-        value={props.payload}
-        onChange={(event) => props.onPayload(event.target.value)}
-      />
+      <div className="code-frame">
+        <div className="code-frame-bar" aria-hidden="true">
+          <span>payload.json</span>
+          <span>{props.payload.split('\n').length} lines</span>
+        </div>
+        <textarea
+          aria-label="Payload JSON"
+          className="code-editor"
+          spellCheck={false}
+          value={props.payload}
+          onChange={(event) => props.onPayload(event.target.value)}
+        />
+      </div>
       <div className="idempotency-box">
         <div>
           <label htmlFor="key">Idempotency-Key</label>

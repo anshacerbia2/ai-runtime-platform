@@ -6,7 +6,7 @@ Dokumen ini menjelaskan urutan kerja, dependency, deliverable, dan gate. M0 mena
 
 ## Stack implementasi tetap
 
-NestJS + Fastify + Prisma + PostgreSQL, React/Vite, TypeScript strict, Prettier, ESLint, dan dependency rules. M0 sudah direfactor; M1 dan berikutnya memakai boundary yang sama. Lihat [ADR-0016](adr/0016-nestjs-fastify.md), [ADR-0017](adr/0017-prisma-postgresql.md), [ADR-0018](adr/0018-clean-architecture-quality.md), dan [code structure](architecture/CODE-STRUCTURE.md). Perubahan stack bukan penutupan production readiness gate.
+NestJS + Fastify + Prisma + PostgreSQL, React/Next.js App Router + BFF, TypeScript strict, Prettier, ESLint, dan dependency rules. M0 sudah direfactor; M1 dan berikutnya memakai boundary yang sama. Lihat [ADR-0016](adr/0016-nestjs-fastify.md), [ADR-0017](adr/0017-prisma-postgresql.md), [ADR-0018](adr/0018-clean-architecture-quality.md), [ADR-0026](adr/0026-nextjs-bff.md), dan [code structure](architecture/CODE-STRUCTURE.md). Perubahan stack bukan penutupan production readiness gate.
 
 ## 1. Batas pekerjaan
 
@@ -34,7 +34,7 @@ Tidak termasuk saat ini: business-job database bersama, universal agent translat
 
 ### P1 — Durable control plane dan accounting foundation
 
-**Status:** LOCAL IMPLEMENTATION COMPLETE — durable identity/control-plane/admission/accounting foundation dan P1 local acceptance evidence tersedia. Live ATI Keycloak/ATI One, concrete secret-manager, Redis hot runner state, dan nonlocal production evidence tetap pending. Evidence: [M1](milestones/M1.md).
+**Status:** LOCAL IMPLEMENTATION COMPLETE — durable identity/control-plane/admission/accounting foundation dan P1 local acceptance evidence tersedia. Live Keycloak sign-in, Next.js/BFF web tier, concrete secret-manager, Redis hot runner state, dan nonlocal production evidence tetap pending. Evidence: [M1](milestones/M1.md).
 
 **Dependency:** P0. **Owner roles:** platform backend + storage/security.
 
@@ -112,6 +112,6 @@ Req 21–22 September menambah lima workstream lintas phase:
 2. **Plugin Packaging (P2–P3):** immutable plugin registry/version/digest/compatibility, ephemeral materialization, supply-chain verification.
 3. **Workspace & Remote Tools (P3):** optional workspace modes, generic artifact promotion, MCP/HTTP/RPC remote tools without making MCP mandatory.
 4. **Distributed Fleet (P1 registry; P3 placement):** runner self-registration, pools, capability/capacity/connection advertisement, Redis liveness, drain/offline/disable, placement and quota-group awareness.
-5. **ATI One Internal App + CDD Frontend (P1 onward):** dedicated Keycloak client and silent SSO, mount-path/proxy/cookie contract, AI Platform semantic design tokens, component-driven primitives/components/compositions, isolated accessibility/visual-regression coverage, dan incremental migration dari M0 page-level CSS.
+5. **External App + BFF + CDD Frontend (P1 onward):** Next.js App Router dengan BFF tier, dedicated Keycloak client dan Authorization Code sign-in dari entry page milik platform, session/token custody server-side, cookie contract, server-rendered `docs/` surface, AI Platform semantic design tokens, component-driven primitives/components/compositions, serta isolated accessibility/visual-regression coverage. Lihat [ADR-0025](adr/0025-external-app-standalone-auth.md) dan [ADR-0026](adr/0026-nextjs-bff.md).
 
-P1 nonlocal readiness wajib mencakup ATI One mount/SSO/proxy isolation dan application-scoped authorization. P3.5 tetap wajib menguji cross-app connection isolation, plugin/workspace containment, runner-local credentials, shared-account quota semantics, drain/failover, dan fencing sebelum P4 production migration.
+P1 nonlocal readiness wajib mencakup Keycloak sign-in/callback registration, BFF token custody, session isolation, dan application-scoped authorization. P3.5 tetap wajib menguji cross-app connection isolation, plugin/workspace containment, runner-local credentials, shared-account quota semantics, drain/failover, dan fencing sebelum P4 production migration.

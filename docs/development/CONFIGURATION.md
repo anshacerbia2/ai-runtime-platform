@@ -20,7 +20,7 @@ npm run setup
 | ---------------------------- | ---------------------------------------------------------------------------- |
 | `M0_RUNTIME_MODE`            | `m0-local` for local lab/tests; `m1-oidc` for nonlocal OIDC/ATI One contract |
 | `M0_API_HOST`, `M0_API_PORT` | API bind address                                                             |
-| `M0_WEB_HOST`, `M0_WEB_PORT` | Vite bind address                                                            |
+| `M0_WEB_HOST`, `M0_WEB_PORT` | Web tier (Next.js) bind address                                              |
 | `M0_ALLOWED_HOSTS`           | Explicit comma-separated host allow-list                                     |
 | `M0_ALLOWED_ORIGINS`         | Explicit comma-separated origin allow-list                                   |
 | `M0_API_BODY_LIMIT_BYTES`    | Fastify body cap                                                             |
@@ -53,7 +53,7 @@ npm run setup
 
 Tokens are local M0 credentials only; they are replaced by Keycloak/Application Registry work in P1.
 
-## M1 identity and ATI One hosting
+## M1 identity and external-app hosting
 
 For local M1 tests, optional credentials remain separate from application credentials:
 
@@ -64,20 +64,31 @@ For local M1 tests, optional credentials remain separate from application creden
 
 For nonlocal `m1-oidc` mode, configuration is fail-closed:
 
-| Variable                | Meaning                                                              |
-| ----------------------- | -------------------------------------------------------------------- |
-| `M1_PUBLIC_ORIGIN`      | Exact HTTPS ATI One public origin                                    |
-| `M1_APP_ID`             | Internal-app catalogue id; public mount becomes `/apps/<app-id>/app` |
-| `M1_OIDC_CLIENT_ID`     | Dedicated confidential client id; must follow `<app-id>-app`         |
-| `M1_OIDC_CLIENT_SECRET` | Confidential client secret; never returned to browser/API            |
-| `M1_OIDC_CALLBACK_URI`  | Exact callback URI under the mounted public origin                   |
-| `M1_OIDC_LOGOUT_URI`    | Exact post-logout URI under the mounted public origin                |
-| `M1_PROXY_SECRET`       | Per-app ATI One proxy credential                                     |
-| `M1_OIDC_ISSUER`        | Trusted Keycloak issuer                                              |
-| `M1_OIDC_AUDIENCE`      | Required runtime API audience                                        |
-| `M1_OIDC_JWKS_URI`      | Trusted HTTPS JWKS endpoint on the issuer origin                     |
+| Variable                | Meaning                                                                  |
+| ----------------------- | ------------------------------------------------------------------------ |
+| `M1_PUBLIC_ORIGIN`      | Exact HTTPS public origin of **this platform**; no mount prefix          |
+| `M1_APP_ID`             | ATI One catalogue id; also fixes the `<app-id>-app` client-id convention |
+| `M1_OIDC_CLIENT_ID`     | Dedicated confidential client id; must follow `<app-id>-app`             |
+| `M1_OIDC_CLIENT_SECRET` | Confidential client secret; held by the BFF, never sent to the browser   |
+| `M1_OIDC_CALLBACK_URI`  | Exact callback URI; `<public-origin>/auth/callback`                      |
+| `M1_OIDC_LOGOUT_URI`    | Exact post-logout URI; `<public-origin>/auth/logged-out`                 |
+| `M1_OIDC_ISSUER`        | Trusted Keycloak issuer (the deployment fronted by ai-portal)            |
+| `M1_OIDC_AUDIENCE`      | Required runtime API audience                                            |
+| `M1_OIDC_JWKS_URI`      | Trusted HTTPS JWKS endpoint on the issuer origin                         |
+| `M1_SESSION_SECRET`     | BFF session-cookie sealing key; web tier only                            |
 
-The runtime validates issuer/audience/signature/expiry/nbf/azp plus role/scope separation. An application client is resolved through the durable Application Registry; operator and runner identities cannot silently become application callers.
+`M1_PROXY_SECRET` is **retired**. It carried the per-app ATI One proxy credential, which external-app delivery removes; no route validates a proxy header. See [ADR-0025](../adr/0025-external-app-standalone-auth.md).
+
+The API validates issuer/audience/signature/expiry/nbf/azp plus role/scope separation. An application client is resolved through the durable Application Registry; operator and runner identities cannot silently become application callers.
+
+### Issuer separation per environment
+
+Because the issuer is a production Keycloak, environment separation is a configuration rule and not a convention:
+
+1. `M1_OIDC_CLIENT_ID` and `M1_OIDC_CLIENT_SECRET` MUST differ per environment.
+2. Loopback or non-production callback URIs MUST NOT be registered on the client used by production.
+3. A production client secret MUST NOT be placed in a developer `.env`.
+4. Local development runs `m0-local`, which contacts no production issuer.
 
 ## Development and browser tests
 

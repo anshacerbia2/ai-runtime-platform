@@ -1,10 +1,10 @@
 # AI Runtime Platform — Roadmap
 
-**Baseline 0.2 + adopted extensions through ADR-0024.** Roadmap berbasis dependency dan gate, bukan janji tanggal. M0 tetap runnable; M1 local P1 foundation sekarang implemented dan lulus acceptance lokal, sementara live ATI Keycloak/ATI One, Redis hot-state deployment, provider runtime, dan production readiness belum selesai. Lihat [M0](milestones/M0.md) dan [M1](milestones/M1.md).
+**Baseline 0.2 + adopted extensions through ADR-0026.** Roadmap berbasis dependency dan gate, bukan janji tanggal. M0 tetap runnable; M1 local P1 foundation sekarang implemented dan lulus acceptance lokal, sementara live Keycloak sign-in, Next.js/BFF web tier, Redis hot-state deployment, provider runtime, dan production readiness belum selesai. Lihat [M0](milestones/M0.md) dan [M1](milestones/M1.md).
 
 ## Stack implementasi tetap
 
-NestJS + Fastify + Prisma + PostgreSQL, React/Vite, TypeScript strict, Prettier, ESLint, dan dependency rules. M0 sudah direfactor; M1 dan berikutnya memakai boundary yang sama. Lihat [ADR-0016](adr/0016-nestjs-fastify.md), [ADR-0017](adr/0017-prisma-postgresql.md), [ADR-0018](adr/0018-clean-architecture-quality.md), dan [code structure](architecture/CODE-STRUCTURE.md). Perubahan stack bukan penutupan production readiness gate.
+NestJS + Fastify + Prisma + PostgreSQL, React/Next.js App Router + BFF, TypeScript strict, Prettier, ESLint, dan dependency rules. M0 sudah direfactor; M1 dan berikutnya memakai boundary yang sama. Lihat [ADR-0016](adr/0016-nestjs-fastify.md), [ADR-0017](adr/0017-prisma-postgresql.md), [ADR-0018](adr/0018-clean-architecture-quality.md), [ADR-0026](adr/0026-nextjs-bff.md), dan [code structure](architecture/CODE-STRUCTURE.md). Perubahan stack bukan penutupan production readiness gate.
 
 ## North star
 
@@ -54,9 +54,9 @@ Nonproduction examples -> applicable conformance tests -> gate -> limited produc
 
 Detailed work packages: [PLAN](PLAN.md). Test catalogue: [ACCEPTANCE](testing/ACCEPTANCE.md). Open deployment/product choices: [OPEN-QUESTIONS](decisions/OPEN-QUESTIONS.md). Visual dependency flow: [evolution diagrams](diagrams/08-evolution-migration.md).
 
-## Control-plane, internal-app, dan frontend capability progression
+## Control-plane, web delivery, dan frontend capability progression
 
-- **M1:** Application Registry foundation, dedicated Keycloak/ATI One internal-app integration, AI Connections, credential bindings/instances, runner registry/pools, Admin UI foundation; frontend mulai migrate ke CDD + AI Platform semantic tokens.
+- **M1:** Application Registry foundation, dedicated Keycloak client dengan Authorization Code sign-in pada external-app delivery, Next.js/BFF web tier, AI Connections, credential bindings/instances, runner registry/pools, Admin UI foundation; frontend mulai migrate ke CDD + AI Platform semantic tokens.
 - **M2:** connection-aware gateway routing; dedicated/shared connection and quota-group enforcement; production-facing shared components continue through isolated accessibility/visual-regression gates.
 - **M3:** runner self-registration/placement, runner-local credentials, plugin registry/materialization, optional workspaces, remote tools.
 - **M3.5:** isolation, supply-chain, shared-quota, drain/failover/fencing evidence.

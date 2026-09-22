@@ -42,11 +42,23 @@ Rollback API/runtime tidak boleh mereset idempotency keys, reservations, ledger,
 
 Platform team owns service/worker/storage health; app owner owns quality/business workflow and publication; security owns grant/data approval; accounting owner owns reconciliation thresholds/manual adjustments. Person/on-call rotation ditetapkan sebelum P3.5. Runbooks ada di [RUNBOOKS](RUNBOOKS.md); metrics/targets di [SLO-CAPACITY](SLO-CAPACITY.md).
 
-## 8. ATI One internal-app web delivery
+## 8. External-app web delivery
 
-The web application is exposed through ATI One at `/apps/<app-id>/app/*` and keeps an independently deployable upstream. The deployment MUST preserve the mount prefix for assets, routes, OIDC callback/logout URIs, and cookies. The upstream validates the per-app ATI One proxy credential on non-health routes and remains frame-compatible with the same-origin internal-app model.
+The web application is served on its own public origin and owns its path space from `/`. ATI One lists it in the catalogue and links to that origin; it does not proxy, mount, or frame the app. There is no mount prefix, and no route validates a portal proxy credential. Responses deny framing. See [ADR-0025](../adr/0025-external-app-standalone-auth.md).
 
-The app uses a dedicated confidential Keycloak client; it does not reuse the ATI One portal client. Existing realm SSO is probed silently, while interactive login is promoted to the top-level browsing context when needed. See [ADR-0023](../adr/0023-ati-one-internal-app.md) and [Frontend Architecture](../architecture/FRONTEND.md).
+Web delivery is two Node processes, deployed together but separable:
+
+```text
+ingress -> Next.js (web + BFF) -> NestJS/Fastify (domain API) -> PostgreSQL
+```
+
+The Next.js tier is the only public entry. It terminates the browser session, holds the confidential OIDC client, and calls the API server-side with a bearer token. The API remains an OAuth resource server validating JWTs against realm JWKS and is not exposed publicly. Deployment MUST NOT route browsers directly to the API.
+
+Liveness for the web tier checks process responsiveness; readiness additionally requires reachability of the API and of the OIDC discovery/JWKS endpoints, because neither sign-in nor any console read can succeed without them. The API keeps its existing health semantics.
+
+The app uses a dedicated confidential Keycloak client per environment and does not reuse the ATI One portal client. Callback and post-logout URIs are registered under this platform's origin and must match exactly. Rotating the client secret is a web-tier restart, not an API restart. See [Frontend Architecture](../architecture/FRONTEND.md) and [ADR-0026](../adr/0026-nextjs-bff.md).
+
+`docs/` Markdown is a build input for the web tier, so documentation changes require a web rebuild to appear.
 
 ## 9. Distributed runner fleet
 

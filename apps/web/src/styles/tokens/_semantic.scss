@@ -1,0 +1,160 @@
+// Application semantic contract. Components consume these, never the raw scale.
+:root {
+  // --- Typography roles -----------------------------------------------------
+  --ds-font-body: var(--font-body);
+  --ds-font-display: var(--font-display);
+  --ds-font-label: var(--font-label);
+  --ds-font-mono: var(--font-mono);
+
+  --ds-font-size-micro: var(--fs-micro);
+  --ds-font-size-xs: var(--fs-meta);
+  --ds-font-size-sm: var(--fs-sm);
+  --ds-font-size-md: var(--fs-body);
+  --ds-font-size-card: var(--fs-card);
+  --ds-font-size-section: var(--fs-section);
+  --ds-font-size-title: var(--fs-title);
+  --ds-font-size-metric: var(--fs-metric);
+
+  --ds-line-tight: var(--lh-tight);
+  --ds-line-snug: var(--lh-snug);
+  --ds-line-normal: var(--lh-normal);
+  --ds-line-relaxed: var(--lh-relaxed);
+
+  // --- Surfaces -------------------------------------------------------------
+  // canvas < subtle < panel. Panels are the lightest, so content reads forward.
+  // Neutral grey canvas under white panels: enough separation to give the
+  // cards structure, with no hue for the page to read as coloured.
+  --ds-surface-canvas: var(--ati-canvas);
+  --ds-surface-panel: var(--ati-white);
+  --ds-surface-subtle: var(--ati-tint);
+  --ds-surface-panel-muted: var(--ati-tint-strong);
+  --ds-surface-raised: var(--ati-white);
+  --ds-surface-accent: var(--ati-blue-50);
+  --ds-surface-accent-strong: var(--ati-blue-100);
+  --ds-surface-hover: var(--ati-tint);
+  --ds-surface-selected: var(--ati-tint-strong);
+  --ds-surface-code: var(--ati-code-bg);
+  --ds-surface-code-bar: var(--ati-code-bar);
+
+  // --- Text -----------------------------------------------------------------
+  // Headings carry the brand: the ATI set maps text-strong to navy, not to ink.
+  --ds-text-primary: var(--ati-navy);
+  --ds-text-body: var(--ati-gray-700);
+  // Every text role clears WCAG AA on both white and the tinted canvas:
+  // body 7.8:1, muted 5.6:1, faint 5.1:1. gray-400 is not a text role.
+  --ds-text-muted: var(--ati-gray-600);
+  --ds-text-faint: var(--ati-gray-500);
+  --ds-text-inverse: var(--ati-white);
+  --ds-text-inverse-muted: var(--ati-gray-300);
+  --ds-text-code: var(--ati-code-text);
+  --ds-text-code-muted: var(--ati-code-muted);
+
+  // --- Borders --------------------------------------------------------------
+  --ds-border-subtle: var(--ati-line);
+  --ds-border-default: var(--ati-line-strong);
+  --ds-border-strong: var(--ati-line-stronger);
+  --ds-border-accent: var(--ati-blue);
+
+  // --- Action ---------------------------------------------------------------
+  --ds-action-primary: var(--ati-blue);
+  --ds-action-primary-hover: var(--ati-blue-600);
+  --ds-action-primary-active: var(--ati-blue-deep);
+  --ds-action-soft: var(--ati-blue-100);
+  --ds-action-soft-hover: var(--ati-blue-200);
+
+  // The signature gradient, reserved for the brand mark.
+  --ds-brand-gradient: var(--ati-gradient-blue);
+
+  // --- Status ---------------------------------------------------------------
+  --ds-status-success: var(--ati-success);
+  --ds-status-success-soft: var(--ati-success-bg);
+  --ds-status-success-border: var(--ati-success-border);
+  --ds-status-warning: var(--ati-warning);
+  --ds-status-warning-soft: var(--ati-warning-bg);
+  --ds-status-warning-border: var(--ati-warning-border);
+  --ds-status-danger: var(--ati-danger);
+  --ds-status-danger-soft: var(--ati-danger-bg);
+  --ds-status-danger-border: var(--ati-danger-border);
+  --ds-status-info: var(--ati-info);
+  --ds-status-info-soft: var(--ati-info-bg);
+  --ds-status-info-border: var(--ati-info-border);
+
+  // --- Spacing --------------------------------------------------------------
+  --ds-space-px: var(--space-px);
+  --ds-space-1: var(--space-1);
+  --ds-space-2: var(--space-2);
+  --ds-space-3: var(--space-3);
+  --ds-space-4: var(--space-4);
+  --ds-space-5: var(--space-5);
+  --ds-space-6: var(--space-6);
+  --ds-space-8: var(--space-8);
+  --ds-space-10: var(--space-10);
+  --ds-space-12: var(--space-12);
+  --ds-space-16: var(--space-16);
+
+  // --- Radius ---------------------------------------------------------------
+  --ds-radius-xs: var(--radius-xs);
+  --ds-radius-sm: var(--radius-sm);
+  --ds-radius-md: var(--radius-md);
+  --ds-radius-lg: var(--radius-lg);
+  --ds-radius-xl: var(--radius-xl);
+  --ds-radius-pill: var(--radius-pill);
+
+  // --- Elevation ------------------------------------------------------------
+  // Panels are lifted, not outlined, so the base step is a real shadow.
+  --ds-shadow-xs: var(--shadow-xs);
+  --ds-shadow-sm: var(--shadow-sm);
+  --ds-shadow-md: var(--shadow-md);
+  --ds-shadow-lg: var(--shadow-lg);
+  --ds-shadow-overlay: var(--shadow-lg);
+  --ds-focus-ring: var(--shadow-focus);
+
+  // --- Motion ---------------------------------------------------------------
+  --ds-transition-fast: var(--dur-fast) var(--ease-standard);
+  --ds-transition-base: var(--dur-normal) var(--ease-standard);
+  // Shell geometry moves on a longer curve than control feedback does.
+  --ds-transition-shell: 300ms var(--ease-standard);
+
+  // --- Layout ---------------------------------------------------------------
+  // Generous rather than compact: the previous 48px bar and 16px gutter are
+  // what made the page feel cramped regardless of colour.
+  // Reference rail: 240px from lg, 280px from xl, 80px collapsed.
+  --ds-sidebar-width: 240px;
+  --ds-sidebar-collapsed: 80px;
+  --ds-topbar-height: 80px;
+  --ds-content-max: 1440px;
+  --ds-content-gutter: clamp(var(--space-5), 3vw, var(--space-10));
+
+  // One card-padding value, so every surface breathes identically.
+  --ds-pad-card: var(--space-6);
+  --ds-pad-card-tight: var(--space-5);
+  // Leading inset that clears the search field's inline icon.
+  --ds-search-inset: 44px;
+
+  // --- Navigation -----------------------------------------------------------
+  // White rail against the tinted canvas; the active row is accent-tinted
+  // rather than grey, which is what keeps the nav from reading as chrome.
+  --ds-nav-surface: var(--ati-white);
+  --ds-nav-border: var(--ati-line);
+  // The rail stays white, so brand presence here is the active row: navy text
+  // and a navy indicator over a faint brand tint.
+  --ds-nav-text: var(--ati-gray-600);
+  --ds-nav-text-active: var(--ati-navy);
+  --ds-nav-hover: var(--ati-tint);
+  --ds-nav-active: var(--ati-blue-50);
+  --ds-nav-active-border: transparent;
+  --ds-nav-label: var(--ati-gray-400);
+  --ds-nav-detail: var(--ati-gray-400);
+  --ds-nav-eyebrow: var(--ati-gray-400);
+  --ds-nav-marker: var(--ati-navy);
+
+  // --- Composite treatments -------------------------------------------------
+  --ds-topbar-glass: rgba(255, 255, 255, 0.82);
+  --ds-scrim: rgba(10, 37, 64, 0.2);
+  --ds-ring-success: 0 0 0 3px var(--ds-status-success-soft);
+  --ds-inset-accent: inset 0 0 0 1px var(--ati-blue);
+  --ds-inset-accent-soft: inset 0 0 0 1px var(--ati-blue-200);
+  --ds-inset-nav: inset 2px 0 0 var(--ati-blue);
+  --ds-inset-nav-mobile: inset 0 -2px 0 var(--ati-blue);
+  --ds-visually-hidden-offset: -1px;
+}

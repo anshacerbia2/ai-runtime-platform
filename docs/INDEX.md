@@ -1,6 +1,6 @@
 # Documentation Index
 
-**Baseline 0.2 + adopted extensions through ADR-0024.** Entry point: [README](../README.md). M0 Contract Lab remains runnable; M1 registry foundation is in progress while full AI execution remains planned. [ADR](adr/README.md) is the active architectural decision reference.
+**Baseline 0.2 + adopted extensions through ADR-0026.** Entry point: [README](../README.md). M0 Contract Lab remains runnable; M1 registry foundation is in progress while full AI execution remains planned. [ADR](adr/README.md) is the active architectural decision reference.
 
 ## Authority and traceability
 
@@ -17,11 +17,11 @@ ADRs record decisions and trade-offs; architecture explains the system; detailed
 
 ## Architecture and vocabulary
 
-| Document                                                      | Purpose                                      |
-| ------------------------------------------------------------- | -------------------------------------------- |
-| [docs/architecture/BOUNDARIES.md](architecture/BOUNDARIES.md) | Batas Produk, Actor, dan Kepemilikan         |
-| [docs/architecture/FRONTEND.md](architecture/FRONTEND.md)     | ATI One internal app, CDD, dan design tokens |
-| [docs/GLOSSARY.md](GLOSSARY.md)                               | Glossary — Canonical Vocabulary              |
+| Document                                                      | Purpose                                   |
+| ------------------------------------------------------------- | ----------------------------------------- |
+| [docs/architecture/BOUNDARIES.md](architecture/BOUNDARIES.md) | Batas Produk, Actor, dan Kepemilikan      |
+| [docs/architecture/FRONTEND.md](architecture/FRONTEND.md)     | External app, BFF, CDD, dan design tokens |
+| [docs/GLOSSARY.md](GLOSSARY.md)                               | Glossary — Canonical Vocabulary           |
 
 ## Contracts
 
@@ -79,7 +79,7 @@ ADRs record decisions and trade-offs; architecture explains the system; detailed
 
 ## Recommended reading
 
-App integrators: Architecture -> API -> profile/tool/artifact contracts -> application migration. Frontend implementers: Frontend Architecture -> ADR-0023/0024 -> ATI One integration gates -> component/token quality gates. Platform implementers: Architecture -> ADRs -> lifecycle/recovery/accounting -> data/deployment -> gates. Security/accounting reviewers: relevant ADRs -> detailed controls -> acceptance and open decisions. Traceability and diagram catalogues provide topic-specific entry points.
+App integrators: Architecture -> API -> profile/tool/artifact contracts -> application migration. Frontend implementers: Frontend Architecture -> ADR-0024/0025/0026 -> web identity and BFF gates -> component/token quality gates. Platform implementers: Architecture -> ADRs -> lifecycle/recovery/accounting -> data/deployment -> gates. Security/accounting reviewers: relevant ADRs -> detailed controls -> acceptance and open decisions. Traceability and diagram catalogues provide topic-specific entry points.
 
 ## Status conventions
 

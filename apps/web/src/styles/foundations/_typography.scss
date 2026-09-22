@@ -1,0 +1,51 @@
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  color: var(--ds-text-primary);
+  font-family: var(--ds-font-display);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-snug);
+  line-height: var(--ds-line-tight);
+}
+h1 {
+  font-size: var(--ds-font-size-title);
+  letter-spacing: var(--ls-tight);
+}
+h2 {
+  font-size: var(--ds-font-size-section);
+}
+h3 {
+  font-size: var(--ds-font-size-card);
+}
+h4 {
+  font-size: var(--ds-font-size-sm);
+}
+p {
+  margin: 0;
+  color: var(--ds-text-body);
+}
+code,
+.mono {
+  font-family: var(--ds-font-mono);
+  font-size: 0.95em;
+}
+
+// Section kicker. Sentence case: uppercase tracking is the loudest way to say
+// something quiet, and it dates a console faster than anything else here.
+.ds-eyebrow {
+  display: block;
+  font-family: var(--ds-font-label);
+  font-size: var(--fs-eyebrow);
+  font-weight: var(--fw-medium);
+  letter-spacing: var(--ls-eyebrow);
+  color: var(--ds-text-faint);
+}
+
+// Tabular figures keep metric and table columns from shifting as values change.
+.ds-numeric,
+.ds-metric-value,
+.ds-table td {
+  font-variant-numeric: tabular-nums;
+}

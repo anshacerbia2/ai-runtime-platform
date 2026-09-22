@@ -1,7 +1,19 @@
 import type { SVGProps } from 'react';
 
 export type IconName =
-  'flask' | 'control' | 'schema' | 'history' | 'roadmap' | 'pulse' | 'chevron';
+  | 'flask'
+  | 'control'
+  | 'schema'
+  | 'history'
+  | 'roadmap'
+  | 'pulse'
+  | 'chevron'
+  | 'chevron-left'
+  | 'chevron-down'
+  | 'search'
+  | 'bell'
+  | 'menu'
+  | 'check';
 
 const paths: Record<IconName, string> = {
   flask:
@@ -13,6 +25,12 @@ const paths: Record<IconName, string> = {
   roadmap: 'M5 4h6v5H5zM13 15h6v5h-6zM8 9v3h8v3M16 12V9',
   pulse: 'M3 12h4l2-5 4 10 2-5h6',
   chevron: 'm9 6 6 6-6 6',
+  'chevron-left': 'm15 6-6 6 6 6',
+  'chevron-down': 'm6 9 6 6 6-6',
+  search: 'M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM21 21l-4.3-4.3',
+  bell: 'M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0',
+  menu: 'M4 6h16M4 12h16M4 18h16',
+  check: 'm5 13 4 4L19 7',
 };
 
 export function Icon({

@@ -1,0 +1,189 @@
+// Visual primitive source. Raw values are permitted ONLY in this directory.
+//
+// Two layers, and the distinction matters:
+//
+//   Brand core — copied verbatim from the ATI design system (ADR-0024 makes it
+//   the source). Never hand-tuned here; re-pull from ai-portal instead.
+//
+//   Working scale — neutrals, elevation and status, owned by this console.
+//   Where it departs from the ATI values the reason is recorded inline; the
+//   two departures are hue-free surfaces and AA-corrected status colours.
+:root {
+  // --- ATI brand core -------------------------------------------------------
+  // Copied verbatim from the ATI Business Group design system
+  // (ai-portal/frontend/src/design-system/tokens/colors.css), which ADR-0024
+  // makes the visual source. Navy is the brand anchor; blue is the one accent.
+  --ati-navy: #1a244f;
+  --ati-navy-900: #11193a;
+  --ati-navy-800: #1a244f;
+  --ati-navy-700: #28356b;
+  --ati-navy-600: #36458a;
+
+  --ati-blue: #3e55c0;
+  --ati-blue-deep: #243180;
+  --ati-blue-600: #3447a8;
+  --ati-blue-300: #9fabe4;
+  --ati-blue-200: #c3cbee;
+  --ati-blue-100: #e6e9f7;
+  --ati-blue-50: #f2f4fb;
+
+  // Signature gradient (logo crossbar). Consumed by the brand mark only:
+  // on any larger surface a gradient is what made the first pass look dated.
+  --ati-gradient-blue: linear-gradient(120deg, #3e55c0 0%, #243180 100%);
+  --ati-gradient-navy: linear-gradient(160deg, #28356b 0%, #11193a 100%);
+
+  --ati-ink: #11142a;
+
+  // --- Neutral text ramp ----------------------------------------------------
+  // Blue-slate, so body copy sits in the same family as the navy headings.
+  --ati-gray-900: #0e2e4e;
+  --ati-gray-800: #1f3f5f;
+  --ati-gray-700: #425466;
+  --ati-gray-600: #546b84;
+  // Stripe's muted slate is #6b7c93, which measures 4.32:1 on white and misses
+  // WCAG AA for body-size text. Darkened to clear 4.5:1 while keeping the hue.
+  --ati-gray-500: #5f7185;
+  // #8898aa measures 2.98:1: decorative and border use only, never text.
+  --ati-gray-400: #8898aa;
+  --ati-gray-300: #aab7c4;
+  --ati-gray-250: #cfd7df;
+  --ati-gray-200: #e3e8ee;
+  --ati-gray-150: #eff3f8;
+  --ati-gray-100: #f6f9fc;
+  --ati-gray-50: #fbfdff;
+  --ati-white: #ffffff;
+
+  // --- Surfaces -------------------------------------------------------------
+  // DEPARTURE from the ATI neutrals (#f7f8fc / #f1f3f8 / #e4e7ef): those are
+  // blue-tinted and made the page read as coloured at full-window scale. These
+  // are near-neutral, so the navy and blue only appear where they are meant to.
+  --ati-canvas: #f9fafb;
+  --ati-tint: #f3f3f5;
+  --ati-tint-strong: #ebebee;
+  --ati-line: #e6e6e9;
+  --ati-line-strong: #d9d9de;
+  --ati-line-stronger: #c7c7ce;
+
+  // Code surface: soft light. Text is slate rather than black so a dense
+  // payload reads calm, and the bar sits a step darker than the editor so the
+  // two stay separable without a border.
+  --ati-code-bg: #f8f9fb;
+  --ati-code-bar: #eceff4;
+  --ati-code-text: #3c4257;
+  --ati-code-muted: #5f6b7d;
+
+  // --- Status ---------------------------------------------------------------
+  // DEPARTURE from the ATI status hues, which are tuned for fills rather than
+  // text. Measured on their own soft backgrounds the source values land at
+  // roughly 3.1:1 (success #1f9d6b), 3.6:1 (warning #c98a00) and 3.9:1
+  // (danger #d23b3b) — all short of the 4.5:1 that FRONTEND.md targets, and
+  // every one of them is used as badge text. Same hues, darkened to pass.
+  --ati-success: #0e6245;
+  --ati-success-bg: #e6f6ef;
+  --ati-success-border: #b7ddc7;
+  --ati-warning: #8a5a00;
+  --ati-warning-bg: #fbf2dc;
+  --ati-warning-border: #e6d3a3;
+  --ati-danger: #a52222;
+  --ati-danger-bg: #fbe9e9;
+  --ati-danger-border: #eec0c0;
+  // Info is the brand accent itself, so it stays exactly on source.
+  --ati-info: #3e55c0;
+  --ati-info-bg: #e6e9f7;
+  --ati-info-border: #c3cbee;
+
+  // --- Spacing --------------------------------------------------------------
+  --space-px: 1px;
+  --space-0-5: 2px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+  --space-24: 96px;
+  --space-32: 128px;
+
+  // --- Radius ---------------------------------------------------------------
+  // Controls 6px, inputs 8px, cards 12px, feature surfaces 16px. Stripe moved
+  // rounder over time; 4px cards are the single clearest 2015 tell left here.
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-pill: 999px;
+
+  // --- Elevation ------------------------------------------------------------
+  // The signature recipe: a blue-cast ambient layer over a neutral contact
+  // layer. Tinting the shadow is why Stripe surfaces look lit rather than
+  // outlined, and it is what replaces borders entirely.
+  --shadow-xs: 0 1px 1px 0 rgba(0, 0, 0, 0.07);
+  --shadow-sm:
+    0 2px 5px 0 rgba(50, 50, 93, 0.1), 0 1px 1px 0 rgba(0, 0, 0, 0.07);
+  --shadow-md:
+    0 6px 12px -2px rgba(50, 50, 93, 0.15), 0 3px 7px -3px rgba(0, 0, 0, 0.2);
+  --shadow-lg:
+    0 13px 27px -5px rgba(50, 50, 93, 0.2), 0 8px 16px -8px rgba(0, 0, 0, 0.2);
+  // Focus ring built on the ATI accent rgba from the source token set.
+  --shadow-focus:
+    0 0 0 1px rgba(62, 85, 192, 0.7), 0 0 0 4px rgba(62, 85, 192, 0.28);
+
+  // --- Motion ---------------------------------------------------------------
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 120ms;
+  --dur-normal: 180ms;
+  --dur-slow: 260ms;
+
+  // --- Typography -----------------------------------------------------------
+  // Inter stands in for Sohne: same grotesque skeleton, open apertures,
+  // designed for tight optical tracking at heading sizes.
+  --font-body:
+    'InterVariable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI',
+    Roboto, sans-serif;
+  --font-display: var(--font-body);
+  --font-label: var(--font-body);
+  --font-mono:
+    'JetBrains MonoVariable', ui-monospace, 'SF Mono', Menlo, Consolas,
+    monospace;
+
+  --fs-title: 24px;
+  --fs-section: 16px;
+  --fs-card: 15px;
+  --fs-body: 14px;
+  --fs-sm: 14px;
+  --fs-meta: 13px;
+  --fs-micro: 12px;
+  // Rail/navbar captions only: tiny and wide-tracked, per the CMS reference.
+  --fs-nano: 10px;
+  --fs-pico: 9px;
+  --fs-nav-value: 11px;
+  --fs-eyebrow: 13px;
+  --fs-metric: 30px;
+
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+
+  --lh-tight: 1.2;
+  --lh-snug: 1.4;
+  --lh-normal: 1.55;
+  --lh-relaxed: 1.7;
+
+  --ls-tight: -0.022em;
+  --ls-snug: -0.012em;
+  --ls-normal: 0;
+  --ls-eyebrow: 0;
+  --ls-label: 0;
+  // Wide tracking for the uppercase rail/navbar captions.
+  --ls-wide: 0.15em;
+  --ls-wider: 0.25em;
+}

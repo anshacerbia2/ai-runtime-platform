@@ -1,0 +1,217 @@
+﻿.ds-field {
+  display: grid;
+  gap: var(--ds-space-1);
+}
+.ds-field > span,
+.idempotency-box label {
+  font-family: var(--ds-font-label);
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-medium);
+  letter-spacing: var(--ls-label);
+  color: var(--ds-text-muted);
+}
+input,
+select,
+textarea {
+  width: 100%;
+  border: 1px solid var(--ds-border-default);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-surface-panel);
+  box-shadow: var(--ds-shadow-xs);
+  color: var(--ds-text-primary);
+  transition:
+    border-color var(--ds-transition-fast),
+    box-shadow var(--ds-transition-fast);
+}
+input,
+select {
+  min-height: 36px;
+  padding: 0 var(--ds-space-3);
+  font-size: var(--ds-font-size-sm);
+}
+textarea {
+  padding: var(--ds-space-4);
+  resize: vertical;
+}
+input::placeholder,
+textarea::placeholder {
+  color: var(--ds-text-faint);
+}
+input:hover,
+select:hover,
+textarea:hover {
+  border-color: var(--ds-border-strong);
+}
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--ds-action-primary);
+  box-shadow: var(--ds-focus-ring);
+  outline: none;
+}
+
+// Code surfaces run edge to edge: the editor is the panel's content, so it
+// spans the full width with no gutter and no corner rounding of its own.
+.code-editor,
+.code-surface {
+  font-family: var(--ds-font-mono);
+  font-size: var(--fs-meta);
+  line-height: var(--ds-line-relaxed);
+  font-variant-ligatures: none;
+  tab-size: 2;
+}
+.code-frame {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border-radius: 0;
+  background: var(--ds-surface-code);
+}
+.code-frame-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-3);
+  padding: var(--ds-space-3) var(--ds-space-4);
+  background: var(--ds-surface-code-bar);
+  color: var(--ds-text-code-muted);
+  font-family: var(--ds-font-mono);
+  font-size: var(--fs-micro);
+}
+.code-editor {
+  display: block;
+  width: 100%;
+  min-height: 420px;
+  flex: 1;
+  padding: var(--ds-space-4);
+  border: 0;
+  border-radius: 0;
+  background: var(--ds-surface-code);
+  box-shadow: none;
+  color: var(--ds-text-code);
+  resize: vertical;
+  // Code must not reflow: a wrapped line misrepresents the payload's shape.
+  white-space: pre;
+  overflow-wrap: normal;
+  overflow-x: auto;
+}
+.code-editor:hover,
+.code-editor:focus {
+  border: 0;
+  box-shadow: none;
+  outline: none;
+}
+.code-frame:focus-within .code-frame-bar {
+  color: var(--ds-text-code);
+}
+.code-surface {
+  overflow: auto;
+  padding: var(--ds-space-4);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-surface-code);
+  color: var(--ds-text-code);
+}
+// --- Select -----------------------------------------------------------------
+// Custom listbox, matched to the CMS reference: pill-radius trigger, popover
+// with divided rows, uppercase option labels, trailing check on the selection.
+.ds-select {
+  position: relative;
+}
+.ds-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-2);
+  width: 100%;
+  min-height: 44px;
+  padding: 0 var(--ds-space-5);
+  border: 1px solid var(--ds-border-default);
+  border-radius: var(--ds-radius-lg);
+  background: var(--ds-surface-panel);
+  box-shadow: var(--ds-shadow-xs);
+  color: var(--ds-text-muted);
+  font-size: var(--ds-font-size-sm);
+  font-weight: var(--fw-semibold);
+  text-align: left;
+  transition:
+    border-color var(--ds-transition-fast),
+    box-shadow var(--ds-transition-fast);
+}
+.ds-select-trigger:hover:not(:disabled) {
+  border-color: var(--ds-border-strong);
+}
+.ds-select-trigger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.ds-select-value {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.ds-select-caret {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  opacity: 0.5;
+}
+.ds-select-list {
+  position: absolute;
+  top: calc(100% + var(--ds-space-1));
+  right: 0;
+  left: 0;
+  z-index: 60;
+  max-height: 320px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  border-radius: var(--ds-radius-lg);
+  background: var(--ds-surface-panel);
+  box-shadow: var(--ds-shadow-overlay);
+  list-style: none;
+}
+.ds-select-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-3);
+  padding: var(--ds-space-3) var(--ds-space-5);
+  border-bottom: 1px solid var(--ds-border-subtle);
+  color: var(--ds-text-muted);
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background var(--ds-transition-fast);
+}
+.ds-select-option:last-child {
+  border-bottom: 0;
+}
+// Highlight follows aria-activedescendant, so keyboard and pointer agree.
+.ds-select-option.is-active {
+  background: var(--ds-surface-subtle);
+  color: var(--ds-text-primary);
+}
+.ds-select-check {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  color: var(--ds-action-primary);
+}
+
+.ds-link-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ds-action-primary);
+  font-size: inherit;
+  font-weight: var(--fw-medium);
+}
+.ds-link-button:hover {
+  color: var(--ds-action-primary-hover);
+  text-decoration: underline;
+}

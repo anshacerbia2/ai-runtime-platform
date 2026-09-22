@@ -60,6 +60,6 @@ Connection detail menunjukkan allowed apps/profiles, auth mode tanpa secret, cre
 
 M1 mengimplementasikan operator-scoped read/mutation untuk Applications, AI Connections, Credential metadata, Bindings, Execution Profiles/aliases, Budgets, Runner Pools/Nodes, audit read, durable admission/cancel intent, usage/accounting evidence, artifact metadata, dan inbox/outbox processing. Mutations memakai revision/CAS dan menghasilkan audit evidence; application caller tidak memperoleh management authority.
 
-Plugin management dan P3 runner placement/heartbeat execution tetap di fase berikutnya. Concrete secret-manager product, live Keycloak/ATI One registration, dan production health/rotation policy tetap deployment/open-decision work; API tidak mengembalikan secret material.
+Plugin management dan P3 runner placement/heartbeat execution tetap di fase berikutnya. Concrete secret-manager product, live Keycloak client registration, dan production health/rotation policy tetap deployment/open-decision work; API tidak mengembalikan secret material.
 
 Related decisions: [ADR-0019](../adr/0019-application-connections-credentials.md), [ADR-0020](../adr/0020-plugin-registry-execution-packaging.md), [ADR-0021](../adr/0021-workspace-remote-tools.md), [ADR-0022](../adr/0022-distributed-runner-fleet.md).

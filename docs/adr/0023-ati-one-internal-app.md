@@ -1,8 +1,16 @@
 # ADR-0023 — ATI One Internal-App Integration
 
 **Date:** 21 September 2026
-**Status:** adopted in documentation
+**Status:** partially superseded by [ADR-0025](0025-external-app-standalone-auth.md) on 22 September 2026
 **Scope:** web delivery, authentication, and portal trust boundary
+
+> **Supersession notice.** The product moved to external-app delivery before this decision was implemented, which is the second condition in the revisit trigger below.
+>
+> **No longer in force:** internal-app hosting, the `/apps/<app-id>/app` mount path, per-app proxy-origin verification (`X-ATI-One-Proxy`), mount-scoped cookie paths, and the frame-compatibility requirement — which ADR-0025 inverts to deny framing.
+>
+> **Still in force:** the dedicated confidential Keycloak client, server-side token exchange, the rejection of portal-client reuse and portal-cookie sharing, cookie namespacing and isolation, and the authorization boundary separating portal entitlement from platform operation authorization.
+>
+> The retired contract is kept here rather than deleted so that a return to portal-hosted delivery is a documented path.
 
 ## Context
 
@@ -111,3 +119,5 @@ Before non-local deployment, browser/integration tests SHALL prove:
 ## Revisit trigger
 
 Revisit only if ATI One changes its internal-app contract, the app intentionally moves to another delivery tier, or the shared Keycloak-realm model changes.
+
+The second condition fired on 22 September 2026; see [ADR-0025](0025-external-app-standalone-auth.md).

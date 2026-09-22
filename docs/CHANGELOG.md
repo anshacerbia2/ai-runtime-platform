@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased — 22 September 2026 — external-app delivery, standalone sign-in, and Next.js BFF
+
+Moved web delivery from ATI One internal-app hosting to an **external app** on the platform's own public origin: mount prefix, per-app proxy credential, and frame-compatibility requirement retired; framing now denied. Authentication becomes a platform-owned entry page with an explicit sign-in action starting an OIDC Authorization Code flow against the shared Keycloak realm whose login UI is served by ai-portal. Adopted Next.js App Router with a Backend-for-Frontend tier owning the confidential client, token custody, session cookie, server-side API forwarding, and server-rendered `docs/` Markdown; tokens no longer reach the browser. NestJS remains the domain API and resource server, and ADR-0024 CDD/token contracts are unchanged.
+
+Added ADR-0025 and ADR-0026; ADR-0023 is partially superseded. Restated gates G36–G38 and added G39. Updated frontend/code-structure/security/deployment/configuration docs. `M1_PROXY_SECRET` is retired and `M1_SESSION_SECRET` added. No runtime or source implementation was changed by this documentation update.
+
+## Unreleased — ATI Portal token + SCSS relayout
+
+Reworked the web console around the ATI Portal token palette and typography/spacing/radius/shadow scales, introduced layered SCSS (`tokens -> foundations -> layouts/components -> features`), retired the legacy CSS bundle, and changed Contract Lab into a responsive three-pane engineering workbench. `ui:check` now scans SCSS as well as CSS/TSX for token bypasses.
+
 ## Unreleased — 22 September 2026 — frontend CDD and design-system overhaul
 
 Rebuilt the M0/M1 internal console around the implemented CDD architecture: semantic AI Platform design tokens, shared primitives/components/compositions, grouped product navigation, responsive AppShell/PageHeader, engineering-workbench Contract Lab, resource-based M1 Control Plane, audit-style History, schema catalogue, and de-emphasized delivery reference. Removed duplicate legacy shared UI primitives, added `npm run ui:check` token-bypass enforcement, strengthened desktop/mobile E2E coverage, and kept backend/API behavior unchanged.

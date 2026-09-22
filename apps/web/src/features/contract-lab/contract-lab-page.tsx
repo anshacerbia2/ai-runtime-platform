@@ -29,12 +29,14 @@ export function ContractLabPage({
 
   return (
     <div className="contract-workbench">
-      <ScenarioPicker
-        examples={resources.examples}
-        selected={lab.selected}
-        onChoose={lab.choose}
-      />
-      <div className="workbench-grid">
+      <div className="workbench-stage">
+        <aside className="workbench-scenarios">
+          <ScenarioPicker
+            examples={resources.examples}
+            selected={lab.selected}
+            onChoose={lab.choose}
+          />
+        </aside>
         <RequestEditor
           kind={lab.kind}
           payload={lab.payload}

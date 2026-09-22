@@ -2,9 +2,9 @@
 
 Shared AI execution platform untuk aplikasi yang membutuhkan direct chat, structured inference, atau agent/tools. **App owns business workflow; platform owns AI execution.**
 
-**M0 Contract Lab · 0.3.0-m0 tetap runnable.** M1 durable foundation sekarang **LOCAL IMPLEMENTATION COMPLETE** untuk P1 test scope: application/operator/runner identity boundary, control-plane mutations, profiles, admission/idempotency, budgets/reservations, usage/ledger, outbox/inbox, audit, artifacts, dan runner registry foundation tersedia serta lulus acceptance lokal. Live ATI Keycloak/ATI One, Redis hot runner state, concrete secret manager, provider execution, agent runtime, dan production readiness belum dibuktikan. Arsitektur target tetap baseline 0.2 plus adopted extensions.
+**M0 Contract Lab · 0.3.0-m0 tetap runnable.** M1 durable foundation sekarang **LOCAL IMPLEMENTATION COMPLETE** untuk P1 test scope: application/operator/runner identity boundary, control-plane mutations, profiles, admission/idempotency, budgets/reservations, usage/ledger, outbox/inbox, audit, artifacts, dan runner registry foundation tersedia serta lulus acceptance lokal. Live Keycloak sign-in, Next.js/BFF web tier, Redis hot runner state, concrete secret manager, provider execution, agent runtime, dan production readiness belum dibuktikan. Arsitektur target tetap baseline 0.2 plus adopted extensions.
 
-**Fixed implementation stack:** NestJS + Fastify HTTP adapter + Prisma + PostgreSQL; frontend React/TypeScript + Vite. Struktur dan aturan dependency: [CODE-STRUCTURE](docs/architecture/CODE-STRUCTURE.md). Keputusan stack: [ADR-0016](docs/adr/0016-nestjs-fastify.md)–[ADR-0018](docs/adr/0018-clean-architecture-quality.md). Platform-control/fleet decisions: [ADR-0019](docs/adr/0019-application-connections-credentials.md)–[ADR-0022](docs/adr/0022-distributed-runner-fleet.md). Stack sudah diterapkan pada M0; fitur produksi tetap mengikuti gate.
+**Fixed implementation stack:** NestJS + Fastify HTTP adapter + Prisma + PostgreSQL; frontend React/TypeScript + Next.js App Router dengan BFF tier. Struktur dan aturan dependency: [CODE-STRUCTURE](docs/architecture/CODE-STRUCTURE.md). Keputusan stack: [ADR-0016](docs/adr/0016-nestjs-fastify.md)–[ADR-0018](docs/adr/0018-clean-architecture-quality.md) dan [ADR-0026](docs/adr/0026-nextjs-bff.md). Web delivery/auth: [ADR-0025](docs/adr/0025-external-app-standalone-auth.md). Platform-control/fleet decisions: [ADR-0019](docs/adr/0019-application-connections-credentials.md)–[ADR-0022](docs/adr/0022-distributed-runner-fleet.md). Backend stack sudah diterapkan pada M0; migrasi web ke Next.js/BFF masih adopted in documentation. Fitur produksi tetap mengikuti gate.
 
 ## Coba lokal
 
@@ -22,12 +22,12 @@ Alamat FE/API, PostgreSQL, browser-test settings, credentials, dan timeout beras
 | Kebutuhan                                         | Dokumen                                                   |
 | ------------------------------------------------- | --------------------------------------------------------- |
 | Konsep, boundary, komponen, invariant             | [ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md)      |
-| Frontend, ATI One internal-app, CDD, design token | [FRONTEND.md](docs/architecture/FRONTEND.md)              |
+| Frontend, external-app delivery, BFF, CDD, token  | [FRONTEND.md](docs/architecture/FRONTEND.md)              |
 | Urutan implementasi dan gate                      | [PLAN.md](docs/PLAN.md) dan [ROADMAP.md](docs/ROADMAP.md) |
 | Kontrak integrasi aplikasi                        | [API](docs/contracts/API.md)                              |
 | Seluruh dokumen dan reading paths                 | [Documentation index](docs/INDEX.md)                      |
 | Visual alur normal dan kegagalan                  | [Diagram catalogue](docs/diagrams/README.md)              |
-| Keputusan arsitektur, alternatif, dan konsekuensi | [24 ADR](docs/adr/README.md)                              |
+| Keputusan arsitektur, alternatif, dan konsekuensi | [26 ADR](docs/adr/README.md)                              |
 | Pemetaan keputusan ke spesifikasi dan pengujian   | [Decision traceability](docs/reviews/RECONCILIATION.md)   |
 | Pengujian produksi yang masih harus dibuktikan    | [Acceptance gates](docs/testing/ACCEPTANCE.md)            |
 

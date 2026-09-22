@@ -674,18 +674,18 @@ export function ControlPlanePage() {
 
   return (
     <div className="control-plane">
+      {/* Scope note, not a second page header: the eyebrow, title, and
+          "M1 local complete" badge already appear in the page header above. */}
       <Panel className="control-plane-hero">
         <div>
-          <span className="ds-eyebrow">Control Plane Registry</span>
           <h2>Application-scoped durable authority</h2>
           <p>
-            Inspect the implemented M1 control foundation. Local evidence is
-            complete; live ATI Keycloak, Redis hot liveness, secret-manager
-            deployment, provider execution, and agent placement remain gated.
+            Local evidence is complete. Live ATI Keycloak, Redis hot liveness,
+            secret-manager deployment, provider execution, and agent placement
+            remain gated.
           </p>
         </div>
         <div className="hero-badges">
-          <Badge tone="success">M1 local complete</Badge>
           <Badge tone="info">PostgreSQL authority</Badge>
         </div>
       </Panel>

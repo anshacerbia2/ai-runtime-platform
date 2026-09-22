@@ -73,10 +73,14 @@ test('phone layout has no horizontal page overflow', async ({ page }) => {
       () => document.documentElement.scrollWidth <= window.innerWidth,
     ),
   ).toBe(true);
+  // Below 1024px the rail is an off-canvas drawer, so navigation goes through
+  // the header trigger; choosing a destination dismisses the drawer again.
+  await page.getByRole('button', { name: 'Toggle navigation' }).click();
   await page.getByRole('button', { name: /Control Plane/ }).click();
   await expect(
     page.getByRole('heading', { name: 'Control Plane' }),
   ).toBeVisible();
+  await expect(page.locator('.ds-sidebar')).toHaveClass(/is-collapsed/);
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,

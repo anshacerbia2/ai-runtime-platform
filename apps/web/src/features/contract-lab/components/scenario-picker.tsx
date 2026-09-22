@@ -38,10 +38,12 @@ export function ScenarioPicker({
             className={`scenario-card ${selected === example.id ? 'is-selected' : ''}`}
             onClick={() => onChoose(example)}
             aria-pressed={selected === example.id}
+            // The note is context for the fixture, not a third line the
+            // narrow rail has room for.
+            title={scenarioNote(example.id)}
           >
             <span className="scenario-kicker">{example.id}</span>
             <strong>{example.title}</strong>
-            <small>{scenarioNote(example.id)}</small>
           </button>
         ))}
       </div>
