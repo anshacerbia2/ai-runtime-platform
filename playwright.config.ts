@@ -9,6 +9,7 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   reporter: 'list',
+  expect: { timeout: config.playwright.timeoutMs },
   timeout: config.playwright.timeoutMs,
   use: {
     baseURL,

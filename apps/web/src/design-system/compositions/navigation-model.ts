@@ -1,7 +1,7 @@
-import type { IconName } from '../components/icon.js';
+import type { IconName } from '../components/icon';
 
 export type AppSection =
-  'playground' | 'control-plane' | 'contracts' | 'history' | 'phases';
+  'playground' | 'control-plane' | 'contracts' | 'history' | 'phases' | 'docs';
 
 export interface NavItem {
   id: AppSection;
@@ -61,4 +61,24 @@ export const navigationGroups: Array<{ label: string; items: NavItem[] }> = [
       },
     ],
   },
+  {
+    label: 'Knowledge',
+    items: [
+      {
+        id: 'docs',
+        label: 'Documentation',
+        detail: 'Versioned project records',
+        icon: 'schema',
+      },
+    ],
+  },
 ];
+
+export const sectionPaths: Record<AppSection, string> = {
+  playground: '/contract-lab',
+  'control-plane': '/control-plane',
+  contracts: '/schemas',
+  history: '/history',
+  phases: '/delivery-plan',
+  docs: '/docs',
+};

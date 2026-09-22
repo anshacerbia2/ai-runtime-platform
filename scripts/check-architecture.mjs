@@ -83,7 +83,13 @@ for (const path of sourceFiles) {
     }
     if (specifier) {
       const target = sourceTarget(path, specifier);
-      const violation = dependencyViolation(name, specifier, target, typeOnly);
+      const violation = dependencyViolation(
+        name,
+        specifier,
+        target,
+        typeOnly,
+        /^['"]use client['"];?/m.test(source.text),
+      );
       if (violation) {
         errors.push(`${name} -> ${specifier}: ${violation}`);
       }

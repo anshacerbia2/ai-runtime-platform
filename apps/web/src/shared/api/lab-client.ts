@@ -3,7 +3,7 @@ import type {
   ContractKind,
   ProfileType,
 } from '@ai-runtime/contracts';
-import { requestJson } from './http-client.js';
+import { requestJson } from './http-client';
 
 export interface Example {
   id: string;

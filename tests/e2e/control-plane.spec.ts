@@ -3,8 +3,8 @@ import { test, expect } from '@playwright/test';
 test('M1 control plane admin console exposes durable resources without secret material', async ({
   page,
 }) => {
-  await page.goto('/');
-  await page.getByRole('button', { name: /Control Plane/ }).click();
+  await page.goto('/contract-lab');
+  await page.getByRole('link', { name: /Control Plane/ }).click();
   await expect(
     page.getByRole('heading', { name: 'Control Plane' }),
   ).toBeVisible();

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { Icon } from '../components/icon.js';
+import { Icon } from '../components/icon';
 
 export interface SelectOption {
   value: string;

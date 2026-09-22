@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Badge } from '../components/badge.js';
+import { Badge } from '../components/badge';
 
 export function PageHeader({
   eyebrow,

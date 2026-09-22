@@ -10,3 +10,6 @@ playwright-report/
 *.tsbuildinfo
 *.log
 apps/api/src/infrastructure/database/generated/
+
+**/.next/
+**/next-env.d.ts

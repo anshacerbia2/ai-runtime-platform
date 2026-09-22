@@ -1,7 +1,7 @@
 # ADR-0025 — External-App Delivery and Standalone Authentication Entry
 
 **Date:** 22 September 2026
-**Status:** adopted in documentation
+**Status:** implemented locally with ADR-0026; live Keycloak registration remains deployment work
 **Scope:** web delivery tier, portal relationship, and authentication entry point
 **Supersedes:** [ADR-0023](0023-ati-one-internal-app.md) internal-app hosting, mount-path, proxy-origin, and frame-compatibility decisions. ADR-0023 retains authority for the dedicated confidential client, authorization boundary, and cookie-isolation principles.
 
@@ -9,7 +9,7 @@
 
 ADR-0023 placed AI Runtime Platform inside ATI One as an **internal application**: mounted under `/apps/<app-id>/app`, reached through the ATI One reverse proxy, framed by the portal, and gated by a per-app proxy credential.
 
-That decision has not been implemented. `config/hosting.mjs` encodes the mount/proxy/cookie contract and `config/environment.mjs` validates the `m1-oidc` variables, but no upstream, proxy, or session tier consumes them. Nothing is being discarded except an unexercised design.
+At adoption, the internal-app design had no deployed browser session tier. The migration now replaces that legacy mount/proxy contract in `config/hosting.mjs`, removes proxy-secret admission from the API, and implements standalone authentication in the Next.js BFF. The public HTTPS origin and per-operation API authorization are the active boundaries.
 
 The product now requires its own public entry: a landing page the platform controls, with an explicit sign-in action, reachable without passing through the portal. ATI One remains the catalogue where the product is discovered, but it becomes a link target rather than a hosting tier.
 

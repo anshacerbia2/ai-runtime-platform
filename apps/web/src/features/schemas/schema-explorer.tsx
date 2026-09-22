@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { prettyJson } from '../../shared/lib/json.js';
-import { Button } from '../../design-system/primitives/button.js';
-import { Badge } from '../../design-system/components/badge.js';
-import { Panel, PanelHeader } from '../../design-system/components/panel.js';
+import { prettyJson } from '../../shared/lib/json';
+import { Button } from '../../design-system/primitives/button';
+import { Badge } from '../../design-system/components/badge';
+import { Panel, PanelHeader } from '../../design-system/components/panel';
 
 export function SchemaExplorer({
   schemas,

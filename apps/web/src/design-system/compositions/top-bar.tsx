@@ -1,8 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { Icon } from '../components/icon.js';
-import { navigationGroups, type AppSection } from './navigation-model.js';
+import { Icon } from '../components/icon';
+import { navigationGroups, type AppSection } from './navigation-model';
 
-function AccountMenu() {
+interface Account {
+  name: string;
+  subject: string;
+  local: boolean;
+}
+function AccountMenu({ user }: { user: Account }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -41,20 +46,22 @@ function AccountMenu() {
         aria-label="Account menu"
         onClick={() => setOpen((previous) => !previous)}
       >
-        A
+        {user.name.slice(0, 1).toUpperCase()}
       </button>
       {open ? (
         <div className="ds-account-menu" role="menu">
           <div className="ds-account-identity">
-            <strong>Local operator</strong>
-            <span>m0-playground</span>
+            <strong>{user.name}</strong>
+            <span>{user.local ? 'Local development' : 'Keycloak session'}</span>
           </div>
-          <button type="button" role="menuitem" className="ds-account-item">
-            Workspace settings
-          </button>
-          <button type="button" role="menuitem" className="ds-account-item">
-            Sign out
-          </button>
+          <a href="/docs" role="menuitem" className="ds-account-item">
+            Documentation
+          </a>
+          <form action="/auth/logout" method="post">
+            <button type="submit" role="menuitem" className="ds-account-item">
+              Sign out
+            </button>
+          </form>
         </div>
       ) : null}
     </div>
@@ -64,9 +71,11 @@ function AccountMenu() {
 export function TopBar({
   active,
   onToggle,
+  user,
 }: {
   active: AppSection;
   onToggle(): void;
+  user: Account;
 }) {
   const current = navigationGroups
     .flatMap((group) => group.items)
@@ -107,7 +116,7 @@ export function TopBar({
             <span className="ds-bell-dot" aria-hidden="true" />
           </button>
 
-          <AccountMenu />
+          <AccountMenu user={user} />
         </div>
       </div>
     </header>

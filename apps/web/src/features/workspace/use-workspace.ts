@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { labClient, type LabResources } from '../shared/api/lab-client.js';
-import { errorMessage } from '../shared/api/http-client.js';
+import { labClient, type LabResources } from '../../shared/api/lab-client';
+import { errorMessage } from '../../shared/api/http-client';
 
 export function useWorkspace() {
   const [resources, setResources] = useState<LabResources | null>(null);

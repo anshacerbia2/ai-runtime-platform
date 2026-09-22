@@ -62,3 +62,42 @@ export interface RuntimeEnvironment {
 
 export function loadEnvironment(): RuntimeEnvironment;
 export const projectRoot: string;
+
+export interface WebEnvironment {
+  readonly runtimeMode: string;
+  readonly local: boolean;
+  readonly webHost: string;
+  readonly webPort: number;
+  readonly publicOrigin: string;
+  readonly allowedOrigins: readonly string[];
+  readonly apiOrigin: string;
+  readonly requestTimeoutMs: number;
+  readonly bodyLimitBytes: number;
+  readonly responseLimitBytes: number;
+  readonly docsRoot: string;
+  readonly applicationToken?: string;
+  readonly operatorToken?: string;
+  readonly hosting?: import('./hosting.mjs').HostingConfig;
+  readonly auth?: {
+    issuer: string;
+    jwksUri: string;
+    audience: string;
+    clientSecret: string;
+    scopes: string[];
+    sessionSecret: string;
+    redisUrl: string;
+    sessionTtlSeconds: number;
+    loginTtlSeconds: number;
+    refreshSkewSeconds: number;
+    lockMs: number;
+    lockWaitMs: number;
+    lockPollMs: number;
+    redisConnectTimeoutMs: number;
+  };
+}
+export function loadWebEnvironment(): WebEnvironment;
+
+export function loadSessionTestEnvironment(): {
+  url: string;
+  timeoutMs: number;
+};

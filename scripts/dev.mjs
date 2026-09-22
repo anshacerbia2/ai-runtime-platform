@@ -103,16 +103,12 @@ try {
   await assertPortAvailable(config.webHost, config.webPort);
   const api = startChild(['apps/api/dist/main.js']);
   await waitForApi(config.apiHost, config.apiPort, api);
-  startChild([
-    join(root, 'node_modules/vite/bin/vite.js'),
-    '--config',
-    'apps/web/vite.config.ts',
-  ]);
+  startChild([join(root, 'scripts/web.mjs'), 'dev']);
   console.log(
     `M0 UI: http://${config.webHost}:${config.webPort} | Nest/Fastify API: ${config.apiHost}:${config.apiPort} | no live providers`,
   );
   console.log(
-    'Frontend: Vite HMR. Backend/shared-contract changes: restart npm run dev.',
+    'Frontend: Next.js App Router + BFF. Backend/shared-contract changes: restart npm run dev.',
   );
 } catch (error) {
   console.error(

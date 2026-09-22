@@ -6,6 +6,7 @@ export function dependencyViolation(
   dependency,
   target,
   typeOnly = false,
+  clientDirective = false,
 ) {
   const inner = /\/(domain|application)\//.test(file);
   if (inner && frameworks.test(dependency)) {
@@ -26,11 +27,32 @@ export function dependencyViolation(
   if (/\/infrastructure\//.test(file) && /\/presentation\//.test(target)) {
     return 'Infrastructure cannot depend on HTTP presentation.';
   }
+  const web = file.startsWith('apps/web/');
+  const server = file.startsWith('apps/web/src/server/');
   if (
-    file.startsWith('apps/web/') &&
-    /(?:@nestjs|@prisma|^pg$|^node:)/.test(dependency)
+    web &&
+    /(?:@nestjs|@prisma|^pg$|^postgres$|^mysql|^sqlite)/.test(dependency)
   ) {
-    return 'Browser code cannot import backend infrastructure.';
+    return 'Web/BFF code cannot import domain database infrastructure.';
+  }
+  if (web && dependency.startsWith('node:') && !server) {
+    return 'Node built-ins belong only in the server-only web boundary.';
+  }
+  if (
+    web &&
+    !server &&
+    (target.includes('/server/') || target === 'config/environment.mjs') &&
+    ((!file.startsWith('apps/web/src/app/') &&
+      file !== 'apps/web/src/proxy.ts') ||
+      clientDirective)
+  ) {
+    return 'Client-reachable modules cannot import server-only code or configuration.';
+  }
+  if (
+    file.startsWith('apps/web/src/design-system/') &&
+    (target.includes('/features/') || target.includes('/app/'))
+  ) {
+    return 'Design-system components cannot depend on features or route modules.';
   }
   if (
     file.startsWith('apps/web/src/shared/') &&

@@ -1,5 +1,9 @@
-import { Icon } from '../components/icon.js';
-import { navigationGroups, type AppSection } from './navigation-model.js';
+import { Icon } from '../components/icon';
+import {
+  navigationGroups,
+  sectionPaths,
+  type AppSection,
+} from './navigation-model';
 
 export function Sidebar({
   active,
@@ -36,12 +40,25 @@ export function Sidebar({
                 {group.items.map((item) => {
                   const activeItem = active === item.id;
                   return (
-                    <button
+                    <a
+                      href={sectionPaths[item.id]}
                       key={item.id}
                       className={
                         activeItem ? 'ds-nav-item is-active' : 'ds-nav-item'
                       }
-                      onClick={() => onNavigate(item.id)}
+                      onClick={(event) => {
+                        if (
+                          event.button !== 0 ||
+                          event.ctrlKey ||
+                          event.metaKey ||
+                          event.shiftKey ||
+                          event.altKey
+                        ) {
+                          return;
+                        }
+                        event.preventDefault();
+                        onNavigate(item.id);
+                      }}
                       aria-current={activeItem ? 'page' : undefined}
                       // The label is clipped away in the collapsed rail, so the
                       // accessible name cannot depend on the visible span.
@@ -55,7 +72,7 @@ export function Sidebar({
                       {activeItem ? (
                         <span className="ds-nav-rail" aria-hidden="true" />
                       ) : null}
-                    </button>
+                    </a>
                   );
                 })}
               </div>

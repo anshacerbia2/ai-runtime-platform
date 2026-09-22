@@ -34,7 +34,7 @@ Tidak termasuk saat ini: business-job database bersama, universal agent translat
 
 ### P1 — Durable control plane dan accounting foundation
 
-**Status:** LOCAL IMPLEMENTATION COMPLETE — durable identity/control-plane/admission/accounting foundation dan P1 local acceptance evidence tersedia. Live Keycloak sign-in, Next.js/BFF web tier, concrete secret-manager, Redis hot runner state, dan nonlocal production evidence tetap pending. Evidence: [M1](milestones/M1.md).
+**Status:** LOCAL IMPLEMENTATION COMPLETE — durable identity/control-plane/admission/accounting foundation dan P1 local acceptance evidence tersedia. Live Keycloak sign-in, deployed BFF/Redis session evidence, concrete secret-manager, Redis hot runner state, dan nonlocal production evidence tetap pending. Evidence: [M1](milestones/M1.md).
 
 **Dependency:** P0. **Owner roles:** platform backend + storage/security.
 

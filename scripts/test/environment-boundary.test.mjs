@@ -34,7 +34,7 @@ test('source code has one environment read boundary and no legacy local config',
   const roots = ['apps', 'scripts'];
   function walk(directory) {
     for (const entry of readdirSync(directory, { withFileTypes: true })) {
-      if (['node_modules', 'dist', 'generated'].includes(entry.name)) {
+      if (['node_modules', 'dist', 'generated', '.next'].includes(entry.name)) {
         continue;
       }
       const path = resolve(directory, entry.name);

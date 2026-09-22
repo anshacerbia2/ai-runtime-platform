@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Panel } from './panel.js';
+import { Panel } from './panel';
 
 export function MetricCard({
   label,

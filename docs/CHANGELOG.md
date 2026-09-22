@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased — Next.js App Router and server-owned BFF implementation
+
+Replaced the Vite SPA and development credential proxy with Next.js App Router, stable feature URLs, a standalone entry page, and authenticated server-rendered documentation. Implemented confidential OIDC Authorization Code + PKCE/state/nonce verification, opaque signed session references, encrypted Redis-held tokens, coordinated refresh, and app-local logout. Added allowlisted, bounded BFF forwarding with CSRF/host checks; retired proxy-secret authority from the API. Preserved existing CDD components, SCSS tokens, M0 contracts, and M1 data. Added protocol/session/transport/Markdown regression tests and a production client-bundle scan. Live ATI Keycloak and deployed Redis/ingress evidence remain separate from local tests.
+
 ## Unreleased — 22 September 2026 — external-app delivery, standalone sign-in, and Next.js BFF
 
 Moved web delivery from ATI One internal-app hosting to an **external app** on the platform's own public origin: mount prefix, per-app proxy credential, and frame-compatibility requirement retired; framing now denied. Authentication becomes a platform-owned entry page with an explicit sign-in action starting an OIDC Authorization Code flow against the shared Keycloak realm whose login UI is served by ai-portal. Adopted Next.js App Router with a Backend-for-Frontend tier owning the confidential client, token custody, session cookie, server-side API forwarding, and server-rendered `docs/` Markdown; tokens no longer reach the browser. NestJS remains the domain API and resource server, and ADR-0024 CDD/token contracts are unchanged.

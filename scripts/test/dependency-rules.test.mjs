@@ -58,3 +58,49 @@ test('type-only common contracts are allowed inward', () => {
     null,
   );
 });
+
+// Next.js has two execution contexts, but neither owns domain persistence.
+test('BFF may use Node built-ins but never a domain database', () => {
+  assert.equal(
+    dependencyViolation(
+      'apps/web/src/server/docs/read.ts',
+      'node:fs',
+      'node:fs',
+    ),
+    null,
+  );
+  assert.ok(
+    dependencyViolation(
+      'apps/web/src/server/read.ts',
+      '@prisma/client',
+      '@prisma/client',
+    ),
+  );
+  assert.ok(
+    dependencyViolation('apps/web/src/features/view.tsx', 'node:fs', 'node:fs'),
+  );
+  assert.ok(
+    dependencyViolation(
+      'apps/web/src/features/view.tsx',
+      '../../server/auth',
+      'apps/web/src/server/auth.ts',
+    ),
+  );
+  assert.ok(
+    dependencyViolation(
+      'apps/web/src/app/view.tsx',
+      '../server/auth',
+      'apps/web/src/server/auth.ts',
+      false,
+      true,
+    ),
+  );
+  assert.equal(
+    dependencyViolation(
+      'apps/web/src/app/api/route.ts',
+      '../../server/auth',
+      'apps/web/src/server/auth.ts',
+    ),
+    null,
+  );
+});

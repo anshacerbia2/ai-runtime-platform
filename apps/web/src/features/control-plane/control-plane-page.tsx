@@ -1,13 +1,15 @@
+'use client';
+
 import { useEffect, useMemo, useState } from 'react';
 import {
   errorMessage,
   requestPlatformJson,
-} from '../../shared/api/http-client.js';
-import { Badge, type BadgeTone } from '../../design-system/components/badge.js';
-import { DataTable } from '../../design-system/components/data-table.js';
-import { EmptyState } from '../../design-system/components/empty-state.js';
-import { MetricCard } from '../../design-system/components/metric-card.js';
-import { Panel, PanelHeader } from '../../design-system/components/panel.js';
+} from '../../shared/api/http-client';
+import { Badge, type BadgeTone } from '../../design-system/components/badge';
+import { DataTable } from '../../design-system/components/data-table';
+import { EmptyState } from '../../design-system/components/empty-state';
+import { MetricCard } from '../../design-system/components/metric-card';
+import { Panel, PanelHeader } from '../../design-system/components/panel';
 
 interface ApplicationRecord {
   id: string;

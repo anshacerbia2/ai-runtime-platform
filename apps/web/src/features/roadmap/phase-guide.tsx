@@ -1,5 +1,5 @@
-import { Badge } from '../../design-system/components/badge.js';
-import { Panel, PanelHeader } from '../../design-system/components/panel.js';
+import { Badge } from '../../design-system/components/badge';
+import { Panel, PanelHeader } from '../../design-system/components/panel';
 
 const phases = [
   [

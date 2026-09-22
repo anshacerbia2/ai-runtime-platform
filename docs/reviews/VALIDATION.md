@@ -145,3 +145,28 @@ Synchronized documents: frontend/code-structure/architecture/boundaries, securit
 The automated documentation check after this synchronization is **72 Markdown files, 585 local links, 0 missing file targets**, and `prettier --check .` passes. These verify link integrity and formatting only; they assert nothing about the decisions themselves.
 
 Implementation deliberately not started: the Vite-to-Next.js move, the BFF tier, the entry page, and the affected tooling (`scripts/dev.mjs`, `scripts/check-ui-tokens.mjs`, `scripts/lib/dependency-rules.mjs`, `config/hosting.mjs`, `playwright.config.ts`, `apps/web/package.json`). Those files still encode the internal-app/Vite contract and are known to be inconsistent with this documentation until the implementation lands.
+
+## 13. Next.js/BFF implementation and regression verification
+
+This supersedes section 12's documentation-only implementation status. The Vite entry/configuration/dependencies are removed. React components and SCSS are retained under Next.js App Router, with a public entry, stable feature routes, thin BFF handlers, and server-rendered documentation. The API no longer grants or requires proxy-header authority.
+
+Verified locally against the project PostgreSQL environment and a freshly started Next.js development server:
+
+| Check                                    | Result and scope                                                                                       |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `npm run verify`                         | PASS: formatting, lint, boundaries, types, contracts, backend, BFF, build, and docs checks             |
+| Contract tests                           | 30 PASS                                                                                                |
+| API unit tests                           | 12 PASS                                                                                                |
+| Architecture/configuration tooling tests | 16 PASS                                                                                                |
+| M0/M1 integration tests                  | 30 PASS against PostgreSQL                                                                             |
+| BFF/protocol/session/Markdown tests      | 25 PASS with generated signing keys and injected issuer/store transports                               |
+| Browser E2E                              | 9 PASS; new server startup, no reuse of an old development server                                      |
+| Production web build                     | Next.js App Router build PASS                                                                          |
+| Production client-bundle check           | PASS; 36 client files and 15 reference manifests checked for configured secrets/server-only references |
+| PostgreSQL migrations                    | No schema or migration changes introduced by this framework migration                                  |
+
+The web tests exercise state/nonce/PKCE/signature/issuer/audience validation, callback replay rejection, concurrent refresh, logout during refresh, encrypted server-side storage with opaque cookies, CSRF, duplicate cookie rejection, route/method allowlists, bounded bodies, upstream failure masking, and Markdown traversal/XSS rejection. Browser tests exercise the new entry, reload/back navigation, app-local logout, existing M0/M1 workflows, mobile overflow, and docs without client JavaScript.
+
+Local evidence logs: `.local/next-verify.log` and `.local/next-e2e.log`; screenshots remain in Git-ignored `test-results/`. These are local checks, not a live ATI Keycloak or production security certification.
+
+The real two-client Redis integration suite is provided as `npm run test:web:redis` and is included in CI with a disposable Redis service. It was not executed on this workstation because no isolated Redis service was available. Do not infer a Redis integration PASS from the in-process session tests. Live issuer registration, protected Redis availability/TLS/ACLs, ingress isolation, replica failure, and operational sign-offs remain deployment evidence.

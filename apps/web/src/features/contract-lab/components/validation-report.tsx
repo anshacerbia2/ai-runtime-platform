@@ -1,9 +1,9 @@
 import type { ProfileType } from '@ai-runtime/contracts';
-import type { SavedValidation } from '../../../shared/api/lab-client.js';
-import { Button } from '../../../design-system/primitives/button.js';
-import { Badge } from '../../../design-system/components/badge.js';
-import { EmptyState } from '../../../design-system/components/empty-state.js';
-import { Panel, PanelHeader } from '../../../design-system/components/panel.js';
+import type { SavedValidation } from '../../../shared/api/lab-client';
+import { Button } from '../../../design-system/primitives/button';
+import { Badge } from '../../../design-system/components/badge';
+import { EmptyState } from '../../../design-system/components/empty-state';
+import { Panel, PanelHeader } from '../../../design-system/components/panel';
 
 function EmptyReport() {
   return (

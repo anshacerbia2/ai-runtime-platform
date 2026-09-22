@@ -1,6 +1,6 @@
 # AI Runtime Platform — Roadmap
 
-**Baseline 0.2 + adopted extensions through ADR-0026.** Roadmap berbasis dependency dan gate, bukan janji tanggal. M0 tetap runnable; M1 local P1 foundation sekarang implemented dan lulus acceptance lokal, sementara live Keycloak sign-in, Next.js/BFF web tier, Redis hot-state deployment, provider runtime, dan production readiness belum selesai. Lihat [M0](milestones/M0.md) dan [M1](milestones/M1.md).
+**Baseline 0.2 + adopted extensions through ADR-0026.** Roadmap berbasis dependency dan gate, bukan janji tanggal. M0 tetap runnable; M1 local P1 foundation sekarang implemented dan lulus acceptance lokal, sementara live Keycloak sign-in, deployed BFF/Redis session evidence, Redis hot-state deployment, provider runtime, dan production readiness belum selesai. Lihat [M0](milestones/M0.md) dan [M1](milestones/M1.md).
 
 ## Stack implementasi tetap
 

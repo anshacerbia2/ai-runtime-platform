@@ -10,11 +10,10 @@ const FORCE_COLLAPSE_BELOW = 1024;
  * the page). Expanding again is always an explicit user action.
  */
 export function useSidebar() {
-  const [collapsed, setCollapsed] = useState(
-    () => typeof window !== 'undefined' && window.innerWidth < COLLAPSE_BELOW,
-  );
+  const [collapsed, setCollapsed] = useState(true);
 
   useEffect(() => {
+    setCollapsed(window.innerWidth < COLLAPSE_BELOW);
     function onResize() {
       if (window.innerWidth < FORCE_COLLAPSE_BELOW) {
         setCollapsed(true);

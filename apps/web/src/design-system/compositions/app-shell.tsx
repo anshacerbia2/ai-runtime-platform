@@ -1,20 +1,22 @@
 import type { ReactNode } from 'react';
-import { PageRegion } from './page-region.js';
-import { Sidebar } from './sidebar.js';
-import { TopBar } from './top-bar.js';
-import { useSidebar } from './use-sidebar.js';
-import type { AppSection } from './navigation-model.js';
+import { PageRegion } from './page-region';
+import { Sidebar } from './sidebar';
+import { TopBar } from './top-bar';
+import { useSidebar } from './use-sidebar';
+import type { AppSection } from './navigation-model';
 
-export type { AppSection } from './navigation-model.js';
+export type { AppSection } from './navigation-model';
 
 export function AppShell({
   active,
   onNavigate,
   children,
+  user,
 }: {
   active: AppSection;
   onNavigate(section: AppSection): void;
   children: ReactNode;
+  user: { name: string; subject: string; local: boolean };
 }) {
   const { collapsed, toggle, close, closeAfterNavigate } = useSidebar();
 
@@ -33,7 +35,7 @@ export function AppShell({
       />
       <div className="ds-sidebar-scrim" onClick={close} aria-hidden="true" />
       <div className="ds-app-main">
-        <TopBar active={active} onToggle={toggle} />
+        <TopBar active={active} onToggle={toggle} user={user} />
         <main>
           <PageRegion>{children}</PageRegion>
         </main>

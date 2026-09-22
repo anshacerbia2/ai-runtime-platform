@@ -1,18 +1,18 @@
 # ADR-0026 — Next.js App Router and Backend-for-Frontend Tier
 
 **Date:** 22 September 2026
-**Status:** adopted in documentation
+**Status:** implemented locally; live issuer and deployed session-store evidence remain separate
 **Scope:** web application framework, server tier ownership, and token custody
 
 ## Context
 
-`apps/web` is a Vite single-page application: a static bundle with no server of its own. Two requirements cannot be met inside that shape.
+At adoption, `apps/web` was a Vite single-page application: a static bundle with no server of its own. Two requirements cannot be met inside that shape.
 
 **Confidential-client custody.** [ADR-0025](0025-external-app-standalone-auth.md) requires an OIDC Authorization Code flow with a confidential client. Code exchange, client secret custody, refresh, and session cookies all require a server owned by the web tier. A static bundle has none, which leaves only two bad options: put the flow in the browser (the secret leaks and the grant type degrades), or put it in the NestJS API (the domain API acquires browser-session concerns and a second authentication model).
 
 **Server-side document rendering.** `docs/` holds roughly seventy Markdown records — ADRs, architecture, contracts, operations. Surfacing them in the console means reading the filesystem at build or request time. A Vite build would require a glob plugin and ship a Markdown parser to every visitor.
 
-[SECURITY.md](../security/SECURITY.md) already lists `client/BFF -> API` among the system's trust boundaries. The BFF tier is assumed by the existing security model and has simply never existed.
+[SECURITY.md](../security/SECURITY.md) already lists `client/BFF -> API` among the system's trust boundaries. The BFF tier was assumed by the existing security model but was not yet implemented at adoption.
 
 ## Decision
 
@@ -61,7 +61,7 @@ Presentational components remain client-agnostic. `'use client'` is applied at t
 
 ### Dependency rule change
 
-`scripts/lib/dependency-rules.mjs` currently forbids any `node:` import beneath `apps/web/`. That rule was correct while the workspace was entirely browser code; it would now reject the BFF and the Markdown reader by construction.
+Before this migration, `scripts/lib/dependency-rules.mjs` forbade any `node:` import beneath `apps/web/`. That rule was correct while the workspace was entirely browser code; it would now reject the BFF and the Markdown reader by construction.
 
 The rule SHALL be narrowed from _workspace path_ to _execution context_: client components may not import backend infrastructure, while server-only modules may use Node built-ins. Server-only modules are confined to designated directories so the rule stays mechanically checkable, and the prohibition on Prisma, Nest, and direct database drivers under `apps/web/` remains absolute.
 
@@ -79,7 +79,7 @@ The deployment gains a second Node process, so topology, health checks, and the 
 
 A BFF tier creates a standing risk of business logic accumulating in route handlers. The non-responsibilities above exist to be enforced, not merely stated, and belong in review.
 
-Tooling affected: `scripts/dev.mjs` (spawns the Vite binary directly), `scripts/check-ui-tokens.mjs` (hardcodes `apps/web/src`), `scripts/lib/dependency-rules.mjs`, `apps/web/package.json`, `playwright.config.ts`, and `config/hosting.mjs`. None of these are load-bearing for domain correctness.
+Tooling affected: `scripts/dev.mjs` (previously spawned Vite; now launches the Next.js web runner), `scripts/check-ui-tokens.mjs` (hardcodes `apps/web/src`), `scripts/lib/dependency-rules.mjs`, `apps/web/package.json`, `playwright.config.ts`, and `config/hosting.mjs`. None of these are load-bearing for domain correctness.
 
 Server-rendered Markdown means `docs/` becomes a build input for `apps/web`. Content changes affect the web build, and broken links surface as build failures as well as `docs:check` failures.
 
@@ -106,3 +106,11 @@ Server-rendered Markdown means `docs/` becomes a build input for `apps/web`. Con
 ## Revisit trigger
 
 Revisit if the BFF accumulates domain responsibility that belongs in the API, if server rendering stops being required, or if the App Router's stability or upgrade cost changes the trade materially.
+
+## Implementation record
+
+The web workspace now uses Next.js App Router with thin route handlers under `src/app/` and server-only code under `src/server/`. The existing React/CDD components and SCSS are retained. The Vite entry, configuration, and dependencies are removed.
+
+Session storage is an explicit Redis dependency of the nonlocal BFF only, not a direct connection to the domain PostgreSQL database. Tokens are encrypted in server records; the browser receives only a signed opaque reference. Local fixtures and test memory stores are never a nonlocal runtime fallback.
+
+Verification and rollout instructions: [Web/BFF Operations](../development/WEB.md). The current local test evidence is recorded in [Validation](../reviews/VALIDATION.md). Live issuer, Redis deployment, key rotation, and operational sign-off remain distinct deployment evidence.

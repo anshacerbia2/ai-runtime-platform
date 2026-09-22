@@ -7,3 +7,6 @@ test-results
 contracts/*.json
 package-lock.json
 apps/api/src/infrastructure/database/generated/
+
+**/.next/
+**/next-env.d.ts

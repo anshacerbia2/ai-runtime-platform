@@ -29,15 +29,18 @@
     "test:e2e": "playwright test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "verify": "npm run format:check && npm run lint && npm run architecture:check && npm run ui:check && npm run typecheck && npm test && npm run test:unit && npm run test:integration && npm run contracts:check && npm run build && npm run docs:check",
+    "verify": "npm run format:check && npm run lint && npm run architecture:check && npm run ui:check && npm run typecheck && npm test && npm run test:unit && npm run test:integration && npm run test:web && npm run contracts:check && npm run build && npm run web:bundle-check && npm run docs:check",
     "db:generate": "prisma generate",
     "test:unit": "tsx --test apps/api/test/unit/*.test.ts && node --test scripts/test/*.test.mjs",
     "lint": "eslint apps packages scripts config tests playwright.config.ts prisma.config.ts",
     "lint:fix": "npm run lint -- --fix",
     "architecture:check": "node scripts/check-architecture.mjs",
     "ui:check": "node scripts/check-ui-tokens.mjs",
-    "typecheck:tests": "tsc -p apps/api/tsconfig.test.json && tsc -p packages/contracts/tsconfig.test.json && tsc -p tsconfig.tools.json",
-    "db:format": "prisma format"
+    "typecheck:tests": "tsc -p apps/api/tsconfig.test.json && tsc -p packages/contracts/tsconfig.test.json && tsc -p tsconfig.tools.json && npm run typecheck:tests -w @ai-runtime/web",
+    "db:format": "prisma format",
+    "test:web": "node --conditions=react-server --import tsx --test apps/web/test/*.test.ts",
+    "web:bundle-check": "node scripts/check-web-bundle.mjs",
+    "test:web:redis": "node --conditions=react-server --import tsx --test apps/web/test/redis-store.integration.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

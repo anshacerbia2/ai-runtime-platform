@@ -1,4 +1,4 @@
-import type { Example } from '../../../shared/api/lab-client.js';
+import type { Example } from '../../../shared/api/lab-client';
 
 function scenarioNote(id: string) {
   if (id === 'chat') {

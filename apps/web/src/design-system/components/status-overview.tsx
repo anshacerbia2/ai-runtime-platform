@@ -1,6 +1,6 @@
-import type { LabHealth } from '../../shared/api/lab-client.js';
-import { Badge } from './badge.js';
-import { MetricCard } from './metric-card.js';
+import type { LabHealth } from '../../shared/api/lab-client';
+import { Badge } from './badge';
+import { MetricCard } from './metric-card';
 
 export function StatusOverview({ health }: { health?: LabHealth }) {
   return (

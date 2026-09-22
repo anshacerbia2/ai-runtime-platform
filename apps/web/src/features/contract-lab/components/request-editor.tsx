@@ -1,12 +1,12 @@
 import type { ContractKind } from '@ai-runtime/contracts';
-import { newIdempotencyKey } from '../../../shared/lib/json.js';
-import { Button } from '../../../design-system/primitives/button.js';
-import { Panel, PanelHeader } from '../../../design-system/components/panel.js';
-import { Badge } from '../../../design-system/components/badge.js';
+import { newIdempotencyKey } from '../../../shared/lib/json';
+import { Button } from '../../../design-system/primitives/button';
+import { Panel, PanelHeader } from '../../../design-system/components/panel';
+import { Badge } from '../../../design-system/components/badge';
 import {
   Select,
   type SelectOption,
-} from '../../../design-system/primitives/select.js';
+} from '../../../design-system/primitives/select';
 
 const contractOptions: SelectOption[] = [
   { value: 'chat', label: 'POST /v1/chat · planned runtime' },

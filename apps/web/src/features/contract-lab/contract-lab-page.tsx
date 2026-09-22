@@ -1,9 +1,9 @@
-import type { LabResources } from '../../shared/api/lab-client.js';
-import { Badge } from '../../design-system/components/badge.js';
-import { usePlayground } from './hooks/use-playground.js';
-import { ScenarioPicker } from './components/scenario-picker.js';
-import { RequestEditor } from './components/request-editor.js';
-import { ValidationReport } from './components/validation-report.js';
+import type { LabResources } from '../../shared/api/lab-client';
+import { Badge } from '../../design-system/components/badge';
+import { usePlayground } from './hooks/use-playground';
+import { ScenarioPicker } from './components/scenario-picker';
+import { RequestEditor } from './components/request-editor';
+import { ValidationReport } from './components/validation-report';
 
 export function ContractLabPage({
   resources,

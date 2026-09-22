@@ -2,20 +2,21 @@
 
 Shared AI execution platform untuk aplikasi yang membutuhkan direct chat, structured inference, atau agent/tools. **App owns business workflow; platform owns AI execution.**
 
-**M0 Contract Lab · 0.3.0-m0 tetap runnable.** M1 durable foundation sekarang **LOCAL IMPLEMENTATION COMPLETE** untuk P1 test scope: application/operator/runner identity boundary, control-plane mutations, profiles, admission/idempotency, budgets/reservations, usage/ledger, outbox/inbox, audit, artifacts, dan runner registry foundation tersedia serta lulus acceptance lokal. Live Keycloak sign-in, Next.js/BFF web tier, Redis hot runner state, concrete secret manager, provider execution, agent runtime, dan production readiness belum dibuktikan. Arsitektur target tetap baseline 0.2 plus adopted extensions.
+**M0 Contract Lab · 0.3.0-m0 tetap runnable.** M1 durable foundation sekarang **LOCAL IMPLEMENTATION COMPLETE** untuk P1 test scope: application/operator/runner identity boundary, control-plane mutations, profiles, admission/idempotency, budgets/reservations, usage/ledger, outbox/inbox, audit, artifacts, dan runner registry foundation tersedia serta lulus acceptance lokal. Live Keycloak sign-in, deployed BFF/Redis session evidence, Redis hot runner state, concrete secret manager, provider execution, agent runtime, dan production readiness belum dibuktikan. Arsitektur target tetap baseline 0.2 plus adopted extensions.
 
-**Fixed implementation stack:** NestJS + Fastify HTTP adapter + Prisma + PostgreSQL; frontend React/TypeScript + Next.js App Router dengan BFF tier. Struktur dan aturan dependency: [CODE-STRUCTURE](docs/architecture/CODE-STRUCTURE.md). Keputusan stack: [ADR-0016](docs/adr/0016-nestjs-fastify.md)–[ADR-0018](docs/adr/0018-clean-architecture-quality.md) dan [ADR-0026](docs/adr/0026-nextjs-bff.md). Web delivery/auth: [ADR-0025](docs/adr/0025-external-app-standalone-auth.md). Platform-control/fleet decisions: [ADR-0019](docs/adr/0019-application-connections-credentials.md)–[ADR-0022](docs/adr/0022-distributed-runner-fleet.md). Backend stack sudah diterapkan pada M0; migrasi web ke Next.js/BFF masih adopted in documentation. Fitur produksi tetap mengikuti gate.
+**Fixed implementation stack:** NestJS + Fastify HTTP adapter + Prisma + PostgreSQL; frontend React/TypeScript + Next.js App Router dengan BFF tier. Struktur dan aturan dependency: [CODE-STRUCTURE](docs/architecture/CODE-STRUCTURE.md). Keputusan stack: [ADR-0016](docs/adr/0016-nestjs-fastify.md)–[ADR-0018](docs/adr/0018-clean-architecture-quality.md) dan [ADR-0026](docs/adr/0026-nextjs-bff.md). Web delivery/auth: [ADR-0025](docs/adr/0025-external-app-standalone-auth.md). Platform-control/fleet decisions: [ADR-0019](docs/adr/0019-application-connections-credentials.md)–[ADR-0022](docs/adr/0022-distributed-runner-fleet.md). Backend stack sudah diterapkan pada M0; migrasi web ke Next.js App Router/BFF sudah diimplementasikan, dengan opaque session cookie, server-side token custody, dan server-rendered docs. Fitur produksi tetap mengikuti gate.
 
 ## Coba lokal
 
 ```powershell
 npm ci
 npm run env:init
+# Untuk checkout lama: jangan overwrite .env; tambahkan variable baru dari .env.example.
 # review .env
 npm run dev
 ```
 
-Alamat FE/API, PostgreSQL, browser-test settings, credentials, dan timeout berasal dari root `.env`; M0 tidak memakai hidden local config atau silent fallback. Node 24 dan PostgreSQL binaries diperlukan bila `M0_MANAGE_POSTGRES=true`. [Panduan M0](docs/development/M0.md) menjelaskan cara uji; [Configuration](docs/development/CONFIGURATION.md) mendefinisikan single env gate; [Status/evidence M0](docs/milestones/M0.md) memisahkan slice teknis dari review kontrak yang masih terbuka.
+Alamat FE/API, PostgreSQL, browser-test settings, credentials, dan timeout berasal dari root `.env`; M0 tidak memakai hidden local config atau silent fallback. Node 24 dan PostgreSQL binaries diperlukan bila `M0_MANAGE_POSTGRES=true`. [Panduan M0](docs/development/M0.md) menjelaskan cara uji; [Web/BFF Operations](docs/development/WEB.md) menjelaskan entry, session, dan deployment Next.js; [Configuration](docs/development/CONFIGURATION.md) mendefinisikan single env gate; [Status/evidence M0](docs/milestones/M0.md) memisahkan slice teknis dari review kontrak yang masih terbuka.
 
 ## Mulai membaca
 

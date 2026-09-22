@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 test('custom select: keyboard, type-ahead, outside click', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/contract-lab');
   const trigger = page.getByRole('combobox', { name: 'Jenis kontrak' });
   await expect(trigger).toHaveText(/chat/);
 

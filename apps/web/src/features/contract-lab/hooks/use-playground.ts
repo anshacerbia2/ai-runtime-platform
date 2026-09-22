@@ -4,9 +4,9 @@ import {
   labClient,
   type Example,
   type SavedValidation,
-} from '../../../shared/api/lab-client.js';
-import { errorMessage } from '../../../shared/api/http-client.js';
-import { newIdempotencyKey, prettyJson } from '../../../shared/lib/json.js';
+} from '../../../shared/api/lab-client';
+import { errorMessage } from '../../../shared/api/http-client';
+import { newIdempotencyKey, prettyJson } from '../../../shared/lib/json';
 
 export function usePlayground(
   examples: Example[],

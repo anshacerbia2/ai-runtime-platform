@@ -1,6 +1,6 @@
 # Frontend Architecture — External App, BFF, CDD, and Design Tokens
 
-**Status:** CDD layering, semantic tokens, and reusable primitives/components/compositions are implemented and carry forward unchanged. The Next.js/BFF tier and the standalone sign-in entry are adopted in documentation and not yet implemented.
+**Status:** Next.js App Router, the BFF, standalone entry, server-side session/token custody, and authenticated Markdown rendering are implemented. The existing CDD components and SCSS visual system are preserved. Live issuer, Redis deployment, and production operations still require environment-specific evidence.
 **Decisions:** [ADR-0024](../adr/0024-component-driven-ui-tokens.md), [ADR-0025](../adr/0025-external-app-standalone-auth.md), [ADR-0026](../adr/0026-nextjs-bff.md). Historic internal-app context: [ADR-0023](../adr/0023-ati-one-internal-app.md), partially superseded.
 
 ## 1. Product placement
@@ -61,7 +61,7 @@ Under [ADR-0026](../adr/0026-nextjs-bff.md) the web workspace is a Next.js App R
 
 ```text
 apps/web/
-  next.config.ts
+  next.config.mjs
   src/
     app/                       # App Router: routes and route handlers only
       (public)/
@@ -84,7 +84,9 @@ apps/web/
       auth/                    # OIDC client, code exchange, refresh
       session/                 # cookie sealing, session read/write
       api-gateway/             # server-side calls into apps/api
-      docs/                    # docs/ Markdown reader
+      docs/                    # sanitized, rooted Markdown reader
+      http/                    # origin/CSP policy and bounded transport
+      runtime.ts               # server-only composition
 
     design-system/
       primitives/              # leaf controls such as Button
@@ -279,7 +281,7 @@ Two checks are added by the BFF tier: the client bundle must contain no client s
 
 The CDD/token migration is complete and survives the framework change: legacy shared Button/Panel/Badge/PageHeading/StatusOverview/WorkspaceShell implementations were removed, product navigation moved to `AppShell`, all current feature surfaces consume the shared design-system layer, and the visual source sits behind semantic tokens. The SCSS layer transfers to Next.js unchanged.
 
-Pending: the Vite-to-Next.js move, the BFF tier, the standalone entry page, and the `docs/` surface. A separate visual pass on the console is planned and does not change these contracts. Future M2/M3 feature UI must extend them instead of reintroducing page-level primitives.
+The Vite entry, proxy, and dependencies have been removed. Existing feature pages now have stable App Router URLs, reload/back navigation, and progressive native navigation links. The public entry and authenticated documentation routes render on the server; shared controls remain client components only where interactive. The real Keycloak client registration, Redis availability/rotation/restore, ingress TLS, and rollout evidence remain deployment work. Future M2/M3 feature UI must extend them instead of reintroducing page-level primitives.
 
 ## Non-goals
 

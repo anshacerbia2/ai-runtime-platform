@@ -5,7 +5,7 @@ test('chat, replay, persisted history, schema catalogue, and delivery plan', asy
 }) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
-  await page.goto('/');
+  await page.goto('/contract-lab');
   await expect(
     page.getByRole('heading', { name: 'Contract Lab' }),
   ).toBeVisible();
@@ -28,18 +28,18 @@ test('chat, replay, persisted history, schema catalogue, and delivery plan', asy
   ).toBeVisible();
   await expect(page.getByTestId('saved-count')).toHaveText(count);
 
-  await page.getByRole('button', { name: /Validation History/ }).click();
+  await page.getByRole('link', { name: /Validation History/ }).click();
   await expect(page.locator('tbody tr').first()).toBeVisible();
   await page.reload();
-  await page.getByRole('button', { name: /Validation History/ }).click();
+  await page.getByRole('link', { name: /Validation History/ }).click();
   await expect(page.locator('tbody tr').first()).toBeVisible();
 
-  await page.getByRole('button', { name: /Schema Explorer/ }).click();
+  await page.getByRole('link', { name: /Schema Explorer/ }).click();
   await expect(
     page.getByRole('heading', { name: 'Contract catalogue' }),
   ).toBeVisible();
 
-  await page.getByRole('button', { name: /Delivery Plan/ }).click();
+  await page.getByRole('link', { name: /Delivery Plan/ }).click();
   await expect(page.getByText('Contract baseline')).toBeVisible();
   await expect(page.getByText('Durable foundation')).toBeVisible();
   expect(errors).toEqual([]);
@@ -48,7 +48,7 @@ test('chat, replay, persisted history, schema catalogue, and delivery plan', asy
 test('structured and Scribe payloads accepted, spoofed identity rejected', async ({
   page,
 }) => {
-  await page.goto('/');
+  await page.goto('/contract-lab');
   await expect(
     page.getByRole('button', { name: 'Validasi & simpan' }),
   ).toBeEnabled();
@@ -64,7 +64,7 @@ test('structured and Scribe payloads accepted, spoofed identity rejected', async
 
 test('phone layout has no horizontal page overflow', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/');
+  await page.goto('/contract-lab');
   await expect(
     page.getByRole('button', { name: 'Validasi & simpan' }),
   ).toBeEnabled();
@@ -76,7 +76,7 @@ test('phone layout has no horizontal page overflow', async ({ page }) => {
   // Below 1024px the rail is an off-canvas drawer, so navigation goes through
   // the header trigger; choosing a destination dismisses the drawer again.
   await page.getByRole('button', { name: 'Toggle navigation' }).click();
-  await page.getByRole('button', { name: /Control Plane/ }).click();
+  await page.getByRole('link', { name: /Control Plane/ }).click();
   await expect(
     page.getByRole('heading', { name: 'Control Plane' }),
   ).toBeVisible();
@@ -93,7 +93,7 @@ test('phone layout has no horizontal page overflow', async ({ page }) => {
 });
 
 test('desktop snapshot', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/contract-lab');
   await expect(
     page.getByRole('button', { name: 'Validasi & simpan' }),
   ).toBeEnabled();

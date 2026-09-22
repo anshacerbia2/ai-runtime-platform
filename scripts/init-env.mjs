@@ -13,6 +13,8 @@ if (existsSync(envPath)) {
 
 let content = readFileSync(examplePath, 'utf8');
 const generated = {
+  __GENERATE_OPERATOR_TOKEN__: randomBytes(32).toString('hex'),
+  __GENERATE_RUNNER_TOKEN__: randomBytes(32).toString('hex'),
   __GENERATE_DB_PASSWORD__: randomBytes(24).toString('hex'),
   __GENERATE_APP_TOKEN__: randomBytes(32).toString('hex'),
   __GENERATE_TEST_APP_TOKEN__: randomBytes(32).toString('hex'),

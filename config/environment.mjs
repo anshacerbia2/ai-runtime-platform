@@ -160,10 +160,8 @@ export function loadEnvironment() {
           publicOrigin: required('M1_PUBLIC_ORIGIN'),
           appId: required('M1_APP_ID'),
           clientId: required('M1_OIDC_CLIENT_ID'),
-          clientSecret: required('M1_OIDC_CLIENT_SECRET'),
           callbackUri: required('M1_OIDC_CALLBACK_URI'),
           logoutUri: required('M1_OIDC_LOGOUT_URI'),
-          proxySecret: required('M1_PROXY_SECRET'),
         })
       : undefined;
   const oidc = hosting
@@ -210,3 +208,168 @@ export function loadEnvironment() {
 }
 
 export const projectRoot = root;
+
+/** Web-only projection of the SAME env gate. Never loads database credentials. */
+export function loadWebEnvironment() {
+  loadDotEnv();
+  const runtimeMode = required('M0_RUNTIME_MODE');
+  if (!['m0-local', 'm1-oidc'].includes(runtimeMode)) {
+    throw new Error('M0_RUNTIME_MODE must be m0-local or m1-oidc.');
+  }
+  const local = runtimeMode === 'm0-local';
+  const webHost = required('M0_WEB_HOST');
+  const webPort = integer('M0_WEB_PORT');
+  const requestTimeoutMs = integer('M0_API_REQUEST_TIMEOUT_MS');
+  const bodyLimitBytes = integer('M0_API_BODY_LIMIT_BYTES');
+  const responseLimitBytes = integer('WEB_RESPONSE_LIMIT_BYTES');
+  const docsRoot = resolve(root, required('WEB_DOCS_ROOT'));
+  const common = {
+    runtimeMode,
+    webHost,
+    webPort,
+    requestTimeoutMs,
+    bodyLimitBytes,
+    responseLimitBytes,
+    docsRoot,
+  };
+  if (local) {
+    const apiHost = required('M0_API_HOST');
+    const apiPort = integer('M0_API_PORT');
+    assertLoopback(webHost, 'M0_WEB_HOST');
+    assertLoopback(apiHost, 'M0_API_HOST');
+    const origins = list('M0_ALLOWED_ORIGINS').filter((value) => {
+      const origin = new URL(value);
+      assertLoopback(origin.hostname, 'M0_ALLOWED_ORIGINS');
+      return origin.origin === value && origin.port === String(webPort);
+    });
+    const origin = 'http://' + webHost + ':' + webPort;
+    if (!origins.includes(origin)) {
+      throw new Error('Web origin must be explicitly allowed.');
+    }
+    const applicationToken = required('M0_APP_TOKEN');
+    const operatorToken = required('M1_LOCAL_OPERATOR_TOKEN');
+    if (
+      applicationToken.length < 32 ||
+      operatorToken.length < 32 ||
+      applicationToken === operatorToken
+    ) {
+      throw new Error(
+        'Distinct local application/operator tokens of at least 32 characters are required.',
+      );
+    }
+    return Object.freeze({
+      ...common,
+      local: true,
+      publicOrigin: origin,
+      allowedOrigins: origins,
+      apiOrigin: 'http://' + apiHost + ':' + apiPort,
+      applicationToken,
+      operatorToken,
+      hosting: undefined,
+      auth: undefined,
+    });
+  }
+  const hosting = hostingContract({
+    publicOrigin: required('M1_PUBLIC_ORIGIN'),
+    appId: required('M1_APP_ID'),
+    clientId: required('M1_OIDC_CLIENT_ID'),
+    callbackUri: required('M1_OIDC_CALLBACK_URI'),
+    logoutUri: required('M1_OIDC_LOGOUT_URI'),
+  });
+  const apiOrigin = required('M1_API_ORIGIN');
+  const api = new URL(apiOrigin);
+  if (
+    !['http:', 'https:'].includes(api.protocol) ||
+    api.origin !== apiOrigin ||
+    api.username ||
+    api.password
+  ) {
+    throw new Error('M1_API_ORIGIN must be an exact HTTP(S) origin.');
+  }
+  const issuer = required('M1_OIDC_ISSUER');
+  const jwksUri = required('M1_OIDC_JWKS_URI');
+  for (const value of [issuer, jwksUri]) {
+    const url = new URL(value);
+    if (
+      url.protocol !== 'https:' ||
+      url.username ||
+      url.password ||
+      url.hash ||
+      url.search
+    ) {
+      throw new Error(
+        'OIDC endpoints require HTTPS without credentials/query/fragment.',
+      );
+    }
+  }
+  if (new URL(jwksUri).origin !== new URL(issuer).origin) {
+    throw new Error('JWKS must be on the issuer origin.');
+  }
+  const sessionSecret = required('M1_SESSION_SECRET');
+  if (!/^[a-f0-9]{64}$/i.test(sessionSecret)) {
+    throw new Error(
+      'M1_SESSION_SECRET must be 32 random bytes encoded as 64 hex characters.',
+    );
+  }
+  const redisUrl = required('M1_SESSION_REDIS_URL');
+  if (!['redis:', 'rediss:'].includes(new URL(redisUrl).protocol)) {
+    throw new Error('Session store requires a Redis URL.');
+  }
+  const sessionTtlSeconds = integer('M1_SESSION_TTL_SECONDS');
+  const loginTtlSeconds = integer('M1_LOGIN_TTL_SECONDS');
+  const refreshSkewSeconds = integer('M1_REFRESH_SKEW_SECONDS');
+  const redisConnectTimeoutMs = integer('M1_SESSION_REDIS_CONNECT_TIMEOUT_MS');
+  const lockMs = integer('M1_SESSION_LOCK_MS');
+  const lockWaitMs = integer('M1_SESSION_LOCK_WAIT_MS');
+  const lockPollMs = integer('M1_SESSION_LOCK_POLL_MS');
+  const scopes = list('M1_OIDC_SCOPES');
+  if (
+    !scopes.includes('openid') ||
+    sessionTtlSeconds > 86400 ||
+    loginTtlSeconds > 600 ||
+    refreshSkewSeconds >= sessionTtlSeconds ||
+    lockMs <= 4 * requestTimeoutMs + 4 * redisConnectTimeoutMs ||
+    lockWaitMs < lockMs ||
+    lockPollMs >= lockWaitMs
+  ) {
+    throw new Error('Invalid OIDC scope, lifetime, or session lock policy.');
+  }
+  return Object.freeze({
+    ...common,
+    local: false,
+    publicOrigin: hosting.publicOrigin,
+    allowedOrigins: [hosting.publicOrigin],
+    apiOrigin,
+    applicationToken: undefined,
+    operatorToken: undefined,
+    hosting,
+    auth: {
+      issuer,
+      jwksUri,
+      audience: required('M1_OIDC_AUDIENCE'),
+      clientSecret: required('M1_OIDC_CLIENT_SECRET'),
+      scopes,
+      sessionSecret,
+      redisUrl,
+      sessionTtlSeconds,
+      loginTtlSeconds,
+      refreshSkewSeconds,
+      lockMs,
+      lockWaitMs,
+      lockPollMs,
+      redisConnectTimeoutMs,
+    },
+  });
+}
+
+/** Explicit, loopback-only integration-test target; never a production fallback. */
+export function loadSessionTestEnvironment() {
+  loadDotEnv();
+  const url = required('BFF_TEST_REDIS_URL');
+  const endpoint = new URL(url);
+  assertLoopback(endpoint.hostname, 'BFF_TEST_REDIS_URL');
+  if (!['redis:', 'rediss:'].includes(endpoint.protocol)) {
+    throw new Error('BFF_TEST_REDIS_URL must use the Redis protocol.');
+  }
+  return { url, timeoutMs: integer('BFF_TEST_TIMEOUT_MS') };
+}

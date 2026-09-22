@@ -1,38 +1,41 @@
-/** Pure deployment contract, shared by server, Vite and invariant tests. */
+/** Public deployment metadata only. No client secret is loaded by the API. */
 export function hostingContract(input) {
   const origin = new URL(input.publicOrigin);
-  if (origin.protocol !== 'https:' || origin.origin !== input.publicOrigin) {
+  if (
+    origin.protocol !== 'https:' ||
+    origin.origin !== input.publicOrigin ||
+    origin.username ||
+    origin.password
+  ) {
     throw new Error('Public origin must be an exact HTTPS origin.');
   }
   if (
     !/^[a-z][a-z0-9-]{1,62}$/.test(input.appId) ||
-    input.clientId !== `${input.appId}-app`
-  ) {
-    throw new Error('A dedicated confidential app client is required.');
-  }
-  const mountPath = `/apps/${input.appId}/app`;
-  const base = input.publicOrigin + mountPath;
-  if (
-    input.callbackUri !== base + '/auth/callback' ||
-    input.logoutUri !== base + '/auth/logged-out'
+    input.clientId !== input.appId + '-app'
   ) {
     throw new Error(
-      'Registered callback/logout URI does not match the public mount.',
+      'A dedicated per-environment confidential app client is required.',
     );
   }
-  if (input.proxySecret.length < 32 || !input.clientSecret) {
+  if (
+    input.callbackUri !== input.publicOrigin + '/auth/callback' ||
+    input.logoutUri !== input.publicOrigin + '/auth/logged-out'
+  ) {
     throw new Error(
-      'Proxy credential and confidential client secret are required.',
+      'Callback/logout URI must match the standalone public origin exactly.',
     );
   }
   return Object.freeze({
-    ...input,
-    mountPath,
-    cookieName: `__Secure-${input.clientId}-session`,
-    cookiePath: mountPath,
+    publicOrigin: input.publicOrigin,
+    appId: input.appId,
+    clientId: input.clientId,
+    callbackUri: input.callbackUri,
+    logoutUri: input.logoutUri,
+    cookieName: '__Host-' + input.clientId + '-session',
+    cookiePath: '/',
     cookieSecure: true,
     cookieHttpOnly: true,
     cookieSameSite: 'Lax',
-    frameAncestors: input.publicOrigin,
+    frameAncestors: "'none'",
   });
 }

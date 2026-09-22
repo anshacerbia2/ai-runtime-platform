@@ -1,15 +1,12 @@
 import { useEffect, useState } from 'react';
-import {
-  labClient,
-  type SavedValidation,
-} from '../../shared/api/lab-client.js';
-import { errorMessage } from '../../shared/api/http-client.js';
-import { prettyJson } from '../../shared/lib/json.js';
-import { Button } from '../../design-system/primitives/button.js';
-import { Badge } from '../../design-system/components/badge.js';
-import { DataTable } from '../../design-system/components/data-table.js';
-import { EmptyState } from '../../design-system/components/empty-state.js';
-import { Panel, PanelHeader } from '../../design-system/components/panel.js';
+import { labClient, type SavedValidation } from '../../shared/api/lab-client';
+import { errorMessage } from '../../shared/api/http-client';
+import { prettyJson } from '../../shared/lib/json';
+import { Button } from '../../design-system/primitives/button';
+import { Badge } from '../../design-system/components/badge';
+import { DataTable } from '../../design-system/components/data-table';
+import { EmptyState } from '../../design-system/components/empty-state';
+import { Panel, PanelHeader } from '../../design-system/components/panel';
 
 export function HistoryPage({
   onError,
@@ -21,7 +18,7 @@ export function HistoryPage({
   const [items, setItems] = useState<SavedValidation[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [selected, setSelected] = useState<SavedValidation | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState(true);
 
   useEffect(() => {
     let active = true;
@@ -36,6 +33,11 @@ export function HistoryPage({
       .catch((error: unknown) => {
         if (active) {
           onError(errorMessage(error));
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setBusy(false);
         }
       });
     return () => {
@@ -110,6 +112,10 @@ export function HistoryPage({
               ))}
             </tbody>
           </DataTable>
+        ) : busy ? (
+          <div className="ds-loading-state" role="status">
+            Loading validation records…
+          </div>
         ) : (
           <EmptyState
             title="No validation records yet"
