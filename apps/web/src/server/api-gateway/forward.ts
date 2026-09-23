@@ -1,3 +1,10 @@
+import {
+  apiContract,
+  browserContract,
+  contractRoutes,
+  matchRoute,
+  responseSchema,
+} from '@ai-runtime/contracts/http';
 import 'server-only';
 import type { WebRuntime } from '../runtime';
 import {
@@ -9,16 +16,10 @@ import {
   safeHeaders,
 } from '../http/security';
 
-const resources: ReadonlyArray<[RegExp, readonly string[]]> = [
-  [/^m0\/(health|profiles|examples|contracts|openapi\.json|history)$/, ['GET']],
-  [/^m0\/history\/[a-f0-9-]+$/, ['GET']],
-  [/^m0\/validations$/, ['POST']],
-  [/^m1\/control-plane$/, ['GET', 'PUT']],
-  [/^m1\/(audit|outbox)$/, ['GET']],
-  [/^m1\/(admissions|usage|artifacts)$/, ['POST']],
-  [/^m1\/executions\/[a-f0-9-]+$/, ['GET']],
-  [/^m1\/executions\/[a-f0-9-]+\/cancel$/, ['POST']],
-];
+const exposedRoutes = contractRoutes(browserContract);
+const localRoutes = new Set(
+  contractRoutes(apiContract.lab).map((route) => route.path),
+);
 
 /** An allow-listed forwarding boundary; domain authorization stays in NestJS. */
 export async function forward(
@@ -46,19 +47,22 @@ export async function forward(
       throw new HttpFailure(404, 'NOT_FOUND');
     }
     const route = segments.join('/');
-    const match = resources.find(([pattern]) => pattern.test(route));
-    if (!match) {
+    const matches = matchRoute(exposedRoutes, '/api/' + route);
+    if (!matches.length) {
       throw new HttpFailure(404, 'NOT_FOUND');
     }
-    if (!match[1].includes(request.method)) {
+    if (!matches.some((candidate) => candidate.method === request.method)) {
       throw new HttpFailure(405, 'METHOD_NOT_ALLOWED');
     }
-    if (!config.local && route.startsWith('m0/')) {
+    const endpoint = matches.find(
+      (candidate) => candidate.method === request.method,
+    )!;
+    if (!config.local && localRoutes.has(endpoint.path)) {
       throw new HttpFailure(404, 'LOCAL_LAB_DISABLED');
     }
     let token: string | null | undefined;
     if (config.local) {
-      token = route.startsWith('m1/')
+      token = !localRoutes.has(endpoint.path)
         ? config.operatorToken
         : config.applicationToken;
     } else {
@@ -121,9 +125,6 @@ export async function forward(
     if (requestId) {
       outputHeaders.set('X-Request-ID', requestId);
     }
-    if (response.status === 204) {
-      return new Response(null, { status: 204, headers: outputHeaders });
-    }
     const mediaType = response.headers
       .get('content-type')
       ?.split(';')[0]
@@ -138,8 +139,19 @@ export async function forward(
       config.responseLimitBytes,
       signal,
     );
-    // Cookie, proxy, Authorization, Location and arbitrary browser headers never transit this boundary.
-    return new Response(bytes as BodyInit, {
+    const schema = responseSchema(endpoint, response.status);
+    let data: unknown;
+    try {
+      data = JSON.parse(new TextDecoder().decode(bytes));
+    } catch {
+      throw new HttpFailure(502, 'INVALID_UPSTREAM_RESPONSE');
+    }
+    const checked = schema?.safeParse(data);
+    if (!checked?.success) {
+      throw new HttpFailure(502, 'INVALID_UPSTREAM_RESPONSE');
+    }
+    // Never return credentials or uncontracted upstream fields.
+    return new Response(JSON.stringify(checked.data), {
       status: response.status,
       headers: outputHeaders,
     });

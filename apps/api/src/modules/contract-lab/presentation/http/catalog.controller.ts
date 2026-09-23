@@ -1,4 +1,9 @@
-import { Controller, Get, Inject } from '@nestjs/common';
+import {
+  apiContract,
+  type ServerInferResponseBody,
+} from '@ai-runtime/contracts/http';
+import { ContractRoute } from '../../../../shared/presentation/contract-route.js';
+import { Controller, Inject } from '@nestjs/common';
 import {
   CONTRACT_VERSION,
   examples,
@@ -15,7 +20,7 @@ import {
   type ContractDocument,
 } from '../../application/ports/catalog-document.port.js';
 
-@Controller('api/m0')
+@Controller()
 export class CatalogController {
   constructor(
     @Inject(PROFILE_READER) private readonly profiles: ProfileReader,
@@ -23,23 +28,25 @@ export class CatalogController {
     private readonly contractDocument: ContractDocument,
   ) {}
 
-  @Get('profiles')
-  async listProfiles(@CurrentApplication() identity: ApplicationIdentity) {
+  @ContractRoute(apiContract.lab.profiles)
+  async listProfiles(
+    @CurrentApplication() identity: ApplicationIdentity,
+  ): Promise<ServerInferResponseBody<typeof apiContract.lab.profiles, 200>> {
     return { items: await this.profiles.listOwned(identity.applicationId) };
   }
 
-  @Get('examples')
-  examples() {
+  @ContractRoute(apiContract.lab.examples)
+  examples(): ServerInferResponseBody<typeof apiContract.lab.examples, 200> {
     return { items: examples };
   }
 
-  @Get('contracts')
-  contracts() {
+  @ContractRoute(apiContract.lab.schemas)
+  contracts(): ServerInferResponseBody<typeof apiContract.lab.schemas, 200> {
     return { version: CONTRACT_VERSION, schemas: schemaBundle };
   }
 
-  @Get('openapi.json')
-  openapi() {
-    return this.contractDocument;
+  @ContractRoute(apiContract.lab.openapi)
+  openapi(): ServerInferResponseBody<typeof apiContract.lab.openapi, 200> {
+    return apiContract.lab.openapi.responses[200].parse(this.contractDocument);
   }
 }

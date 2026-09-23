@@ -18,7 +18,12 @@ export function dependencyViolation(
   if (/\/domain\//.test(file) && /\/application\//.test(target)) {
     return 'Domain cannot depend on use cases.';
   }
-  if (inner && dependency === '@ai-runtime/contracts' && !typeOnly) {
+  if (
+    inner &&
+    (dependency === '@ai-runtime/contracts' ||
+      dependency.startsWith('@ai-runtime/contracts/')) &&
+    !typeOnly
+  ) {
     return 'Inner layers may import contract types only; runtime validation belongs behind a port.';
   }
   if (/\/presentation\//.test(file) && /\/infrastructure\//.test(target)) {

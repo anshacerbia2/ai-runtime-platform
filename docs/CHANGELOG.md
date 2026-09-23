@@ -67,3 +67,7 @@ Added ADR-0019–ADR-0022 and synchronized architecture/contracts/plan/roadmap f
 ## 21 September 2026 — canonical capability catalogue
 
 Added [CAPABILITIES](contracts/CAPABILITIES.md) as the source of truth for public capability IDs, status vocabulary, execution paths, orthogonal features, publication rules, adapter/runtime support scope, and deferred capability families. Architecture, API, profiles/adapters, plan, roadmap, index, and README now link to the catalogue. M0 remains contract-only; no live capability implementation is implied.
+
+## Shared contracts, inferred clients, and consumer verification
+
+Implemented shared M0/M1 REST route/request/response definitions, contract-bound Nest handlers, inferred browser operations, and explicit BFF exposure. Added real consumer/provider Pact tests, frozen consumer expectations, compile-time negative cases, a disposable Broker compatibility proof in CI, and fail-closed delivery commands. HTTP errors preserve status/correlation and distinguish cancellation/timeout from malformed responses. Health, catalogue, and editor state are independent; closing a banner cannot imply recovery. No provider execution, database schema change, or sign-in/layout redesign is included.

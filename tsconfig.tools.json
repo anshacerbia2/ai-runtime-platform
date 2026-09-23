@@ -9,5 +9,6 @@
     "tests/**/*.ts",
     "playwright.config.ts",
     "prisma.config.ts"
-  ]
+  ],
+  "exclude": ["tests/cdc/**"]
 }

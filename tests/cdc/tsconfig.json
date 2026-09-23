@@ -1,0 +1,9 @@
+{
+  "extends": "../../apps/web/tsconfig.test.json",
+  "compilerOptions": {
+    "rootDir": "../..",
+    "incremental": false
+  },
+  "include": ["./**/*.ts"],
+  "exclude": ["node_modules"]
+}

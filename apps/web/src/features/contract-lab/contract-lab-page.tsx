@@ -1,4 +1,4 @@
-import type { LabResources } from '../../shared/api/lab-client';
+import type { LabCatalogue } from '../../shared/api/lab-client';
 import { Badge } from '../../design-system/components/badge';
 import { usePlayground } from './hooks/use-playground';
 import { ScenarioPicker } from './components/scenario-picker';
@@ -11,10 +11,10 @@ export function ContractLabPage({
   onHistory,
   onError,
 }: {
-  resources: LabResources;
+  resources: LabCatalogue;
   onSaved(): Promise<void>;
   onHistory(): void;
-  onError(error: string): void;
+  onError(error: Error | null): void;
 }) {
   const lab = usePlayground(resources.examples, onSaved, onError);
   let profile;
@@ -29,6 +29,11 @@ export function ContractLabPage({
 
   return (
     <div className="contract-workbench">
+      {lab.refreshWarning ? (
+        <p className="notice" role="status">
+          {lab.refreshWarning.message}
+        </p>
+      ) : null}
       <div className="workbench-stage">
         <aside className="workbench-scenarios">
           <ScenarioPicker

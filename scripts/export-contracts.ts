@@ -1,106 +1,18 @@
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { schemaBundle, CONTRACT_VERSION } from '@ai-runtime/contracts';
 import { resolve } from 'node:path';
-import { loadEnvironment } from '../config/environment.mjs';
+import {
+  apiContract,
+  browserContract,
+  httpOpenApi,
+} from '@ai-runtime/contracts/http';
 
-const environment = loadEnvironment();
-const security = [{ localBearer: [] }];
-const ok = { description: 'Successful local contract-lab response' };
 const ref = (name: string) => ({ $ref: '#/components/schemas/' + name });
-const lab = {
-  openapi: '3.1.0',
-  info: {
-    title: 'AI Runtime Platform — M0 Contract Lab',
-    version: CONTRACT_VERSION,
-    description:
-      'Local-only schema validation and metadata persistence. NO provider calls, execution scheduling, budget ledger, or production authentication.',
-  },
-  servers: [{ url: `http://${environment.apiHost}:${environment.apiPort}` }],
-  security,
-  paths: {
-    '/health/live': { get: { security: [], responses: { '200': ok } } },
-    '/api/m0/health': {
-      get: {
-        responses: {
-          '200': ok,
-          '503': { description: 'Database unavailable' },
-        },
-      },
-    },
-    '/api/m0/profiles': { get: { responses: { '200': ok } } },
-    '/api/m0/examples': { get: { responses: { '200': ok } } },
-    '/api/m0/contracts': { get: { responses: { '200': ok } } },
-    '/api/m0/openapi.json': { get: { responses: { '200': ok } } },
-    '/api/m0/validations': {
-      post: {
-        parameters: [
-          {
-            name: 'Idempotency-Key',
-            in: 'header',
-            required: true,
-            schema: { type: 'string', minLength: 1, maxLength: 160 },
-          },
-        ],
-        requestBody: {
-          required: true,
-          content: { 'application/json': { schema: ref('ValidationInput') } },
-        },
-        responses: {
-          '201': {
-            description: 'Validation metadata persisted, not an AI execution',
-          },
-          '200': { description: 'Idempotent replay of prior validation' },
-          '400': { description: 'Malformed lab envelope' },
-          '401': { description: 'Unauthenticated' },
-          '409': { description: 'Same key, different request digest' },
-          '503': {
-            description: 'Persistence unavailable; no successful save claimed',
-          },
-        },
-      },
-    },
-    '/api/m0/history': {
-      get: {
-        parameters: [
-          {
-            name: 'limit',
-            in: 'query',
-            schema: { type: 'integer', minimum: 1, maximum: 100, default: 20 },
-          },
-          { name: 'cursor', in: 'query', schema: { type: 'string' } },
-        ],
-        responses: { '200': ok },
-      },
-    },
-    '/api/m0/history/{id}': {
-      get: {
-        parameters: [
-          {
-            name: 'id',
-            in: 'path',
-            required: true,
-            schema: { type: 'string', format: 'uuid' },
-          },
-        ],
-        responses: {
-          '200': ok,
-          '404': { description: 'Record absent or belongs to another app' },
-        },
-      },
-    },
-  },
-  components: {
-    securitySchemes: {
-      localBearer: {
-        type: 'http',
-        scheme: 'bearer',
-        description:
-          'Generated local app credential; BFF injects it, never exposed to browser.',
-      },
-    },
-    schemas: schemaBundle,
-  },
-};
+const lab = httpOpenApi(
+  { live: apiContract.live, lab: apiContract.lab },
+  'AI Runtime Platform — M0 Contract Lab',
+  CONTRACT_VERSION,
+);
 const idempotencyHeader = {
   name: 'Idempotency-Key',
   in: 'header',
@@ -260,6 +172,16 @@ const target = {
 const files = {
   'schemas.json': { contract_version: CONTRACT_VERSION, schemas: schemaBundle },
   'm0.openapi.json': lab,
+  'runtime.openapi.json': httpOpenApi(
+    apiContract,
+    'AI Runtime Platform — implemented API',
+    CONTRACT_VERSION,
+  ),
+  'bff.openapi.json': httpOpenApi(
+    browserContract,
+    'AI Runtime Platform — browser API',
+    CONTRACT_VERSION,
+  ),
   'execution-v1.planned.openapi.json': target,
 };
 mkdirSync('contracts', { recursive: true });

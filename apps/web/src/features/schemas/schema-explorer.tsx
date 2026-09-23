@@ -1,3 +1,4 @@
+import { apiContract } from '@ai-runtime/contracts/http';
 import { useState } from 'react';
 import { prettyJson } from '../../shared/lib/json';
 import { Button } from '../../design-system/primitives/button';
@@ -57,7 +58,7 @@ export function SchemaExplorer({
             <div className="inline-actions">
               <a
                 className="ds-link-button"
-                href="/api/m0/openapi.json"
+                href={apiContract.lab.openapi.path}
                 target="_blank"
                 rel="noreferrer"
               >

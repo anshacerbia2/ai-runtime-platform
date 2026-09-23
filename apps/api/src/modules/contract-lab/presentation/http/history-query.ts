@@ -1,15 +1,10 @@
 import { z } from 'zod';
+import { HistoryQuery } from '@ai-runtime/contracts/http';
 import { ApplicationError } from '../../../../shared/domain/application-error.js';
 
 const recordId = z.string().uuid();
 const cursorSchema = z.strictObject({ version: z.literal(1), id: recordId });
-const querySchema = z.strictObject({
-  limit: z
-    .string()
-    .regex(/^\d{1,3}$/)
-    .optional(),
-  cursor: z.string().min(1).max(512).optional(),
-});
+const querySchema = HistoryQuery;
 
 export function parseRecordId(value: string) {
   if (!recordId.safeParse(value).success) {

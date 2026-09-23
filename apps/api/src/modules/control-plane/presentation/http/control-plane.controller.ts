@@ -1,14 +1,9 @@
 import {
-  Body,
-  Controller,
-  Get,
-  Headers,
-  Param,
-  Post,
-  Put,
-  Query,
-  Res,
-} from '@nestjs/common';
+  apiContract,
+  type ServerInferResponseBody,
+} from '@ai-runtime/contracts/http';
+import { ContractRoute } from '../../../../shared/presentation/contract-route.js';
+import { Body, Controller, Headers, Param, Query, Res } from '@nestjs/common';
 import type { FastifyReply } from 'fastify';
 import {
   AdmissionCommand,
@@ -35,30 +30,41 @@ function parse<T>(
   }
   return parsed.data;
 }
-@Controller('api/m1')
+@Controller()
 export class ControlPlaneController {
   constructor(private readonly service: M1ControlPlaneService) {}
 
-  @Get('control-plane')
-  read(@CurrentPrincipal() principal: Principal) {
+  @ContractRoute(apiContract.controlPlane.snapshot)
+  read(
+    @CurrentPrincipal() principal: Principal,
+  ): Promise<
+    ServerInferResponseBody<typeof apiContract.controlPlane.snapshot, 200>
+  > {
     return this.service.readSnapshot(principal);
   }
 
-  @Put('control-plane')
-  manage(@CurrentPrincipal() principal: Principal, @Body() body: unknown) {
+  @ContractRoute(apiContract.controlPlane.manage)
+  manage(
+    @CurrentPrincipal() principal: Principal,
+    @Body() body: ManagementCommand,
+  ): Promise<
+    ServerInferResponseBody<typeof apiContract.controlPlane.manage, 200>
+  > {
     return this.service.manage(
       principal,
       parse(ManagementCommand, body, 'Invalid management command.'),
     );
   }
 
-  @Post('admissions')
+  @ContractRoute(apiContract.controlPlane.admit)
   async admit(
     @CurrentPrincipal() principal: Principal,
     @Headers('idempotency-key') key: string | undefined,
     @Body() body: unknown,
     @Res({ passthrough: true }) response: FastifyReply,
-  ) {
+  ): Promise<
+    ServerInferResponseBody<typeof apiContract.controlPlane.admit, 200 | 201>
+  > {
     const result = await this.service.admit(
       principal,
       parse(AdmissionCommand, body, 'Invalid admission command.'),
@@ -67,17 +73,24 @@ export class ControlPlaneController {
     response.code(result.replayed ? 200 : 201);
     return result;
   }
-  @Get('executions/:id')
-  execution(@CurrentPrincipal() principal: Principal, @Param('id') id: string) {
+  @ContractRoute(apiContract.controlPlane.execution)
+  execution(
+    @CurrentPrincipal() principal: Principal,
+    @Param('id') id: string,
+  ): Promise<
+    ServerInferResponseBody<typeof apiContract.controlPlane.execution, 200>
+  > {
     return this.service.readExecution(principal, id);
   }
 
-  @Post('executions/:id/cancel')
+  @ContractRoute(apiContract.controlPlane.cancel)
   cancel(
     @CurrentPrincipal() principal: Principal,
     @Param('id') id: string,
     @Body() body: unknown,
-  ) {
+  ): Promise<
+    ServerInferResponseBody<typeof apiContract.controlPlane.cancel, 201>
+  > {
     const reason =
       typeof body === 'object' &&
       body !== null &&
@@ -88,48 +101,71 @@ export class ControlPlaneController {
     return this.service.cancelExecution(principal, id, reason);
   }
 
-  @Post('usage')
-  usage(@CurrentPrincipal() principal: Principal, @Body() body: unknown) {
+  @ContractRoute(apiContract.controlPlane.usage)
+  usage(
+    @CurrentPrincipal() principal: Principal,
+    @Body() body: UsageCommand,
+  ): Promise<
+    ServerInferResponseBody<typeof apiContract.controlPlane.usage, 201>
+  > {
     return this.service.recordUsage(
       principal,
       parse(UsageCommand, body, 'Invalid usage evidence.'),
     );
   }
-  @Post('artifacts')
-  artifact(@CurrentPrincipal() principal: Principal, @Body() body: unknown) {
+  @ContractRoute(apiContract.controlPlane.artifact)
+  artifact(
+    @CurrentPrincipal() principal: Principal,
+    @Body() body: ArtifactCommand,
+  ): Promise<
+    ServerInferResponseBody<typeof apiContract.controlPlane.artifact, 201>
+  > {
     return this.service.registerArtifact(
       principal,
       parse(ArtifactCommand, body, 'Invalid artifact metadata.'),
     );
   }
 
-  @Post('runners/register')
-  runner(@CurrentPrincipal() principal: Principal, @Body() body: unknown) {
+  @ContractRoute(apiContract.controlPlane.registerRunner)
+  runner(
+    @CurrentPrincipal() principal: Principal,
+    @Body() body: RunnerRegistration,
+  ): Promise<
+    ServerInferResponseBody<typeof apiContract.controlPlane.registerRunner, 201>
+  > {
     return this.service.registerRunner(
       principal,
       parse(RunnerRegistration, body, 'Invalid runner registration.'),
     );
   }
 
-  @Post('inbox/:consumer/:eventId')
+  @ContractRoute(apiContract.controlPlane.inbox)
   inbox(
     @CurrentPrincipal() principal: Principal,
     @Param('consumer') consumer: string,
     @Param('eventId') eventId: string,
-  ) {
+  ): Promise<
+    ServerInferResponseBody<typeof apiContract.controlPlane.inbox, 201>
+  > {
     return this.service.recordInbox(principal, consumer, eventId);
   }
 
-  @Get('audit')
+  @ContractRoute(apiContract.controlPlane.audit)
   audit(
     @CurrentPrincipal() principal: Principal,
     @Query('application_id') applicationId?: string,
-  ) {
+  ): Promise<
+    ServerInferResponseBody<typeof apiContract.controlPlane.audit, 200>
+  > {
     return this.service.readAudit(principal, applicationId);
   }
 
-  @Get('outbox')
-  outbox(@CurrentPrincipal() principal: Principal) {
+  @ContractRoute(apiContract.controlPlane.outbox)
+  outbox(
+    @CurrentPrincipal() principal: Principal,
+  ): Promise<
+    ServerInferResponseBody<typeof apiContract.controlPlane.outbox, 200>
+  > {
     return this.service.readOutbox(principal);
   }
 }

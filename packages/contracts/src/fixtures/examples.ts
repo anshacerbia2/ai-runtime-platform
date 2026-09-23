@@ -4,7 +4,7 @@ export const examples: {
   id: string;
   title: string;
   kind: ContractKind;
-  payload: unknown;
+  payload: Record<string, unknown>;
 }[] = [
   {
     id: 'chat',

@@ -1,112 +1,14 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import {
-  errorMessage,
-  requestPlatformJson,
-} from '../../shared/api/http-client';
+import { errorMessage } from '../../shared/api/http-client';
+import { controlPlaneClient } from '../../shared/api/control-plane-client';
+import type { OperatorSnapshot as Snapshot } from '@ai-runtime/contracts/http';
 import { Badge, type BadgeTone } from '../../design-system/components/badge';
 import { DataTable } from '../../design-system/components/data-table';
 import { EmptyState } from '../../design-system/components/empty-state';
 import { MetricCard } from '../../design-system/components/metric-card';
 import { Panel, PanelHeader } from '../../design-system/components/panel';
-
-interface ApplicationRecord {
-  id: string;
-  displayName: string;
-  environment: string;
-  keycloakClientId: string;
-  status: string;
-  revision: number;
-}
-interface ConnectionRecord {
-  id: string;
-  displayName: string;
-  provider: string;
-  authMode: string;
-  environment: string;
-  sharingMode: string;
-  quotaGroupRef: string | null;
-  status: string;
-  revision: number;
-}
-interface CredentialRecord {
-  id: string;
-  connectionId: string;
-  residency: string;
-  runnerRef: string | null;
-  status: string;
-  revision: number;
-}
-interface BindingRecord {
-  id: string;
-  applicationId: string;
-  connectionId: string;
-  profileRef: string | null;
-  status: string;
-  revision: number;
-}
-interface ProfileRecord {
-  id: string;
-  applicationId: string;
-  profileRef: string;
-  revision: number;
-  connectionId: string;
-  capability: string;
-  holdUnits: string;
-  accountIds: string[];
-  digest: string;
-  createdAt?: string;
-}
-interface AliasRecord {
-  applicationId: string;
-  profileRef: string;
-  revision: number;
-  enabled: boolean;
-  version?: number;
-}
-interface BudgetRecord {
-  id: string;
-  applicationId: string | null;
-  quotaGroupRef: string | null;
-  unit: string;
-  period: string;
-  limitUnits: string;
-  heldUnits: string;
-  postedUnits: string;
-  revision: number;
-}
-interface PoolRecord {
-  id: string;
-  environment: string;
-  region: string;
-  minimumVersion: string;
-  status: string;
-  revision: number;
-}
-interface RunnerRecord {
-  id: string;
-  ownerSubject: string;
-  poolId: string;
-  version: string;
-  capabilities: string[];
-  connectionIds: string[];
-  capacity: number;
-  status: string;
-  revision: number;
-  lastHeartbeatAt: string;
-}
-interface Snapshot {
-  applications: ApplicationRecord[];
-  connections: ConnectionRecord[];
-  credentials: CredentialRecord[];
-  bindings: BindingRecord[];
-  aliases: AliasRecord[];
-  profiles: ProfileRecord[];
-  budgets: BudgetRecord[];
-  pools: PoolRecord[];
-  runners: RunnerRecord[];
-}
 
 type View =
   | 'overview'
@@ -632,7 +534,8 @@ export function ControlPlanePage() {
   const [view, setView] = useState<View>('overview');
 
   useEffect(() => {
-    requestPlatformJson<Snapshot>('/api/m1/control-plane')
+    controlPlaneClient
+      .snapshot()
       .then(setSnapshot)
       .catch((cause: unknown) => setError(errorMessage(cause)));
   }, []);

@@ -1,17 +1,18 @@
-import { useState } from 'react';
+import { ValidationInput } from '@ai-runtime/contracts';
+import { useEffect, useRef, useState } from 'react';
 import type { ContractKind } from '@ai-runtime/contracts';
 import {
   labClient,
   type Example,
   type SavedValidation,
 } from '../../../shared/api/lab-client';
-import { errorMessage } from '../../../shared/api/http-client';
+import { isRequestAborted, toError } from '../../../shared/api/http-error';
 import { newIdempotencyKey, prettyJson } from '../../../shared/lib/json';
 
 export function usePlayground(
   examples: Example[],
   onSaved: () => Promise<void>,
-  onError: (error: string) => void,
+  onError: (error: Error | null) => void,
 ) {
   const [selected, setSelected] = useState(examples[0]?.id ?? 'chat');
   const [kind, setKind] = useState<ContractKind>(examples[0]?.kind ?? 'chat');
@@ -21,6 +22,10 @@ export function usePlayground(
   const [key, setKey] = useState(newIdempotencyKey);
   const [saved, setSaved] = useState<SavedValidation | null>(null);
   const [busy, setBusy] = useState(false);
+  const [refreshWarning, setRefreshWarning] = useState<Error | null>(null);
+  const pending = useRef<AbortController | null>(null);
+
+  useEffect(() => () => pending.current?.abort(), []);
 
   function choose(example: Example) {
     setSelected(example.id);
@@ -28,13 +33,15 @@ export function usePlayground(
     setPayload(prettyJson(example.payload));
     setKey(newIdempotencyKey());
     setSaved(null);
-    onError('');
+    setRefreshWarning(null);
+    onError(null);
   }
 
   function editPayload(value: string) {
     setPayload(value);
     setSaved(null);
   }
+
   function editKind(value: ContractKind) {
     setKind(value);
     setSaved(null);
@@ -43,26 +50,64 @@ export function usePlayground(
   function format() {
     try {
       setPayload(prettyJson(JSON.parse(payload)));
-    } catch {
-      onError('JSON belum valid.');
+      onError(null);
+    } catch (cause) {
+      onError(new Error('JSON belum valid.', { cause }));
     }
   }
 
   async function validate() {
-    onError('');
+    if (pending.current) {
+      return;
+    }
+    onError(null);
+    setRefreshWarning(null);
+    let value: unknown;
+    try {
+      value = JSON.parse(payload);
+    } catch (cause) {
+      onError(
+        new Error('JSON tidak valid. Periksa tanda kutip, koma, dan kurung.', {
+          cause,
+        }),
+      );
+      return;
+    }
+
+    const controller = new AbortController();
+    pending.current = controller;
     setBusy(true);
     try {
-      const value: unknown = JSON.parse(payload);
-      setSaved(await labClient.validate(kind, value, key));
-      await onSaved();
-    } catch (error) {
-      onError(
-        error instanceof SyntaxError
-          ? 'JSON tidak valid. Periksa tanda kutip, koma, dan kurung.'
-          : errorMessage(error),
+      const result = await labClient.validate(
+        ValidationInput.parse({ kind, payload: value }),
+        key,
+        controller.signal,
       );
+      if (controller.signal.aborted) {
+        return;
+      }
+      setSaved(result);
+      // The durable mutation succeeded. A secondary refresh must not reverse that verdict.
+      try {
+        await onSaved();
+      } catch (cause) {
+        if (!controller.signal.aborted) {
+          setRefreshWarning(
+            new Error('Validasi tersimpan; status belum berhasil diperbarui.', {
+              cause,
+            }),
+          );
+        }
+      }
+    } catch (cause) {
+      if (!controller.signal.aborted && !isRequestAborted(cause)) {
+        onError(toError(cause));
+      }
     } finally {
-      setBusy(false);
+      pending.current = null;
+      if (!controller.signal.aborted) {
+        setBusy(false);
+      }
     }
   }
 
@@ -73,6 +118,7 @@ export function usePlayground(
     key,
     saved,
     busy,
+    refreshWarning,
     choose,
     editPayload,
     editKind,

@@ -44,3 +44,7 @@ Proposed -> adopted in documentation -> implementation verified, atau superseded
 ## Format untuk keputusan baru
 
 Record ID/date/status, kebutuhan dan keputusan terkait, context, decision, alternatives, consequences, verification IDs, revisit trigger, dan affected documents. Tautkan langsung ke ADR terkait. Review/approval harus menunjuk revision yang sama; pemindahan rujukan dokumentasi tidak menghasilkan approval baru.
+
+## Shared REST and consumer verification
+
+[ADR-0027](0027-shared-rest-consumer-contracts.md) defines shared schemas/routes, inferred clients, and consumer-driven Pact verification with versioned deployment gates. Operational commands and evidence boundaries are in [Contract Operations](../development/CONTRACTS.md).

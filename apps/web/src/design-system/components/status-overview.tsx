@@ -1,44 +1,41 @@
-import type { LabHealth } from '../../shared/api/lab-client';
-import { Badge } from './badge';
+import type { ReactNode } from 'react';
+import { Badge, type BadgeTone } from './badge';
 import { MetricCard } from './metric-card';
 
-export function StatusOverview({ health }: { health?: LabHealth }) {
+export interface StatusMetric {
+  label: string;
+  value: ReactNode;
+  detail: string;
+  badge: string;
+  tone: BadgeTone;
+  valueTestId?: string;
+}
+
+/** Pure presentation. Feature adapters own health, identity, and freshness semantics. */
+export function StatusOverview({
+  label,
+  items,
+}: {
+  label: string;
+  items: readonly StatusMetric[];
+}) {
   return (
-    <section className="ds-metric-grid" aria-label="Local platform status">
-      <MetricCard
-        label="API"
-        value={health ? 'Healthy' : 'Connecting'}
-        detail="NestJS / Fastify"
-        status={
-          <Badge tone={health ? 'success' : 'warning'}>
-            {health ? 'Online' : 'Pending'}
-          </Badge>
-        }
-      />
-      <MetricCard
-        label="Database"
-        value={health?.database ?? 'Checking'}
-        detail="Prisma / PostgreSQL"
-        status={
-          <Badge tone={health ? 'success' : 'warning'}>
-            {health ? 'Durable' : 'Pending'}
-          </Badge>
-        }
-      />
-      <MetricCard
-        label="Validations"
-        value={
-          <span data-testid="saved-count">{health?.saved_checks ?? '—'}</span>
-        }
-        detail={health?.application_id ?? 'm0-playground'}
-        status={<Badge tone="neutral">records</Badge>}
-      />
-      <MetricCard
-        label="Provider calls"
-        value="0"
-        detail="Execution disabled in M0"
-        status={<Badge tone="info">By design</Badge>}
-      />
+    <section className="ds-metric-grid" aria-label={label}>
+      {items.map((item) => (
+        <MetricCard
+          key={item.label}
+          label={item.label}
+          value={
+            item.valueTestId ? (
+              <span data-testid={item.valueTestId}>{item.value}</span>
+            ) : (
+              item.value
+            )
+          }
+          detail={item.detail}
+          status={<Badge tone={item.tone}>{item.badge}</Badge>}
+        />
+      ))}
     </section>
   );
 }

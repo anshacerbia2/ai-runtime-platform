@@ -18,6 +18,24 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     services:
+      broker-db:
+        image: postgres:17
+        env:
+          POSTGRES_USER: pact
+          POSTGRES_PASSWORD: disposable_pact_only
+          POSTGRES_DB: pact
+        options: >-
+          --health-cmd "pg_isready -U pact -d pact"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      pact-broker:
+        image: pactfoundation/pact-broker:2.120.0
+        env:
+          PACT_BROKER_DATABASE_URL: postgresql://pact:disposable_pact_only@broker-db:5432/pact
+          PACT_BROKER_LOG_LEVEL: WARN
+        ports:
+          - 9292:9292
       redis:
         image: redis:7.4-alpine
         ports:
@@ -42,6 +60,12 @@ jobs:
           --health-retries 10
     env:
       CI: 'true'
+      PACT_BROKER_BASE_URL: http://127.0.0.1:9292
+      PACT_VERSION: ${{ github.sha }}
+      PACT_BRANCH: contract-ci
+      PACT_ENVIRONMENT: contract-ci
+      PACT_TIMEOUT_MS: '60000'
+      PACT_DO_NOT_TRACK: '1'
       M0_RUNTIME_MODE: m0-local
       M0_API_HOST: 127.0.0.1
       M0_API_PORT: '4311'
@@ -103,6 +127,7 @@ jobs:
       - run: npm ci
       - run: npm run setup
       - run: npm run verify
+      - run: npm run cdc:broker-proof
       - run: npm run test:web:redis
       - run: npx --no-install playwright install --with-deps chromium
       - run: npm run test:e2e

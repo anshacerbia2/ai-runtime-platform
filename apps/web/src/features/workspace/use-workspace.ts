@@ -1,28 +1,13 @@
-import { useEffect, useState } from 'react';
-import { labClient, type LabResources } from '../../shared/api/lab-client';
-import { errorMessage } from '../../shared/api/http-client';
+import { labClient } from '../../shared/api/lab-client';
+import { latestSnapshot } from '../../shared/api/query-state';
+import { useResourceQuery } from '../../shared/api/use-resource-query';
 
+/** Catalogue orchestration only; health and editor mutations have separate lifecycles. */
 export function useWorkspace() {
-  const [resources, setResources] = useState<LabResources | null>(null);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    const abort = new AbortController();
-    void labClient
-      .resources(abort.signal)
-      .then(setResources)
-      .catch((error: unknown) => {
-        if (!abort.signal.aborted) {
-          setError(errorMessage(error));
-        }
-      });
-    return () => abort.abort();
-  }, []);
-
-  async function refreshHealth() {
-    const health = await labClient.health();
-    setResources((current) => (current ? { ...current, health } : current));
-  }
-
-  return { resources, error, setError, refreshHealth };
+  const { state, refresh } = useResourceQuery(labClient.catalogue);
+  return {
+    catalogue: state,
+    resources: latestSnapshot(state)?.data,
+    refreshCatalogue: refresh,
+  };
 }

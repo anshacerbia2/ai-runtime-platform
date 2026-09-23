@@ -42,7 +42,9 @@ test('source code has one environment read boundary and no legacy local config',
         walk(path);
       } else if (/\.(?:ts|tsx|mjs)$/.test(entry.name)) {
         if (
-          path === resolve(root, 'scripts/test/environment-boundary.test.mjs')
+          path ===
+            resolve(root, 'scripts/test/environment-boundary.test.mjs') ||
+          path === resolve(root, 'scripts/test/pact-environment.test.mjs')
         ) {
           continue;
         }

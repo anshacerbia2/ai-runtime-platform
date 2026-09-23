@@ -65,7 +65,7 @@ test('G37 BFF forwards only the server token, preserves API status, and never fo
       assert.equal(h.get('Idempotency-Key'), 'same-key');
       assert.equal(init?.redirect, 'error');
       return Response.json(
-        { error: { code: 'CONFLICT' } },
+        { error: { code: 'CONFLICT', message: 'Conflict' } },
         {
           status: 409,
           headers: { 'Set-Cookie': 'untrusted=1', 'X-Request-ID': 'req-1' },
@@ -208,7 +208,31 @@ test('M0 local credentials are scoped by route and can never be used in OIDC mod
           new Headers(init?.headers).get('Authorization'),
           'Bearer ' + expected,
         );
-        return Response.json({ ok: true });
+        return Response.json(
+          route === 'm0/health'
+            ? {
+                backend: 'ready',
+                database: 'PostgreSQL',
+                mode: 'contract-only',
+                application_id: 'unit',
+                saved_checks: 0,
+                provider_calls: 0,
+                contract_version: 'test',
+                framework: 'NestJS + Fastify',
+                persistence: 'Prisma',
+              }
+            : {
+                applications: [],
+                connections: [],
+                credentials: [],
+                bindings: [],
+                aliases: [],
+                profiles: [],
+                budgets: [],
+                pools: [],
+                runners: [],
+              },
+        );
       },
     );
     assert.equal(result.status, 200);

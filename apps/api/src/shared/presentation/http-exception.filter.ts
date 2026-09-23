@@ -1,3 +1,4 @@
+import type { ApiErrorResponse } from '@ai-runtime/contracts/http';
 import {
   Catch,
   HttpException,
@@ -58,7 +59,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     if (status === 503) {
       request.log.error({ code }, 'Request dependency failure');
     }
-    response.code(status).send({
+    const payload = {
       error: {
         code,
         message,
@@ -66,6 +67,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
         request_id: request.id,
         execution_id: null,
       },
-    });
+    } satisfies ApiErrorResponse;
+    response.code(status).send(payload);
   }
 }

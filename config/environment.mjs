@@ -373,3 +373,53 @@ export function loadSessionTestEnvironment() {
   }
   return { url, timeoutMs: integer('BFF_TEST_TIMEOUT_MS') };
 }
+
+/** Contract delivery has its own projection, never its own configuration store. */
+export function loadPactEnvironment() {
+  loadDotEnv();
+  const url = required('PACT_BROKER_BASE_URL');
+  const parsed = new URL(url);
+  const loopback = ['127.0.0.1', 'localhost', '[::1]'].includes(
+    parsed.hostname,
+  );
+  if (
+    parsed.username ||
+    parsed.password ||
+    parsed.search ||
+    parsed.hash ||
+    (parsed.protocol !== 'https:' && !(loopback && parsed.protocol === 'http:'))
+  ) {
+    throw new Error(
+      'Pact Broker requires HTTPS; HTTP is permitted only for isolated loopback tests.',
+    );
+  }
+  if (
+    process.env.PACT_BROKER_CAN_I_DEPLOY_DRY_RUN ||
+    process.env.PACT_BROKER_CAN_I_DEPLOY_IGNORE ||
+    process.env.SSL_SKIP_VERIFICATION === 'true' ||
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED === '0'
+  ) {
+    throw new Error(
+      'Contract gates cannot use dry-run, ignore, or disabled TLS verification.',
+    );
+  }
+  const version = required('PACT_VERSION');
+  if (!/^[a-f0-9]{40}$/.test(version)) {
+    throw new Error('PACT_VERSION must be the full Git commit SHA.');
+  }
+  const environment = required('PACT_ENVIRONMENT');
+  if (!/^[a-z][a-z0-9-]{0,63}$/.test(environment)) {
+    throw new Error('Invalid Pact environment.');
+  }
+  return Object.freeze({
+    url,
+    version,
+    environment,
+    branch: required('PACT_BRANCH'),
+    token: loopback
+      ? process.env.PACT_BROKER_TOKEN
+      : required('PACT_BROKER_TOKEN'),
+    timeoutMs: integer('PACT_TIMEOUT_MS'),
+    loopback,
+  });
+}

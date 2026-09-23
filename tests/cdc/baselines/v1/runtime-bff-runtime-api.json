@@ -1,0 +1,1010 @@
+{
+  "consumer": {
+    "name": "runtime-bff"
+  },
+  "interactions": [
+    {
+      "description": "health fields required by status cards",
+      "providerStates": [
+        {
+          "name": "isolated platform fixtures"
+        }
+      ],
+      "request": {
+        "headers": {
+          "Accept": "application/json"
+        },
+        "method": "GET",
+        "path": "/api/m0/health"
+      },
+      "response": {
+        "body": {
+          "application_id": "consumer-app",
+          "backend": "ready",
+          "contract_version": "test",
+          "database": "PostgreSQL",
+          "framework": "NestJS + Fastify",
+          "mode": "contract-only",
+          "persistence": "Prisma",
+          "provider_calls": 0,
+          "saved_checks": 1
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "matchingRules": {
+          "body": {
+            "$.application_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.contract_version": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.saved_checks": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      }
+    },
+    {
+      "description": "published profile selector",
+      "providerStates": [
+        {
+          "name": "isolated platform fixtures"
+        }
+      ],
+      "request": {
+        "headers": {
+          "Accept": "application/json"
+        },
+        "method": "GET",
+        "path": "/api/m0/profiles"
+      },
+      "response": {
+        "body": {
+          "items": [
+            {
+              "capability": "chat",
+              "description": "Consumer fixture",
+              "execution_path": "gateway",
+              "harness_ref": null,
+              "limits": {
+                "max_output_tokens": 2048,
+                "timeout_ms": 30000
+              },
+              "mode": "contract-only",
+              "profile": "chat-default@1",
+              "provider_adapter": "openrouter",
+              "runtime_adapter": null,
+              "streaming": true,
+              "title": "Direct chat",
+              "workload_class": "interactive"
+            }
+          ]
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "matchingRules": {
+          "body": {
+            "$.items": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type",
+                  "min": 1
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      }
+    },
+    {
+      "description": "example scenario catalogue",
+      "providerStates": [
+        {
+          "name": "isolated platform fixtures"
+        }
+      ],
+      "request": {
+        "headers": {
+          "Accept": "application/json"
+        },
+        "method": "GET",
+        "path": "/api/m0/examples"
+      },
+      "response": {
+        "body": {
+          "items": [
+            {
+              "id": "chat",
+              "kind": "chat",
+              "payload": {},
+              "title": "Direct chat"
+            }
+          ]
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "matchingRules": {
+          "body": {
+            "$.items": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type",
+                  "min": 1
+                }
+              ]
+            },
+            "$.items[*].id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.items[*].kind": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.items[*].payload": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.items[*].title": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      }
+    },
+    {
+      "description": "schema explorer catalogue",
+      "providerStates": [
+        {
+          "name": "isolated platform fixtures"
+        }
+      ],
+      "request": {
+        "headers": {
+          "Accept": "application/json"
+        },
+        "method": "GET",
+        "path": "/api/m0/contracts"
+      },
+      "response": {
+        "body": {
+          "schemas": {},
+          "version": "test"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "matchingRules": {
+          "body": {
+            "$.schemas": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.version": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      }
+    },
+    {
+      "description": "durable history list",
+      "providerStates": [
+        {
+          "name": "isolated platform fixtures"
+        }
+      ],
+      "request": {
+        "headers": {
+          "Accept": "application/json"
+        },
+        "method": "GET",
+        "path": "/api/m0/history"
+      },
+      "response": {
+        "body": {
+          "items": [
+            {
+              "application_id": "consumer-app",
+              "contract_version": "test",
+              "created_at": "2026-09-24T00:00:00.000Z",
+              "id": "46a42625-8e98-4cc8-bb3b-c585a9b7f358",
+              "kind": "chat",
+              "report": {
+                "capability": "chat",
+                "contract_version": "test",
+                "issues": [],
+                "profile": {
+                  "capability": "chat",
+                  "description": "Consumer fixture",
+                  "execution_path": "gateway",
+                  "harness_ref": null,
+                  "limits": {
+                    "max_output_tokens": 2048,
+                    "timeout_ms": 30000
+                  },
+                  "mode": "contract-only",
+                  "profile": "chat-default@1",
+                  "provider_adapter": "openrouter",
+                  "runtime_adapter": null,
+                  "streaming": true,
+                  "title": "Direct chat",
+                  "workload_class": "interactive"
+                },
+                "valid": true,
+                "warnings": []
+              },
+              "request_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "request_summary": {},
+              "valid": true
+            }
+          ],
+          "next_cursor": null
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "matchingRules": {
+          "body": {
+            "$.items": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type",
+                  "min": 1
+                }
+              ]
+            },
+            "$.items[*].application_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.items[*].contract_version": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.items[*].created_at": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.items[*].id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "[a-f0-9-]{36}"
+                }
+              ]
+            },
+            "$.items[*].report": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.items[*].report.contract_version": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.items[*].report.warnings": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type",
+                  "min": 0
+                }
+              ]
+            },
+            "$.items[*].request_digest": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.items[*].request_summary": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      }
+    },
+    {
+      "description": "durable history record",
+      "providerStates": [
+        {
+          "name": "isolated platform fixtures"
+        }
+      ],
+      "request": {
+        "headers": {
+          "Accept": "application/json"
+        },
+        "method": "GET",
+        "path": "/api/m0/history/46a42625-8e98-4cc8-bb3b-c585a9b7f358"
+      },
+      "response": {
+        "body": {
+          "application_id": "consumer-app",
+          "contract_version": "test",
+          "created_at": "2026-09-24T00:00:00.000Z",
+          "id": "46a42625-8e98-4cc8-bb3b-c585a9b7f358",
+          "kind": "chat",
+          "report": {
+            "capability": "chat",
+            "contract_version": "test",
+            "issues": [],
+            "profile": {
+              "capability": "chat",
+              "description": "Consumer fixture",
+              "execution_path": "gateway",
+              "harness_ref": null,
+              "limits": {
+                "max_output_tokens": 2048,
+                "timeout_ms": 30000
+              },
+              "mode": "contract-only",
+              "profile": "chat-default@1",
+              "provider_adapter": "openrouter",
+              "runtime_adapter": null,
+              "streaming": true,
+              "title": "Direct chat",
+              "workload_class": "interactive"
+            },
+            "valid": true,
+            "warnings": []
+          },
+          "request_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "request_summary": {},
+          "valid": true
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "matchingRules": {
+          "body": {
+            "$.application_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.contract_version": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.created_at": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "[a-f0-9-]{36}"
+                }
+              ]
+            },
+            "$.report": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.report.contract_version": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.report.warnings": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type",
+                  "min": 0
+                }
+              ]
+            },
+            "$.request_digest": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.request_summary": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      }
+    },
+    {
+      "description": "new validation distinguishes creation from replay",
+      "providerStates": [
+        {
+          "name": "isolated platform fixtures"
+        }
+      ],
+      "request": {
+        "body": {
+          "kind": "chat",
+          "payload": {
+            "input": {
+              "messages": [
+                {
+                  "content": [
+                    {
+                      "text": "Synthetic consumer test.",
+                      "type": "text"
+                    }
+                  ],
+                  "role": "user"
+                }
+              ]
+            },
+            "profile": "chat-default@1"
+          }
+        },
+        "headers": {
+          "Accept": "application/json",
+          "Content-Type": "application/json",
+          "Idempotency-Key": "cdc-create"
+        },
+        "method": "POST",
+        "path": "/api/m0/validations"
+      },
+      "response": {
+        "body": {
+          "application_id": "consumer-app",
+          "contract_version": "test",
+          "created_at": "2026-09-24T00:00:00.000Z",
+          "execution_created": false,
+          "id": "46a42625-8e98-4cc8-bb3b-c585a9b7f358",
+          "kind": "chat",
+          "mode": "contract-only",
+          "replayed": false,
+          "report": {
+            "capability": "chat",
+            "contract_version": "test",
+            "issues": [],
+            "profile": {
+              "capability": "chat",
+              "description": "Consumer fixture",
+              "execution_path": "gateway",
+              "harness_ref": null,
+              "limits": {
+                "max_output_tokens": 2048,
+                "timeout_ms": 30000
+              },
+              "mode": "contract-only",
+              "profile": "chat-default@1",
+              "provider_adapter": "openrouter",
+              "runtime_adapter": null,
+              "streaming": true,
+              "title": "Direct chat",
+              "workload_class": "interactive"
+            },
+            "valid": true,
+            "warnings": []
+          },
+          "request_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "request_summary": {},
+          "valid": true
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "matchingRules": {
+          "body": {
+            "$.application_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.contract_version": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.created_at": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "[a-f0-9-]{36}"
+                }
+              ]
+            },
+            "$.report": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.report.contract_version": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.report.warnings": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type",
+                  "min": 0
+                }
+              ]
+            },
+            "$.request_digest": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.request_summary": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 201
+      }
+    },
+    {
+      "description": "validation replay returns its prior record",
+      "providerStates": [
+        {
+          "name": "isolated platform fixtures"
+        }
+      ],
+      "request": {
+        "body": {
+          "kind": "chat",
+          "payload": {
+            "input": {
+              "messages": [
+                {
+                  "content": [
+                    {
+                      "text": "Synthetic consumer test.",
+                      "type": "text"
+                    }
+                  ],
+                  "role": "user"
+                }
+              ]
+            },
+            "profile": "chat-default@1"
+          }
+        },
+        "headers": {
+          "Accept": "application/json",
+          "Content-Type": "application/json",
+          "Idempotency-Key": "cdc-replay"
+        },
+        "method": "POST",
+        "path": "/api/m0/validations"
+      },
+      "response": {
+        "body": {
+          "application_id": "consumer-app",
+          "contract_version": "test",
+          "created_at": "2026-09-24T00:00:00.000Z",
+          "execution_created": false,
+          "id": "46a42625-8e98-4cc8-bb3b-c585a9b7f358",
+          "kind": "chat",
+          "mode": "contract-only",
+          "replayed": true,
+          "report": {
+            "capability": "chat",
+            "contract_version": "test",
+            "issues": [],
+            "profile": {
+              "capability": "chat",
+              "description": "Consumer fixture",
+              "execution_path": "gateway",
+              "harness_ref": null,
+              "limits": {
+                "max_output_tokens": 2048,
+                "timeout_ms": 30000
+              },
+              "mode": "contract-only",
+              "profile": "chat-default@1",
+              "provider_adapter": "openrouter",
+              "runtime_adapter": null,
+              "streaming": true,
+              "title": "Direct chat",
+              "workload_class": "interactive"
+            },
+            "valid": true,
+            "warnings": []
+          },
+          "request_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "request_summary": {},
+          "valid": true
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "matchingRules": {
+          "body": {
+            "$.application_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.contract_version": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.created_at": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "[a-f0-9-]{36}"
+                }
+              ]
+            },
+            "$.report": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.report.contract_version": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.report.warnings": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type",
+                  "min": 0
+                }
+              ]
+            },
+            "$.request_digest": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.request_summary": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      }
+    },
+    {
+      "description": "operator snapshot used by control plane",
+      "providerStates": [
+        {
+          "name": "isolated platform fixtures"
+        }
+      ],
+      "request": {
+        "headers": {
+          "Accept": "application/json"
+        },
+        "method": "GET",
+        "path": "/api/m1/control-plane"
+      },
+      "response": {
+        "body": {
+          "aliases": [],
+          "applications": [
+            {
+              "displayName": "Consumer fixture",
+              "environment": "local",
+              "id": "consumer-app",
+              "keycloakClientId": "consumer-app",
+              "revision": 1,
+              "status": "ENABLED"
+            }
+          ],
+          "bindings": [],
+          "budgets": [],
+          "connections": [],
+          "credentials": [],
+          "pools": [],
+          "profiles": [],
+          "runners": []
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "matchingRules": {
+          "body": {
+            "$.aliases": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.applications": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type",
+                  "min": 1
+                }
+              ]
+            },
+            "$.applications[*].displayName": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.applications[*].environment": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.applications[*].id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.applications[*].keycloakClientId": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.applications[*].revision": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.bindings": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.budgets": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.connections": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.credentials": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.pools": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.profiles": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.runners": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      }
+    }
+  ],
+  "metadata": {
+    "pact-js": {
+      "version": "17.1.4"
+    },
+    "pactRust": {
+      "ffi": "0.5.8",
+      "models": "1.3.16"
+    },
+    "pactSpecification": {
+      "version": "3.0.0"
+    }
+  },
+  "provider": {
+    "name": "runtime-api"
+  }
+}

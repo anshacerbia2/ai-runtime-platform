@@ -1,4 +1,10 @@
-import { Body, Controller, Headers, Inject, Post, Res } from '@nestjs/common';
+import {
+  apiContract,
+  type ServerInferResponseBody,
+  type ServerInferRequest,
+} from '@ai-runtime/contracts/http';
+import { ContractRoute } from '../../../../shared/presentation/contract-route.js';
+import { Body, Controller, Headers, Inject, Res } from '@nestjs/common';
 import type { FastifyReply } from 'fastify';
 import { ValidationInput } from '@ai-runtime/contracts';
 import { ApplicationError } from '../../../../shared/domain/application-error.js';
@@ -7,20 +13,22 @@ import type { ApplicationIdentity } from '../../../identity/domain/application-i
 import { ValidateContractUseCase } from '../../application/validate-contract.use-case.js';
 import { presentValidation } from './validation.presenter.js';
 
-@Controller('api/m0/validations')
+@Controller()
 export class ValidationsController {
   constructor(
     @Inject(ValidateContractUseCase)
     private readonly validate: ValidateContractUseCase,
   ) {}
 
-  @Post()
+  @ContractRoute(apiContract.lab.validate)
   async create(
     @CurrentApplication() identity: ApplicationIdentity,
-    @Body() body: unknown,
+    @Body() body: ServerInferRequest<typeof apiContract.lab.validate>['body'],
     @Headers('idempotency-key') key: string | undefined,
     @Res({ passthrough: true }) response: FastifyReply,
-  ) {
+  ): Promise<
+    ServerInferResponseBody<typeof apiContract.lab.validate, 200 | 201>
+  > {
     const parsed = ValidationInput.safeParse(body);
     if (!parsed.success) {
       throw new ApplicationError(

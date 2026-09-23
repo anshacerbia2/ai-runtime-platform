@@ -1,4 +1,9 @@
-import { Controller, Get, Inject } from '@nestjs/common';
+import {
+  apiContract,
+  type ServerInferResponseBody,
+} from '@ai-runtime/contracts/http';
+import { ContractRoute } from '../../../../shared/presentation/contract-route.js';
+import { Controller, Inject } from '@nestjs/common';
 import { CONTRACT_VERSION } from '@ai-runtime/contracts';
 import { PublicRoute } from '../../../../shared/presentation/public-route.decorator.js';
 import { CurrentApplication } from '../../../identity/presentation/http/current-application.decorator.js';
@@ -12,13 +17,15 @@ export class HealthController {
   ) {}
 
   @PublicRoute()
-  @Get('health/live')
-  live() {
+  @ContractRoute(apiContract.live)
+  live(): ServerInferResponseBody<typeof apiContract.live, 200> {
     return { status: 'ok', milestone: 'M0', mode: 'contract-only' };
   }
 
-  @Get('api/m0/health')
-  async ready(@CurrentApplication() identity: ApplicationIdentity) {
+  @ContractRoute(apiContract.lab.health)
+  async ready(
+    @CurrentApplication() identity: ApplicationIdentity,
+  ): Promise<ServerInferResponseBody<typeof apiContract.lab.health, 200>> {
     const status = await this.health.execute(identity);
     return {
       backend: 'ready',

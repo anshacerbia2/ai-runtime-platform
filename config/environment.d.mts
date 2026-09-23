@@ -101,3 +101,13 @@ export function loadSessionTestEnvironment(): {
   url: string;
   timeoutMs: number;
 };
+
+export function loadPactEnvironment(): Readonly<{
+  url: string;
+  version: string;
+  environment: string;
+  branch: string;
+  token?: string;
+  timeoutMs: number;
+  loopback: boolean;
+}>;

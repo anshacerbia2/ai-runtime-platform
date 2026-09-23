@@ -18,6 +18,17 @@ import type {
   UsageResult,
 } from '../application/m1-repository.port.js';
 
+type Wire<T> = T extends Date
+  ? string
+  : T extends readonly (infer U)[]
+    ? Wire<U>[]
+    : T extends object
+      ? { [K in keyof T]: Wire<T[K]> }
+      : T;
+function wire<T>(value: T): Wire<T> {
+  return JSON.parse(JSON.stringify(value)) as Wire<T>;
+}
+
 const asString = (value: bigint) => value.toString();
 const digest = (value: string) =>
   createHash('sha256').update(value).digest('hex');
@@ -161,7 +172,10 @@ export class PrismaM1Repository implements M1Repository {
           heldUnits: asString(item.heldUnits),
           postedUnits: asString(item.postedUnits),
         })),
-        executions,
+        executions: executions.map((item) => ({
+          ...item,
+          createdAt: item.createdAt.toISOString(),
+        })),
       };
     }
 
@@ -273,6 +287,7 @@ export class PrismaM1Repository implements M1Repository {
       profiles: profiles.map((item) => ({
         ...item,
         holdUnits: asString(item.holdUnits),
+        createdAt: item.createdAt.toISOString(),
       })),
       budgets: budgets.map((item) => ({
         ...item,
@@ -281,7 +296,10 @@ export class PrismaM1Repository implements M1Repository {
         postedUnits: asString(item.postedUnits),
       })),
       pools,
-      runners,
+      runners: runners.map((item) => ({
+        ...item,
+        lastHeartbeatAt: item.lastHeartbeatAt.toISOString(),
+      })),
     };
   }
 
@@ -905,7 +923,7 @@ export class PrismaM1Repository implements M1Repository {
         data: { status: command.status, revision: { increment: 1 } },
       });
       await audited('runner.lifecycle', updated.id, updated.revision);
-      return updated;
+      return wire(updated);
     });
   }
 
@@ -1640,16 +1658,18 @@ export class PrismaM1Repository implements M1Repository {
           revision: runner.revision,
         },
       });
-      return runner;
+      return wire(runner);
     });
   }
 
   async readOutbox() {
-    return this.database.outboxEvent.findMany({
-      where: { deliveredAt: null },
-      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-      take: 200,
-    });
+    return wire(
+      await this.database.outboxEvent.findMany({
+        where: { deliveredAt: null },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        take: 200,
+      }),
+    );
   }
 
   async recordInbox(_principal: Principal, consumer: string, eventId: string) {
@@ -1704,10 +1724,12 @@ export class PrismaM1Repository implements M1Repository {
   }
 
   async readAudit(_principal: Principal, applicationId?: string) {
-    return this.database.auditEntry.findMany({
-      where: applicationId ? { applicationId } : undefined,
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      take: 200,
-    });
+    return wire(
+      await this.database.auditEntry.findMany({
+        where: applicationId ? { applicationId } : undefined,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: 200,
+      }),
+    );
   }
 }

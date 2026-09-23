@@ -286,3 +286,9 @@ The Vite entry, proxy, and dependencies have been removed. Existing feature page
 ## Non-goals
 
 This design does not make ATI One a runtime dependency, reintroduce portal session sharing, move domain logic into the BFF, require micro-frontends, dictate backend capability contracts, or require one specific component-workbench vendor.
+
+## Implemented shared-contract boundary
+
+[ADR-0027](../adr/0027-shared-rest-consumer-contracts.md) makes `packages/contracts/src/http` authoritative for implemented M0/M1 route definitions and request/response schemas. The browser consumes inferred operation clients, the BFF exposes an explicit shared-contract subset, and Nest validates wire responses. Consumer Pact verification and frozen consumer expectations supplement schema/type tests; see [Contract Operations](../development/CONTRACTS.md).
+
+Health, catalogue, and editor/mutation errors are independent. Presentation components receive mapped display state, not domain-specific Lab DTOs or generic operation error strings that falsely imply platform outages.

@@ -170,3 +170,20 @@ The web tests exercise state/nonce/PKCE/signature/issuer/audience validation, ca
 Local evidence logs: `.local/next-verify.log` and `.local/next-e2e.log`; screenshots remain in Git-ignored `test-results/`. These are local checks, not a live ATI Keycloak or production security certification.
 
 The real two-client Redis integration suite is provided as `npm run test:web:redis` and is included in CI with a disposable Redis service. It was not executed on this workstation because no isolated Redis service was available. Do not infer a Redis integration PASS from the in-process session tests. Live issuer registration, protected Redis availability/TLS/ACLs, ingress isolation, replica failure, and operational sign-offs remain deployment evidence.
+
+## 14. Shared REST contract and consumer-driven verification
+
+The implemented M0/M1 HTTP routes now derive from `packages/contracts/src/http`. Nest routing/response validation, inferred browser operations, and explicit BFF exposure use the same contracts. OpenAPI artifacts are generated from those definitions. Client wire DTOs and manual M0/M1 endpoint strings were removed from feature clients.
+
+Local evidence for this change:
+
+- `npm run verify` passed formatting, lint, 151-file architecture checks, shared-contract boundary checks, type tests, 30 request-contract tests, 12 API unit tests, 17 tooling/configuration tests, 30 PostgreSQL integration tests, 31 web/BFF tests, Pact verification, generated-contract checks, production build, bundle scan, and docs checks.
+- `npm run test:e2e`: 12 passing browser scenarios, including isolated health/catalogue state, editor errors, and durable save with a failed secondary health refresh.
+- Consumer Pact generation: nine consumer-owned interactions on each of console-to-BFF and BFF-to-API.
+- Provider Pact verification: actual Nest/Fastify/PostgreSQL plus the real BFF forwarding implementation served through a test HTTP adapter; both current and frozen consumer expectations pass.
+- Negative Pact evidence: deliberately removing `saved_checks` from a real response is rejected; the expected failed verification is asserted by the test.
+- Compile-time evidence rejects renamed/mistyped fields, missing required request headers, unknown operations, and machine-only operations on the browser client.
+
+The isolated Broker compatibility proof is part of GitHub Actions and is not a workstation result. Its actual workflow outcome must be checked separately. Production enforcement still requires the persistent Broker and rollout workflow to call the required gate; no production target, deployment, or approval is fabricated. See [Contract Operations](../development/CONTRACTS.md) and [ADR-0027](../adr/0027-shared-rest-consumer-contracts.md).
+
+Local logs are `.local/contracts-verify.log`, `.local/contracts-e2e.log`, and `.local/cdc-all.log`. Tests use generated credentials and delete only their own fixture records. User sign-in/layout changes outside this scope are retained in the working tree rather than included in this contract change.

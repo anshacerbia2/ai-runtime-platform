@@ -1,71 +1,54 @@
+import { api, successfulBody } from './api-client';
 import type {
-  CheckResult,
-  ContractKind,
-  ProfileType,
-} from '@ai-runtime/contracts';
-import { requestJson } from './http-client';
+  apiContract,
+  ClientInferRequest,
+  LabCatalogue,
+} from '@ai-runtime/contracts/http';
 
-export interface Example {
-  id: string;
-  title: string;
-  kind: ContractKind;
-  payload: unknown;
-}
-export interface SavedValidation {
-  id: string;
-  application_id: string;
-  kind: ContractKind;
-  valid: boolean;
-  report: CheckResult;
-  created_at: string;
-  request_summary: unknown;
-  request_digest: string;
-  replayed?: boolean;
-}
-export interface LabHealth {
-  backend: string;
-  database: string;
-  application_id: string;
-  saved_checks: number;
-  contract_version: string;
-}
-export interface HistoryResponse {
-  items: SavedValidation[];
-  next_cursor: string | null;
-}
-export interface LabResources {
-  health: LabHealth;
-  profiles: ProfileType[];
-  examples: Example[];
-  schemas: Record<string, unknown>;
-}
+export type {
+  Example,
+  HistoryResponse,
+  LabCatalogue,
+  LabHealth,
+  SavedValidation,
+} from '@ai-runtime/contracts/http';
+
+type ValidationBody = ClientInferRequest<
+  typeof apiContract.lab.validate
+>['body'];
 
 export const labClient = {
-  health: () => requestJson<LabHealth>('health'),
-  async resources(signal?: AbortSignal): Promise<LabResources> {
-    const [health, profiles, examples, contracts] = await Promise.all([
-      requestJson<LabHealth>('health', { signal }),
-      requestJson<{ items: ProfileType[] }>('profiles', { signal }),
-      requestJson<{ items: Example[] }>('examples', { signal }),
-      requestJson<{ schemas: Record<string, unknown> }>('contracts', {
-        signal,
-      }),
+  health: async (signal?: AbortSignal) =>
+    successfulBody(await api.lab.health({ fetchOptions: { signal } })),
+
+  /** Health has its own query lifecycle; catalogue errors cannot overwrite it. */
+  async catalogue(signal?: AbortSignal): Promise<LabCatalogue> {
+    const [profiles, examples, schemas] = await Promise.all([
+      api.lab.profiles({ fetchOptions: { signal } }).then(successfulBody),
+      api.lab.examples({ fetchOptions: { signal } }).then(successfulBody),
+      api.lab.schemas({ fetchOptions: { signal } }).then(successfulBody),
     ]);
     return {
-      health,
       profiles: profiles.items,
       examples: examples.items,
-      schemas: contracts.schemas,
+      schemas: schemas.schemas,
     };
   },
-  validate: (kind: ContractKind, payload: unknown, key: string) =>
-    requestJson<SavedValidation>('validations', {
-      method: 'POST',
-      headers: { 'Idempotency-Key': key },
-      body: JSON.stringify({ kind, payload }),
-    }),
-  history: (cursor?: string | null) =>
-    requestJson<HistoryResponse>(
-      'history' + (cursor ? '?cursor=' + encodeURIComponent(cursor) : ''),
+
+  validate: async (body: ValidationBody, key: string, signal?: AbortSignal) =>
+    successfulBody(
+      await api.lab.validate({
+        body,
+        headers: { 'idempotency-key': key },
+        fetchOptions: { signal },
+      }),
+    ),
+
+  history: async (cursor?: string | null, signal?: AbortSignal) =>
+    successfulBody(
+      await api.lab.history({
+        query: cursor ? { cursor } : {},
+        fetchOptions: { signal },
+      }),
     ),
 };

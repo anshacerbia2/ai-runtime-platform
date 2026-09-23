@@ -1,0 +1,51 @@
+name: Required contract deployment gate
+
+on:
+  workflow_call:
+    inputs:
+      revision:
+        required: true
+        type: string
+      participant:
+        required: true
+        type: string
+      environment:
+        required: true
+        type: string
+      branch:
+        required: true
+        type: string
+    secrets:
+      PACT_BROKER_BASE_URL:
+        required: true
+      PACT_BROKER_TOKEN:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  compatibility:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PACT_BROKER_BASE_URL: ${{ secrets.PACT_BROKER_BASE_URL }}
+      PACT_BROKER_TOKEN: ${{ secrets.PACT_BROKER_TOKEN }}
+      PACT_VERSION: ${{ inputs.revision }}
+      PACT_BRANCH: ${{ inputs.branch }}
+      PACT_ENVIRONMENT: ${{ inputs.environment }}
+      PACT_TIMEOUT_MS: '60000'
+      PACT_DO_NOT_TRACK: '1'
+      PACTICIPANT: ${{ inputs.participant }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.revision }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Check this exact candidate against deployed consumer/provider versions
+        run: npm run cdc:can-i-deploy -- "$PACTICIPANT"
