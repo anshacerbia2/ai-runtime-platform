@@ -88,10 +88,13 @@ const rejected = brokerCommand(
   ],
   true,
 );
-assert.notEqual(rejected.status, 0);
+// JSON output can exit successfully while the compatibility matrix rejects deployment.
+// The actual gate above rejects anything except an explicitly deployable matrix.
 const evidence = JSON.parse(rejected.output) as {
+  summary?: { deployable?: boolean | null };
   matrix?: Array<{ verificationResult?: { success?: boolean } }>;
 };
+assert.equal(evidence.summary?.deployable, false);
 assert.ok(
   evidence.matrix?.some((row) => row.verificationResult?.success === false),
   'Gate must reject a recorded incompatible consumer/provider pair, not merely an unavailable Broker.',
