@@ -36,7 +36,6 @@ brokerCommand([
   config.environment,
   '--display-name',
   'Isolated contract gate proof',
-  '--no-production',
 ]);
 brokerCommand([
   'publish',
