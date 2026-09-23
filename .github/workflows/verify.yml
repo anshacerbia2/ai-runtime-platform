@@ -60,11 +60,6 @@ jobs:
           --health-retries 10
     env:
       CI: 'true'
-      PACT_BROKER_BASE_URL: http://127.0.0.1:9292
-      PACT_VERSION: ${{ github.sha }}
-      PACT_BRANCH: contract-ci
-      PACT_ENVIRONMENT: contract-ci
-      PACT_TIMEOUT_MS: '60000'
       PACT_DO_NOT_TRACK: '1'
       M0_RUNTIME_MODE: m0-local
       M0_API_HOST: 127.0.0.1
@@ -128,6 +123,12 @@ jobs:
       - run: npm run setup
       - run: npm run verify
       - run: npm run cdc:broker-proof
+        env:
+          PACT_BROKER_BASE_URL: http://127.0.0.1:9292
+          PACT_VERSION: ${{ github.sha }}
+          PACT_BRANCH: contract-ci
+          PACT_ENVIRONMENT: contract-ci
+          PACT_TIMEOUT_MS: '60000'
       - run: npm run test:web:redis
       - run: npx --no-install playwright install --with-deps chromium
       - run: npm run test:e2e
