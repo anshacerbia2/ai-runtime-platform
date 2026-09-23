@@ -43,7 +43,7 @@ export async function verifyProviders(
     return broker
       ? {
           pactBrokerUrl: broker.url,
-          pactBrokerToken: broker.token,
+          ...(broker.token ? { pactBrokerToken: broker.token } : {}),
           providerVersion:
             broker.version + (negative ? '-incompatible-probe' : ''),
           providerVersionBranch: broker.branch,
