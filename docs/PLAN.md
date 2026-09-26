@@ -1,12 +1,18 @@
 # AI Runtime Platform — Implementation Plan
 
-**Arsitektur baseline 0.2; M0 technical slice tersedia dalam 0.3.0-m0.** P0 review closure tetap IN PROGRESS. P1 local implementation scope sudah selesai dengan evidence lokal; external/nonlocal integration dan production readiness tetap pending. P2–P7 belum diimplementasikan. [M0 evidence](milestones/M0.md), [M1 evidence](milestones/M1.md), dan [panduan lokal](development/M0.md).
+**Arsitektur baseline 0.2; M0 technical slice tersedia dalam 0.3.0-m0.** P0 review closure tetap IN PROGRESS. P1 local implementation scope sudah selesai dengan evidence lokal; external/nonlocal integration dan production readiness tetap pending. Deliverable runtime P2–P7 belum selesai; sebagian fondasi P3 (registrasi, manual assignment/fencing dan quarantine evidence) sudah diimplementasikan melalui ADR-0029. [M0 evidence](milestones/M0.md), [M1 evidence](milestones/M1.md), dan [panduan lokal](development/M0.md).
 
 Dokumen ini menjelaskan urutan kerja, dependency, deliverable, dan gate. M0 menambahkan Contract Lab FE/BE/DB sesuai [ADR-0015](adr/0015-testable-milestone-slices.md); ini bukan implementasi gateway/agent/ledger produksi. Deliverable di bawah tetap dibedakan dari demonstrasi lokal. Rujukan keputusan: [ADR](adr/README.md). Gambaran sistem: [Architecture](architecture/ARCHITECTURE.md). Pemetaan keputusan ke spesifikasi/gate: [decision traceability](reviews/RECONCILIATION.md).
 
 ## Stack implementasi tetap
 
 NestJS + Fastify + Prisma + PostgreSQL, React/Next.js App Router + BFF, TypeScript strict, Prettier, ESLint, dan dependency rules. M0 sudah direfactor; M1 dan berikutnya memakai boundary yang sama. Lihat [ADR-0016](adr/0016-nestjs-fastify.md), [ADR-0017](adr/0017-prisma-postgresql.md), [ADR-0018](adr/0018-clean-architecture-quality.md), [ADR-0026](adr/0026-nextjs-bff.md), dan [code structure](architecture/CODE-STRUCTURE.md). Perubahan stack bukan penutupan production readiness gate.
+
+## Checkpoint implementasi 24 September 2026
+
+Paket kontrak lokal ADR-0027–0029 telah mencakup HTTP/UI hardening, /api/v1 resource APIs, count overview, receipt atomik, retry per operasi, explicit mappers/AST gate, dan /api/runner/v1 authority messages. Konsol memakai koleksi paginated, bukan legacy snapshot. Migration 0005 dan 0006 menambah receipt/runner authority. [Source status](implementation/CURRENT-STATE.md) dan [test evidence](reviews/CONTRACT-EXECUTION.md) memisahkan implementasi dari deployment.
+
+Sisa P3 tetap autonomous dispatch/reassignment, Redis lease/epoch recovery, runtime/sandbox, provider/tool effect safety dan streaming. Tidak perlu mengimplementasikan ulang registry/fencing kernel yang sudah ada; perluas kernel tersebut dan buktikan integrasi runtime-nya. P0 governance dan P3.5 sign-off tidak ditutup hanya oleh pembaruan dokumentasi.
 
 ## 1. Batas pekerjaan
 
@@ -24,7 +30,7 @@ Tidak termasuk saat ini: business-job database bersama, universal agent translat
 
 | WP   | Deliverable implementasi berikutnya                     | Acceptance                                                                     |
 | ---- | ------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| P0.1 | Machine-readable API schema dari kontrak Markdown       | Chat tanpa process/plugin, Scribe agent, structured result dapat diekspresikan |
+| P0.1 | Shared schemas/routes TypeScript dan generated OpenAPI  | Chat tanpa process/plugin, Scribe agent, structured result dapat diekspresikan |
 | P0.2 | State/error/event schema, compatibility policy          | Enum dan transition selaras; completion tidak menunggu settlement              |
 | P0.3 | Profile/connection/plugin/runner/tool/adapter contracts | Unsupported capability/connection/placement ditolak sebelum dispatch           |
 | P0.4 | Threat model dan data classification                    | Credential mode, sandbox, retention, egress disetujui untuk workload pilot     |
@@ -38,11 +44,13 @@ Tidak termasuk saat ini: business-job database bersama, universal agent translat
 
 **Dependency:** P0. **Owner roles:** platform backend + storage/security.
 
-Bangun Keycloak-backed authentication/authorization per aplikasi, **Application Registry, AI Connection Registry, Credential Binding, Runner Registry/Pool**, profile registry/version snapshot, idempotency record, execution/attempt state, budget account/reservation/observation/ledger, durable cancel intent, outbox/inbox, audit query, dan artifact metadata. Implementasi awal memilih PostgreSQL sebagai correctness authority, Redis untuk hot runner/lease/capacity tier. Actual provider secret berada di secret manager/workload identity atau runner-local store; database hanya menyimpan reference/metadata. Budget transaction memeriksa semua scope dalam urutan lock stabil; rejected reservation tidak mengubah pool.
+Fondasi lokal sudah menyediakan verifier boundary dan registries berikut; deployment masih membutuhkan Keycloak-backed authentication/authorization per aplikasi, **Application Registry, AI Connection Registry, Credential Binding, Runner Registry/Pool**, profile registry/version snapshot, idempotency record, execution/attempt state, budget account/reservation/observation/ledger, durable cancel intent, outbox/inbox, audit query, dan artifact metadata. Implementasi awal memilih PostgreSQL sebagai correctness authority, Redis untuk hot runner/lease/capacity tier. Actual provider secret berada di secret manager/workload identity atau runner-local store; database hanya menyimpan reference/metadata. Budget transaction memeriksa semua scope dalam urutan lock stabil; rejected reservation tidak mengubah pool.
 
 **Exit:** G01, G02, G07, G08, G09, G15, G26–G29 pada test catalogue lulus di test environment. Replay command idempotent, crash injection tidak menghasilkan free dispatch atau duplicate credit. Machine schema/migrations dan versioning review tersedia. Ledger dapat menjelaskan held, posted, pending, overage tanpa mengubah unknown menjadi zero.
 
 ### P2 — Direct & Aggregator Gateway MVP
+
+**Status:** LOCAL IMPLEMENTATION COMPLETE — public gateway routes, dual adapters, bounded SSE/replay, database-backed admission capacity/rate limits, structured-output validation, explicit safe fallback, durable provider invocation/result and accounting evidence are implemented locally. Authorized live OpenRouter/Anthropic smoke and broader deployed/load evidence remain pending.
 
 **Dependency:** P1. **Owner roles:** gateway + app pilot owners.
 
@@ -56,7 +64,7 @@ Tambahkan per-app/pool concurrency, rate limits, token/output bounds, deadline, 
 
 **Dependency:** P1; P2 common contracts. **Owner roles:** runtime + security + Scribe owner.
 
-Ekstrak boundary Claude runner, bukan memindahkan workflow Scribe. Implementasikan **distributed runner self-registration, runner pools, capability/capacity advertisement, connection locality-aware placement, drain/offline lifecycle**, worker supervisor, assignment generation, compare-and-renew Redis lease, Redis recovery epoch, bounded dispatch, sandbox, scoped credential injection, **Plugin Registry materialization**, package digest validation, optional workspace contract, tool broker, artifact manifest, runtime session scope, cancellation propagation, late usage ingestion, serta orphan quarantine.
+Ekstrak boundary Claude runner, bukan memindahkan workflow Scribe. Perluas registry/pools, capability advertisement, lifecycle dan durable manual assignment/generation yang sudah tersedia. Implementasikan **automatic connection-locality-aware placement dan derived OFFLINE**, worker supervisor, compare-and-renew Redis lease, Redis recovery epoch, bounded dispatch, sandbox, scoped credential injection, **Plugin Registry materialization**, package digest validation, optional workspace contract, tool broker, artifact manifest, runtime session scope, cancellation propagation, late usage ingestion, serta orphan quarantine.
 
 Stateful tool hanya tersedia jika receiver idempotency/status contract tervalidasi. Remote capability boleh MCP atau typed HTTP/RPC; MCP bukan kewajiban aplikasi. Workspace `none|ephemeral|artifact_workspace` dipilih profile, sehingga direct chat tidak membawa filesystem/plugin contract palsu. Prototype read-only/script artifact path terlebih dahulu; final publish tetap di app. Budget multi-turn memakai envelope penuh atau authorized tranche, tidak hanya satu output-token limit.
 
@@ -64,7 +72,7 @@ Stateful tool hanya tersedia jika receiver idempotency/status contract tervalida
 
 ### P3.5 — Core Reliability & Security Gate
 
-**Dependency:** P1–P3 selesai pada build kandidat yang sama. **Status sekarang:** BLOCKED — belum ada runtime dan bukti test.
+**Dependency:** P1–P3 selesai pada build kandidat yang sama. **Status sekarang:** BLOCKED — live provider/agent runtime dan full production-gate evidence belum tersedia; local foundation tests tidak menggantikannya.
 
 Jalankan seluruh [acceptance catalogue](testing/ACCEPTANCE.md) sesuai applicable capability. Setiap test mempunyai build/image digest, fixture, parameter, expected result, actual result, trace/evidence ID, reviewer, dan tanggal. Semua safety tests wajib pass; N/A membutuhkan alasan dan persetujuan scope, bukan digunakan untuk melewati fitur yang dipakai pilot.
 

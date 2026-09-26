@@ -87,15 +87,17 @@ enum CredentialResidency {
 }
 
 model ControlApplication {
-  revision         Int                 @default(1)
-  id               String              @id @db.Text
-  displayName      String              @map("display_name") @db.Text
-  environment      String              @db.Text
-  keycloakClientId String              @unique(map: "applications_keycloak_client_id_key") @map("keycloak_client_id") @db.Text
-  status           ControlStatus       @default(ENABLED)
-  createdAt        DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt        DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
-  bindings         CredentialBinding[]
+  revision                 Int                 @default(1)
+  id                       String              @id @db.Text
+  displayName              String              @map("display_name") @db.Text
+  environment              String              @db.Text
+  keycloakClientId         String              @unique(map: "applications_keycloak_client_id_key") @map("keycloak_client_id") @db.Text
+  gatewayMaxConcurrency    Int                 @default(100) @map("gateway_max_concurrency")
+  gatewayRequestsPerMinute Int                 @default(600) @map("gateway_requests_per_minute")
+  status                   ControlStatus       @default(ENABLED)
+  createdAt                DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+  bindings                 CredentialBinding[]
 
   profileRevisions ProfileRevision[]
   budgets          BudgetAccount[]
@@ -108,21 +110,25 @@ model ControlApplication {
 }
 
 model AiConnection {
-  revision      Int                   @default(1)
-  id            String                @id @db.Text
-  displayName   String                @map("display_name") @db.Text
-  provider      String                @db.Text
-  authMode      String                @map("auth_mode") @db.Text
-  environment   String                @db.Text
-  sharingMode   ConnectionSharingMode @map("sharing_mode")
-  quotaGroupRef String?               @map("quota_group_ref") @db.Text
-  status        ControlStatus         @default(ENABLED)
-  createdAt     DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
-  credentials   CredentialInstance[]
-  bindings      CredentialBinding[]
+  revision                 Int                   @default(1)
+  id                       String                @id @db.Text
+  displayName              String                @map("display_name") @db.Text
+  provider                 String                @db.Text
+  authMode                 String                @map("auth_mode") @db.Text
+  environment              String                @db.Text
+  sharingMode              ConnectionSharingMode @map("sharing_mode")
+  quotaGroupRef            String?               @map("quota_group_ref") @db.Text
+  gatewayMaxConcurrency    Int                   @default(100) @map("gateway_max_concurrency")
+  gatewayRequestsPerMinute Int                   @default(600) @map("gateway_requests_per_minute")
+  status                   ControlStatus         @default(ENABLED)
+  createdAt                DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+  credentials              CredentialInstance[]
+  bindings                 CredentialBinding[]
+  providerInvocations      ProviderInvocation[]
 
-  profiles ProfileRevision[]
+  profiles         ProfileRevision[] @relation("PrimaryProfileConnection")
+  fallbackProfiles ProfileRevision[] @relation("FallbackProfileConnection")
 
   @@map("ai_connections")
   @@schema("control")
@@ -165,21 +171,30 @@ model CredentialBinding {
 }
 
 model ProfileRevision {
-  id            String   @id @db.Uuid
-  applicationId String   @map("application_id")
-  profileRef    String   @map("profile_ref")
-  revision      Int
-  connectionId  String   @map("connection_id")
-  capability    String
-  holdUnits     BigInt   @map("hold_units")
-  accountIds    String[] @map("account_ids")
-  digest        String   @db.Char(64)
-  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  id                      String   @id @db.Uuid
+  applicationId           String   @map("application_id")
+  profileRef              String   @map("profile_ref")
+  revision                Int
+  connectionId            String   @map("connection_id")
+  capability              String
+  providerAdapter         String   @default("UNCONFIGURED") @map("provider_adapter")
+  model                   String   @default("UNCONFIGURED")
+  fallbackConnectionId    String?  @map("fallback_connection_id")
+  fallbackProviderAdapter String?  @map("fallback_provider_adapter")
+  fallbackModel           String?  @map("fallback_model")
+  maxOutputTokens         Int      @default(2048) @map("max_output_tokens")
+  timeoutMs               Int      @default(30000) @map("timeout_ms")
+  streaming               Boolean  @default(false)
+  holdUnits               BigInt   @map("hold_units")
+  accountIds              String[] @map("account_ids")
+  digest                  String   @db.Char(64)
+  createdAt               DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  application ControlApplication @relation(fields: [applicationId], references: [id], onDelete: Restrict)
-  connection  AiConnection       @relation(fields: [connectionId], references: [id], onDelete: Restrict)
-  aliases     ProfileAlias[]
-  executions  Execution[]
+  application        ControlApplication @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  connection         AiConnection       @relation("PrimaryProfileConnection", fields: [connectionId], references: [id], onDelete: Restrict)
+  fallbackConnection AiConnection?      @relation("FallbackProfileConnection", fields: [fallbackConnectionId], references: [id], onDelete: Restrict)
+  aliases            ProfileAlias[]
+  executions         Execution[]
 
   @@unique([id, applicationId])
   @@unique([applicationId, profileRef, revision])
@@ -221,21 +236,29 @@ model BudgetAccount {
 }
 
 model Execution {
-  id                String             @id @db.Uuid
-  applicationId     String             @map("application_id")
-  idempotencyKey    String             @map("idempotency_key")
-  requestDigest     String             @map("request_digest") @db.Char(64)
-  profileRevisionId String             @map("profile_revision_id") @db.Uuid
-  profileSnapshot   Json               @map("profile_snapshot")
-  status            String             @default("ACCEPTED")
-  revision          Int                @default(1)
-  cancelRequestedAt DateTime?          @map("cancel_requested_at") @db.Timestamptz(6)
-  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
-  attempts          Attempt[]
-  reservations      Reservation[]
-  observations      UsageObservation[]
-  ledger            LedgerEntry[]
-  artifacts         ArtifactMetadata[]
+  runnerAssignments    RunnerAssignment[]
+  runnerEvidence       RunnerEvidence[]
+  assignmentGeneration Int                  @default(0) @map("assignment_generation")
+  coordinationEpoch    Int                  @default(1) @map("coordination_epoch")
+  id                   String               @id @db.Uuid
+  applicationId        String               @map("application_id")
+  idempotencyKey       String               @map("idempotency_key")
+  requestDigest        String               @map("request_digest") @db.Char(64)
+  profileRevisionId    String               @map("profile_revision_id") @db.Uuid
+  profileSnapshot      Json                 @map("profile_snapshot")
+  status               String               @default("ACCEPTED")
+  revision             Int                  @default(1)
+  cancelRequestedAt    DateTime?            @map("cancel_requested_at") @db.Timestamptz(6)
+  createdAt            DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  attempts             Attempt[]
+  reservations         Reservation[]
+  observations         UsageObservation[]
+  ledger               LedgerEntry[]
+  artifacts            ArtifactMetadata[]
+  providerInvocations  ProviderInvocation[]
+  result               ExecutionResult?
+  statusReason         String?              @map("status_reason")
+  completedAt          DateTime?            @map("completed_at") @db.Timestamptz(6)
 
   application ControlApplication @relation(fields: [applicationId], references: [id], onDelete: Restrict)
   profile     ProfileRevision    @relation(fields: [profileRevisionId, applicationId], references: [id, applicationId], onDelete: Restrict)
@@ -247,21 +270,64 @@ model Execution {
 }
 
 model Attempt {
-  id          String    @id @db.Uuid
-  executionId String    @map("execution_id") @db.Uuid
-  number      Int
-  generation  Int       @default(1)
-  status      String    @default("PREPARED")
-  authority   String    @default("UNASSIGNED")
-  compute     String    @default("NOT_APPLICABLE")
-  external    String    @default("NONE")
-  execution   Execution @relation(fields: [executionId], references: [id], onDelete: Restrict)
+  runnerAssignments RunnerAssignment[]
+  runnerEvidence    RunnerEvidence[]
+  id                String             @id @db.Uuid
+  executionId       String             @map("execution_id") @db.Uuid
+  number            Int
+  generation        Int                @default(1)
+  status            String             @default("PREPARED")
+  authority         String             @default("UNASSIGNED")
+  compute           String             @default("NOT_APPLICABLE")
+  external          String             @default("NONE")
+  execution         Execution          @relation(fields: [executionId], references: [id], onDelete: Restrict)
 
-  observations UsageObservation[]
+  observations        UsageObservation[]
+  providerInvocations ProviderInvocation[]
 
   @@unique([id, executionId])
   @@unique([executionId, number])
   @@map("attempts")
+  @@schema("control")
+}
+
+model ExecutionResult {
+  executionId       String    @id @map("execution_id") @db.Uuid
+  kind              String
+  payload           Json
+  provider          String
+  model             String
+  finishReason      String?   @map("finish_reason")
+  providerRequestId String?   @map("provider_request_id")
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  execution         Execution @relation(fields: [executionId], references: [id], onDelete: Restrict)
+
+  @@map("execution_results")
+  @@schema("control")
+}
+
+model ProviderInvocation {
+  id                String       @id @db.Uuid
+  executionId       String       @map("execution_id") @db.Uuid
+  attemptId         String       @map("attempt_id") @db.Uuid
+  connectionId      String       @map("connection_id") @db.Text
+  provider          String
+  model             String
+  status            String
+  requestDigest     String       @map("request_digest") @db.Char(64)
+  upstreamRequestId String?      @map("upstream_request_id")
+  inputTokens       BigInt?      @map("input_tokens")
+  outputTokens      BigInt?      @map("output_tokens")
+  errorCode         String?      @map("error_code")
+  startedAt         DateTime     @default(now()) @map("started_at") @db.Timestamptz(6)
+  completedAt       DateTime?    @map("completed_at") @db.Timestamptz(6)
+  execution         Execution    @relation(fields: [executionId], references: [id], onDelete: Restrict)
+  attempt           Attempt      @relation(fields: [attemptId, executionId], references: [id, executionId], onDelete: Restrict)
+  connection        AiConnection @relation(fields: [connectionId], references: [id], onDelete: Restrict)
+
+  @@index([executionId, startedAt])
+  @@index([connectionId, status])
+  @@map("provider_invocations")
   @@schema("control")
 }
 
@@ -416,20 +482,97 @@ model RunnerPool {
 }
 
 model RunnerNode {
-  id              String   @id
-  ownerSubject    String   @map("owner_subject")
-  poolId          String   @map("pool_id")
+  assignments     RunnerAssignment[]
+  id              String             @id
+  ownerSubject    String             @map("owner_subject")
+  poolId          String             @map("pool_id")
   version         String
   capabilities    String[]
-  connectionIds   String[] @map("connection_ids")
+  connectionIds   String[]           @map("connection_ids")
   capacity        Int
-  status          String   @default("RUNNING")
-  revision        Int      @default(1)
-  lastHeartbeatAt DateTime @default(now()) @map("last_heartbeat_at") @db.Timestamptz(6)
+  status          String             @default("RUNNING")
+  revision        Int                @default(1)
+  lastHeartbeatAt DateTime           @default(now()) @map("last_heartbeat_at") @db.Timestamptz(6)
 
   pool        RunnerPool           @relation(fields: [poolId], references: [id], onDelete: Restrict)
   credentials CredentialInstance[]
 
   @@map("runner_nodes")
+  @@schema("control")
+}
+
+/// Claims are uncommitted until mutation + receipt commit together. Expired receipts remain tombstones.
+model AdmissionRateWindow {
+  scopeKey     String   @map("scope_key") @db.Text
+  windowStart  DateTime @map("window_start") @db.Timestamptz(0)
+  requestCount Int      @map("request_count")
+
+  @@id([scopeKey, windowStart])
+  @@index([windowStart])
+  @@map("admission_rate_windows")
+  @@schema("control")
+}
+
+model ManagementReceipt {
+  id            String    @id @db.Uuid
+  scopeKey      String    @map("scope_key") @db.Char(64)
+  requestKey    String    @map("request_key") @db.VarChar(160)
+  operation     String    @db.VarChar(64)
+  requestDigest String    @map("request_digest") @db.Char(64)
+  response      Json
+  completed     Boolean   @default(false)
+  completedAt   DateTime? @map("completed_at") @db.Timestamptz(6)
+  expiresAt     DateTime  @map("expires_at") @db.Timestamptz(6)
+
+  @@unique([scopeKey, requestKey])
+  @@index([expiresAt])
+  @@map("management_receipts")
+  @@schema("control")
+}
+
+model RunnerAssignment {
+  execution       Execution        @relation(fields: [executionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  attempt         Attempt          @relation(fields: [attemptId, executionId], references: [id, executionId], onDelete: Restrict, onUpdate: Cascade)
+  runner          RunnerNode       @relation(fields: [runnerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  evidence        RunnerEvidence[]
+  id              String           @id @db.Uuid
+  executionId     String           @map("execution_id") @db.Uuid
+  attemptId       String           @map("attempt_id") @db.Uuid
+  runnerId        String           @map("runner_id")
+  ownerSubject    String           @map("owner_subject")
+  generation      Int
+  epoch           Int
+  state           String
+  protocolVersion String           @map("protocol_version")
+  proposal        Json?
+  proposalDigest  String?          @map("proposal_digest") @db.Char(64)
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([id, executionId, attemptId])
+  @@unique([executionId, generation])
+  @@index([runnerId, state])
+  @@map("runner_assignments")
+  @@schema("control")
+}
+
+model RunnerEvidence {
+  assignment     RunnerAssignment @relation(fields: [assignmentId, executionId, attemptId], references: [id, executionId, attemptId], onDelete: Restrict, onUpdate: Cascade)
+  execution      Execution        @relation(fields: [executionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  attempt        Attempt          @relation(fields: [attemptId, executionId], references: [id, executionId], onDelete: Restrict, onUpdate: Cascade)
+  id             String           @id @db.Uuid
+  assignmentId   String           @map("assignment_id") @db.Uuid
+  executionId    String           @map("execution_id") @db.Uuid
+  attemptId      String           @map("attempt_id") @db.Uuid
+  sourceEventId  String           @map("source_event_id")
+  sourceRevision Int              @map("source_revision")
+  digest         String           @db.Char(64)
+  payload        Json
+  state          String           @default("QUARANTINED")
+  receivedAt     DateTime         @default(now()) @map("received_at") @db.Timestamptz(6)
+
+  @@unique([assignmentId, sourceEventId, sourceRevision])
+  @@index([executionId, state])
+  @@map("runner_evidence")
   @@schema("control")
 }

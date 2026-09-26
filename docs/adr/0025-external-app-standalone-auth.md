@@ -5,6 +5,10 @@
 **Scope:** web delivery tier, portal relationship, and authentication entry point
 **Supersedes:** [ADR-0023](0023-ati-one-internal-app.md) internal-app hosting, mount-path, proxy-origin, and frame-compatibility decisions. ADR-0023 retains authority for the dedicated confidential client, authorization boundary, and cookie-isolation principles.
 
+## Implementation reconciliation — 24 September 2026
+
+Standalone entry, POST sign-in, frame denial and local logout are implemented. The local entry says Open local console; the nonlocal action says Continue with ATI SSO. Live realm/catalogue provisioning has not been demonstrated. See [current source state](../implementation/CURRENT-STATE.md), [active HTTP operations](../implementation/HTTP-API.md), and [verification scope](../reviews/CONTRACT-EXECUTION.md). This note updates implementation status only; it does not create new reviewer approval or erase the original decision history.
+
 ## Context
 
 ADR-0023 placed AI Runtime Platform inside ATI One as an **internal application**: mounted under `/apps/<app-id>/app`, reached through the ATI One reverse proxy, framed by the portal, and gated by a per-app proxy credential.

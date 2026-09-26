@@ -2,6 +2,12 @@
 
 **Baseline 0.2.** Lihat [ADR-0014](../adr/0014-artifacts-sessions.md). Resource reference bukan arbitrary path/URL dan bukan permission.
 
+## Implemented boundary
+
+/api/m1/artifacts menyimpan application-owned ArtifactMetadata (id, executionId, name, digest, sizeBytes, mediaType, status) dan mendukung replay berdasarkan identitas metadata. Ia bukan upload bytes atau signed-URL service. Artifact status fisik dibatasi PENDING/READY/QUARANTINED; lifecycle DECLARED/UPLOADING/VERIFIED/ATTACHED di bawah merupakan target. Runner proposal memeriksa reference milik execution, tetapi tidak memverifikasi object bytes atau mempromosikan hasil final.
+
+Session yang sudah diimplementasikan adalah session autentikasi Next.js/BFF, bukan runtime session/checkpoint agent. Object store, workspace, artifact promotion, cleanup dan runtime resume belum tersedia. [Current API](../implementation/HTTP-API.md), [physical data model](../data/DATA-MODEL.md), [web sessions](../development/WEB.md).
+
 ## 1. Artifact lifecycle
 
 `DECLARED -> UPLOADING -> VERIFIED -> ATTACHED -> EXPIRED/DELETED`. QUARANTINED digunakan untuk invalid/malicious/stale output. Upload selesai bukan berarti artifact adalah hasil resmi suatu execution.

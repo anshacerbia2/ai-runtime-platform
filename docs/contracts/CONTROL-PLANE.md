@@ -1,65 +1,72 @@
 # Control Plane Management Contract
 
-Dokumen ini mendefinisikan target management surface untuk satu AI Runtime Platform. Ini bukan API M0 yang sudah live.
+**As-built M1 dan extensions ADR-0029, diperiksa 24 September 2026.** Resource endpoints dan database berikut sudah diimplementasikan lokal; bagian bertanda target belum menjadi fitur yang berjalan. [HTTP catalogue](../implementation/HTTP-API.md) mencatat setiap method/path dan success status; [current state](../implementation/CURRENT-STATE.md) menjelaskan batas runtime.
 
-## 1. Managed resources
+## 1. Resources yang diimplementasikan
 
-- **Application** — mapping identity aplikasi, environment, status, allowed profile/policy scope.
-- **Execution Profile** — immutable/revisioned execution policy.
-- **AI Connection** — logical provider/runtime account atau project.
-- **Credential Instance** — concrete auth binding/reference untuk sebuah AI Connection.
-- **Credential Binding** — authorization application/profile terhadap connection/credential scope.
-- **Plugin Package/Version** — immutable execution artifact dan compatibility metadata.
-- **Runner Pool/Node** — distributed execution capacity dan capability advertisement.
-- **Policy/Budget/Audit** — control, chargeback, operational evidence.
+| Resource            | Read surface         | Mutation surface dan makna                                                                 |
+| ------------------- | -------------------- | ------------------------------------------------------------------------------------------ |
+| Applications        | /api/v1/applications | PUT per id; identity mapping, environment, status, revision                                |
+| AI Connections      | /api/v1/connections  | PUT per id; logical provider account metadata dan sharing mode                             |
+| Credential metadata | /api/v1/credentials  | PUT per id; connection, residency, runner ref, status tanpa secret material                |
+| Bindings            | /api/v1/bindings     | PUT per UUID; application/profile authorization ke connection                              |
+| Profile revisions   | /api/v1/profiles     | POST application/profile revisions; immutable content dan digest                           |
+| Profile aliases     | /api/v1/aliases      | PUT application/profile-alias; revision selection dan alias version                        |
+| Budgets             | /api/v1/budgets      | PUT per id; unit/period/scope/limit dengan concurrency control                             |
+| Runner pools        | /api/v1/pools        | PUT per id; environment/region/minimum version/status                                      |
+| Runner nodes        | /api/v1/runners      | Authenticated registration pada compatibility machine route; POST lifecycle untuk operator |
+| Audit               | /api/v1/audit        | Metadata list; mutation services menulis audit secara atomik                               |
+| Outbox              | /api/v1/outbox       | Metadata list tanpa payload; domain transactions menulis delivery intent                   |
+| Overview            | /api/v1/overview     | Count-only independent observations, bukan dump resources                                  |
 
-## 2. Identity separation
+Sumber schema: [resources.ts](../../packages/contracts/src/http/resources.ts), [management commands](../../packages/contracts/src/control-plane.ts), [response views](../../packages/contracts/src/http/control-plane.ts). AuthMode dan provider adalah metadata konfigurasi, bukan bukti adapter atau credential resolver sudah berjalan. Plugin Package/Version, policy approval workflows dan detailed provider health masih target.
 
-Keycloak identity menjawab siapa operator/app caller. AI Connection menjawab identity/credential apa yang platform gunakan ke provider/runtime. Keduanya tidak boleh dicampur.
+## 2. Identity dan authorization
 
-Application caller tidak memperoleh management authority. Operator/admin route menggunakan role/permission terpisah dan semua perubahan policy/binding harus diaudit.
+Application, operator dan runner adalah principal yang berbeda. Resource reads/overview memerlukan platform:read; resource mutations dan assignment grant/revoke memerlukan platform:manage pada operator role yang sesuai. Usage verification tetap authority operator-accountant. Application token tidak memperoleh management access hanya karena mengetahui ID atau melewati BFF.
 
-## 3. AI connection and credential model
+Keycloak membuktikan caller; AI Connection adalah model identitas platform terhadap provider. API memvalidasi bearer; BFF memegang session dan tidak menaikkan scope. Local mode menggunakan server-side fixtures. Live Keycloak/environment role mapping tetap perlu deployment evidence. [Principal policy](../../apps/api/src/modules/identity/domain/principal.ts) adalah implementasi, bukan tabel role yang ditebak dari dokumentasi.
 
-Satu AI Connection dapat mempunyai banyak credential instances dan banyak runner bindings. Auth mode dapat berupa API key/token, OAuth/service account, cloud workload identity, atau runtime/account session yang secara eksplisit didukung adapter.
+Operator scope saat ini platform-wide dalam satu organisasi. Tidak ada fine-grained per-resource approval engine atau multi-organization tenancy yang diklaim tersedia.
 
-Actual secret/session material tidak dikembalikan oleh management API. Durable record menyimpan secret/workload-identity reference atau runner-local residency metadata.
-Dedicated connection hanya dapat di-bind ke application/profile yang diizinkan. Shared connection membutuhkan explicit allow-list dan `quota_group_ref` bila instances berbagi upstream rate-limit/account quota.
+## 3. Request key, concurrency, dan response
 
-## 4. Plugin and workspace controls
+Resource mutations mengirim Idempotency-Key dan expectedRevision. Command strict menolak field di luar schema. Target id/application berasal dari path pada API baru. Successful resource mutation selalu 200 dengan resource spesifik dan receipt berisi id/key/replayed/completedAt; bentuk ini mengikuti controller, bukan contoh REST generik.
 
-Plugin version memiliki artifact reference, digest/signature status, runtime compatibility, permissions, dan lifecycle state. Operator dapat publish, deprecate, atau revoke version tanpa memodifikasi artifact immutable.
+Caller-scoped request key dan canonical command fingerprint diperiksa dalam transaksi yang juga menulis mutation, audit dan completed receipt. Replay same command mengembalikan historical response sebelum memeriksa revision lagi. Command baru dengan revision usang tetap 409. Key berbeda bukan cara aman menyelesaikan unknown acknowledgement; gunakan key semula atau rekonsiliasi state terlebih dahulu.
 
-Workspace policy bersifat optional per profile: `none`, `ephemeral`, atau `artifact_workspace`. MCP/remote-tool endpoint bukan mandatory property aplikasi.
+Window receipt tujuh hari adalah kebijakan lokal yang eksplisit. Expired key menghasilkan 410 REQUEST_KEY_EXPIRED dan tidak dibebaskan otomatis. In-progress claim tetap uncommitted; tidak ada durable lease IN_PROGRESS atau kode 425 untuk mutation ini. [ADR-0029](../adr/0029-replay-resources-runner-authority.md), [repository](../../apps/api/src/modules/control-plane/infrastructure/prisma-m1.repository.ts), [receipt migration](../../prisma/migrations/0005_contract_receipts/migration.sql).
 
-## 5. Runner fleet controls
+Legacy PUT /api/m1/control-plane tetap CAS-only dan menghasilkan tagged union kind. Penambahan field tidak boleh mengubah variant yang dipilih. Tidak ada automatic retry pada legacy mutation meskipun caller menambahkan header. Client baru memakai operasi resource spesifik.
 
-Runner self-register secara authenticated dan mengiklankan pool, runtime/capability, connection refs, version, region/environment, dan capacity. Heartbeat tidak membawa secret.
+## 4. Bounded query dan Admin UI yang tersedia
 
-Operator dapat melakukan drain, disable, atau inspect runner. `DRAINING` menghentikan assignment baru. `OFFLINE` adalah derived liveness state; `DISABLED` adalah durable policy.
+Setiap koleksi mempunyai cursor independen, default 20/maksimum 100 item, consistency live-keyset dan nextCursor. Query melakukan field projection sebelum hasil dibentuk di memory aplikasi; credential secretRef dan outbox payload tidak diambil oleh list baru. Page bytes diperiksa; ini bukan jaminan total process-memory bounded untuk seluruh traffic.
 
-Placement engine menggunakan profile, connection/credential locality, runner capability/capacity, region/data policy, version, lifecycle state, dan upstream quota group.
+Overview hanya count registries dan observedAt, bukan balance yang dijumlahkan lintas-unit dan bukan atomic snapshot. Legacy full snapshot masih compatibility endpoint yang menolak overflow; console baru tidak memanggilnya. Tidak ada public detail/upload URL yang boleh diasumsikan hanya dari adanya list.
 
-## 6. Admin UI minimum views
+UI sekarang mempunyai tab Overview, Applications, Connections, Profiles, Budgets, Runner fleet, Audit dan Outbox. Connections mengelompokkan tiga koleksi independen; Profiles juga menampilkan aliases; Runner fleet juga menampilkan pools. Pagers dan errors independen. Ini table/read console; API mutation tersedia tetapi CRUD form, plugin manager, approval, live runner health dan execution stream belum diimplementasikan pada UI ini. [Console](../../apps/web/src/features/control-plane/control-plane-page.tsx), [reader](../../apps/api/src/modules/control-plane/infrastructure/prisma-resource-reader.ts).
 
-Panel minimum: Applications, Profiles, AI Connections, Credential Bindings, Plugins, Runner Fleet/Pools, Budgets/Policies, Executions, Usage/Audit.
+## 5. Connection dan credential boundaries
 
-Connection detail menunjukkan allowed apps/profiles, auth mode tanpa secret, credential residency, runner availability, quota group, health, dan aggregate usage. Runner detail menunjukkan capabilities, bound connections, capacity, heartbeat, lifecycle, version, dan active executions.
+AI Connection dapat dedicated atau shared dengan explicit quota-group mapping; binding memeriksa application/profile scope. Credential Instance menyimpan metadata/residency dan dapat menyimpan secret reference internal. Secret value tidak disimpan/dikembalikan oleh management command; list projection juga mengecualikan secret reference. Central/runner-local adalah metadata policy, bukan bukti runtime secret materialization.
 
-## 7. Safety invariants
+Concrete secret manager/workload identity dan rotation belum diintegrasikan. Menambah runner yang merujuk logical account sama tidak otomatis menambah upstream quota.
 
-- caller tidak dapat memilih credential instance atau runner yang tidak diizinkan profile;
-- mengetahui resource ID tidak memberi authority;
-- secret tidak masuk browser/log/plugin manifest/heartbeat;
-- app A tidak dapat menggunakan connection/profile/plugin app B;
-- runner-local secret hanya membuat runner yang benar eligible;
-- duplicate runner registration tidak mengambil alih identity aktif tanpa authenticated ownership protocol;
-- menambah runner untuk quota group yang sama tidak memperbesar upstream quota secara asumsi.
+## 6. Runner authority yang sudah ada
 
-## 8. M1 management operations
+Registration memakai /api/m1/runners/register dengan runner:register. Message berisi id, poolId, version, capabilities, connectionIds dan capacity; environment/region berasal dari pool, bukan arbitrary field tambahan registration. Registrasi memperbarui metadata/lastHeartbeatAt; timestamp itu bukan periodic heartbeat atau proof liveness.
 
-M1 mengimplementasikan operator-scoped read/mutation untuk Applications, AI Connections, Credential metadata, Bindings, Execution Profiles/aliases, Budgets, Runner Pools/Nodes, audit read, durable admission/cancel intent, usage/accounting evidence, artifact metadata, dan inbox/outbox processing. Mutations memakai revision/CAS dan menghasilkan audit evidence; application caller tidak memperoleh management authority.
+Protocol /api/runner/v1 memisahkan typed reports/evidence dari browser routes. Operator grant/revoke assignment menggunakan Idempotency-Key dan generation precondition. Runner hanya boleh melaporkan dengan exact assignment/owner/execution/attempt/generation/epoch. GRANTED, STARTED, RESULT_PROPOSED, FENCED adalah assignment states, bukan lifecycle akhir AI.
 
-Plugin management dan P3 runner placement/heartbeat execution tetap di fase berikutnya. Concrete secret-manager product, live Keycloak client registration, dan production health/rotation policy tetap deployment/open-decision work; API tidak mengembalikan secret material.
+DRAINING menolak grant baru; DISABLED menolak report authority. RESULT_PROPOSED tetap memegang capacity sampai authority diselesaikan. Result proposal tidak mempromosikan artifact atau memfinalisasi execution. Stale usage dari assignment dikenal masuk QUARANTINED dan tidak langsung mem-post ledger. [Runner source](../../apps/api/src/modules/control-plane/infrastructure/prisma-runner-authority.ts).
 
-Related decisions: [ADR-0019](../adr/0019-application-connections-credentials.md), [ADR-0020](../adr/0020-plugin-registry-execution-packaging.md), [ADR-0021](../adr/0021-workspace-remote-tools.md), [ADR-0022](../adr/0022-distributed-runner-fleet.md).
+## 7. Target yang belum berjalan
+
+Automatic placement, Redis heartbeat/lease/epoch coordinator, sandbox launch/termination, plugin registry/materialization, optional workspace/MCP, provider credential injection, artifact promotion dan live inference adalah target P2/P3. DB mengizinkan beberapa lifecycle values untuk fondasi berikutnya; itu bukan bukti service transition atau derived OFFLINE detector sudah tersedia.
+
+Future placement perlu compatible runtime, verified credential locality, capacity, region/data/version policy, dan upstream quota. Manual grant saat ini melakukan subset checks yang dijelaskan di source; jangan mendokumentasikannya sebagai full scheduler.
+
+## 8. Verification
+
+Receipt concurrency/replay/rollback/expiry, projection/cursor, exact fencing, proposal dedup, restart, concurrent grant/revoke dan capacity sudah mempunyai local integration coverage. Browser tests membuktikan independent pagination/error serta absence of legacy snapshot calls. Lihat [execution evidence](../reviews/CONTRACT-EXECUTION.md), [gate scope](../testing/ACCEPTANCE.md), dan [docs synchronization](../reviews/DOCUMENTATION-SYNC.md).

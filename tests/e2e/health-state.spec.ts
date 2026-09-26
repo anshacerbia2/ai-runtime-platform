@@ -36,7 +36,7 @@ test('catalogue error keeps independently verified health and offers an actual r
   await page.route('**/api/m0/health', (route) =>
     route.fulfill({ json: health }),
   );
-  await page.route('**/api/m0/contracts', (route) =>
+  await page.route('**/api/m0/catalogue', (route) =>
     route.fulfill({
       status: 403,
       json: { error: { code: 'DENIED', message: 'Catalogue denied' } },
@@ -48,7 +48,7 @@ test('catalogue error keeps independently verified health and offers an actual r
     page.getByRole('button', { name: 'Retry catalogue' }),
   ).toBeVisible();
   await expect(page.getByText('Healthy', { exact: true })).toBeVisible();
-  await page.unroute('**/api/m0/contracts');
+  await page.unroute('**/api/m0/catalogue');
   await page.getByRole('button', { name: 'Retry catalogue' }).click();
   await expect(
     page.getByRole('button', { name: 'Validasi & simpan' }),

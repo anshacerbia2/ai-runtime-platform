@@ -1,5 +1,7 @@
 # D04–D05 — Direct Chat dan Structured Generation
 
+**Implementation boundary — 24 September 2026:** These are planned inference flows. No /v1/chat, /v1/generate or SSE route is registered; Contract Lab only validates requests. They are not browser test recordings. See [I01–I04](10-implemented-contracts.md) and [current state](../implementation/CURRENT-STATE.md).
+
 **Authored flow.** Kontrak: [API](../contracts/API.md), [profiles](../contracts/PROFILES-ADAPTERS.md). Business job dan plugin tidak diperlukan.
 
 ## D04 — Direct streaming chat

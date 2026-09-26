@@ -280,15 +280,15 @@ test('a second Nest application observes committed database records', async () =
   }
 });
 
-test('planned execution routes cannot call any provider', async () => {
+test('M2 execution route is live and rejects malformed requests before provider dispatch', async () => {
   const response = await http.inject({
     method: 'POST',
     url: '/v1/executions',
-    headers,
+    headers: { ...headers, 'idempotency-key': key() },
     payload: {},
   });
-  assert.equal(response.statusCode, 404);
-  assert.equal(response.json().error.code, 'NOT_FOUND');
+  assert.equal(response.statusCode, 400);
+  assert.equal(response.json().error.code, 'INVALID_REQUEST');
 });
 
 test('deep diagnostic input rejected before hashing', async () => {

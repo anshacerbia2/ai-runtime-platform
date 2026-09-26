@@ -2,9 +2,13 @@
 
 **Tanggal:** 21 September 2026
 
-**Status:** adopted untuk backend platform; implementasi terverifikasi sebatas M0.
+**Status:** adopted untuk backend platform; local M0/M1 dan contract extensions terverifikasi pada evidence yang ditautkan di bawah.
 
 **Menggantikan:** pilihan Fastify standalone pada [ADR-0015](0015-testable-milestone-slices.md), bukan batas contract-only M0.
+
+## Implementation reconciliation — 24 September 2026
+
+NestJS/Fastify now serves M0, M1, resource operations and runner-authority endpoints. OIDC verification and nonlocal BFF code exist, but live issuer/deployment and streaming performance are not proven. See [current source state](../implementation/CURRENT-STATE.md), [active HTTP operations](../implementation/HTTP-API.md), and [verification scope](../reviews/CONTRACT-EXECUTION.md). This note updates implementation status only; it does not create new reviewer approval or erase the original decision history.
 
 ## Context
 
@@ -18,7 +22,7 @@ Gunakan **NestJS + official FastifyAdapter**. Nest mengatur composition modules,
 
 Versi yang dipin pada refactor ini: Nest packages **12.0.3**, Fastify **5.12.4**, TypeScript **5.9.3**, Node major **24**. Package manifests dan lockfile merupakan sumber versi terpasang, bukan nama major dalam dokumen. Fastify mengikuti versi yang digunakan official Nest adapter; tidak memaksa dua instance/version yang berbeda. Nest mendokumentasikan Fastify sebagai adapter resmi.[^nest]
 
-Nest controller hanya menangani transport dan memanggil use case. Auth guard memakai port credential verifier. Target autentikasi nonlokal tetap access token Keycloak yang diverifikasi (issuer, audience, signature, expiry, permissions), bukan client_id polos atau sistem API key kedua. Refactor ini tidak menyatakan integrasi Keycloak telah tersedia: mode local bearer M0 tetap terisolasi dan production mode ditolak.
+Nest controller hanya menangani transport dan memanggil use case. Auth guard memakai port credential verifier. Target autentikasi nonlokal tetap access token Keycloak yang diverifikasi (issuer, audience, signature, expiry, permissions), bukan client_id polos atau sistem API key kedua. Pada refactor awal, mode selain local bearer belum tersedia. Implementasi berikutnya menambah verifier OIDC/JWKS dan BFF nonlocal mode; live Keycloak provisioning tetap memerlukan evidence deployment, bukan hanya fixture tests.
 
 ## Masukan principal dan hasil verifikasi
 

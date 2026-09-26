@@ -2,7 +2,11 @@
 
 **Tanggal:** 21 September 2026 (Asia/Jakarta)
 
-**Status:** adopted in documentation; implementation mulai P1.
+**Status:** registry/binding/control mutations implemented locally; actual provider credential resolver and production approval remain open.
+
+## Implementation reconciliation — 24 September 2026
+
+Registry, binding, immutable profile, quota accounting and resource receipt APIs are implemented. Credential resolution/rotation and actual upstream identity use remain unimplemented integration work. See [current source state](../implementation/CURRENT-STATE.md), [active HTTP operations](../implementation/HTTP-API.md), and [verification scope](../reviews/CONTRACT-EXECUTION.md). This note updates implementation status only; it does not create new reviewer approval or erase the original decision history.
 
 ## Context
 

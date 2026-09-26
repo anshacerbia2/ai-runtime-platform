@@ -1,6 +1,6 @@
 # Configuration — Single Environment Gate
 
-M0 mempunyai satu configuration authority: **environment variables**. Local development biasanya memuatnya dari root `.env`; CI memasok variable yang sama melalui job environment. Semua consumer memakai `config/environment.mjs`.
+M0/M1, resource APIs dan BFF mempunyai satu configuration authority: **environment variables**. Local development biasanya memuatnya dari root `.env`; CI memasok variable yang sama melalui job environment. Semua consumer memakai `config/environment.mjs`. Untuk landasan teoritis, taksonomi tingkat maturitas, dan roadmap evolusi konfigurasi dari primitif hingga beyond FAANG, lihat [docs/architecture/ENV-MATURITY-MODEL.md](../architecture/ENV-MATURITY-MODEL.md).
 
 Runtime/tooling tidak membaca `.local/config.json`, tidak mencari PostgreSQL binary otomatis, dan tidak mempunyai silent fallback untuk variable wajib. Missing, blank, atau invalid variable membuat startup/tool command gagal sebelum melakukan pekerjaan.
 
@@ -16,15 +16,15 @@ npm run setup
 
 ## Core HTTP
 
-| Variable                     | Meaning                                                                      |
-| ---------------------------- | ---------------------------------------------------------------------------- |
-| `M0_RUNTIME_MODE`            | `m0-local` for local lab/tests; `m1-oidc` for nonlocal OIDC/ATI One contract |
-| `M0_API_HOST`, `M0_API_PORT` | API bind address                                                             |
-| `M0_WEB_HOST`, `M0_WEB_PORT` | Web tier (Next.js) bind address                                              |
-| `M0_ALLOWED_HOSTS`           | Explicit comma-separated host allow-list                                     |
-| `M0_ALLOWED_ORIGINS`         | Explicit comma-separated origin allow-list                                   |
-| `M0_API_BODY_LIMIT_BYTES`    | Fastify body cap                                                             |
-| `M0_API_REQUEST_TIMEOUT_MS`  | Fastify request timeout                                                      |
+| Variable                     | Meaning                                                                                |
+| ---------------------------- | -------------------------------------------------------------------------------------- |
+| `M0_RUNTIME_MODE`            | `m0-local` for local lab/tests; `m1-oidc` for nonlocal platform-owned OIDC/BFF hosting |
+| `M0_API_HOST`, `M0_API_PORT` | API bind address                                                                       |
+| `M0_WEB_HOST`, `M0_WEB_PORT` | Web tier (Next.js) bind address                                                        |
+| `M0_ALLOWED_HOSTS`           | Explicit comma-separated host allow-list                                               |
+| `M0_ALLOWED_ORIGINS`         | Explicit comma-separated origin allow-list                                             |
+| `M0_API_BODY_LIMIT_BYTES`    | Fastify body cap                                                                       |
+| `M0_API_REQUEST_TIMEOUT_MS`  | Fastify timeout and BFF local wait bound, not provider/execution cancellation          |
 
 ## PostgreSQL and Prisma
 
@@ -51,7 +51,7 @@ npm run setup
 | `M0_APP_ID`, `M0_APP_NAME`, `M0_APP_TOKEN`                | Contract Lab application identity |
 | `M0_TEST_APP_ID`, `M0_TEST_APP_NAME`, `M0_TEST_APP_TOKEN` | Cross-app isolation fixture       |
 
-Tokens are local M0 credentials only; they are replaced by Keycloak/Application Registry work in P1.
+These are local application fixtures only. The nonlocal OIDC/Application Registry path is implemented in source but live deployment evidence is separate. Never reuse local fixtures as production credentials.
 
 ## M1 identity and external-app hosting
 
@@ -60,7 +60,7 @@ For local M1 tests, optional credentials remain separate from application creden
 | Variable                  | Meaning                                                                    |
 | ------------------------- | -------------------------------------------------------------------------- |
 | `M1_LOCAL_OPERATOR_TOKEN` | Local-only operator/admin authority used by the Control Plane test/UI path |
-| `M1_LOCAL_RUNNER_TOKEN`   | Local-only runner registration authority                                   |
+| `M1_LOCAL_RUNNER_TOKEN`   | Local-only runner registration/report/evidence authority                   |
 
 For nonlocal `m1-oidc` mode, configuration is fail-closed:
 
@@ -83,7 +83,7 @@ The API validates issuer/audience/signature/expiry/nbf/azp plus role/scope separ
 
 ### Issuer separation per environment
 
-Because the issuer is a production Keycloak, environment separation is a configuration rule and not a convention:
+When using the shared production Keycloak issuer as the deployment target, environment separation is a configuration rule and not a convention; this does not mean local tests contacted that issuer:
 
 1. `M1_OIDC_CLIENT_ID` and `M1_OIDC_CLIENT_SECRET` MUST differ per environment.
 2. Loopback or non-production callback URIs MUST NOT be registered on the client used by production.
@@ -105,6 +105,14 @@ Because the issuer is a production Keycloak, environment separation is a configu
 | `PLAYWRIGHT_WEB_SERVER_TIMEOUT_MS`                        | Web server startup timeout                                                |
 | `PLAYWRIGHT_VIEWPORT_WIDTH`, `PLAYWRIGHT_VIEWPORT_HEIGHT` | Test viewport                                                             |
 | `PLAYWRIGHT_REUSE_EXISTING_SERVER`                        | Explicit `true`/`false`                                                   |
+
+## Contract constants are not new environment variables
+
+The source declares unary safety ceilings (30 seconds, 8 MiB response and 64 KiB diagnostic body), resource page/mutation limits, receipt replay window seven days, pagination 20/100 and operation retry policy. RetryBudget currently starts with ten tokens and refills one per second. These are contract/code constants, not missing env keys or production-calibrated SLOs. See [current limits](../operations/SLO-CAPACITY.md).
+
+Changing protocol limits requires updating source, generated artifacts and tests; editing this page alone does not change behavior. Assignment metadata declaring maxMessageBytes does not create a second transport configuration gate. Runner protocol and auth use the existing API process configuration.
+
+Optional M1_OIDC_RUNNER_CLIENT_ID maps nonlocal runner identity in the API projection. It does not launch runners or create Redis heartbeat state. For temporary browser test ports, M0_ALLOWED_ORIGINS must include the exact web origin, including its port. M0_ALLOWED_HOSTS contains allowed host names separately. Required local secrets must never be printed while checking these values.
 
 ## Rules
 

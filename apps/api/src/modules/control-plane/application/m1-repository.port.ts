@@ -1,3 +1,4 @@
+import type { ManagementReceipt } from '@ai-runtime/contracts/http';
 import type {
   AdmissionCommand,
   ArtifactCommand,
@@ -25,6 +26,11 @@ export type {
 
 export interface M1Repository {
   readSnapshot(principal: Principal): Promise<ControlSnapshot>;
+  manageReceipted(
+    principal: Principal,
+    command: ManagementCommand,
+    key: string,
+  ): Promise<ManagementReceipt>;
   manage(
     principal: Principal,
     command: ManagementCommand,

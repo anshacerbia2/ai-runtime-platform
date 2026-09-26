@@ -1,8 +1,12 @@
 # ADR-0007 — Transactional reservation, settlement, dan ledger authority
 
 **Tanggal:** 20 September 2026  
-**Status:** adopted for documentation baseline 0.2; implementation NOT VERIFIED.  
+**Status:** design adopted for baseline 0.2; current implementation coverage is stated below, not a blanket production verification.\
 **Dasar:** durable accounting authority dan reserve–execute–settle, mengikuti [ADR-0003](0003-tiered-storage.md). Review baseline tetap dilacak melalui O11.
+
+## Implementation reconciliation — 24 September 2026
+
+Local M1 admission/reservations, cumulative observations, ledger adjustments, rollback tests and outbox/inbox are implemented. Production pricing, live bills and multi-turn budget interposition remain unverified. See [current source state](../implementation/CURRENT-STATE.md), [active HTTP operations](../implementation/HTTP-API.md), and [verification scope](../reviews/CONTRACT-EXECUTION.md). This note updates implementation status only; it does not create new reviewer approval or erase the original decision history.
 
 ## Context
 

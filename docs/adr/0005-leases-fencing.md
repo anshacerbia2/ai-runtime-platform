@@ -1,8 +1,12 @@
 # ADR-0005 — Conditional Redis lease dan durable fencing
 
 **Tanggal:** 20 September 2026  
-**Status:** adopted for documentation baseline 0.2; implementation NOT VERIFIED.  
+**Status:** design adopted for baseline 0.2; current implementation coverage is stated below, not a blanket production verification.\
 **Dasar:** single-owner execution dan pemisahan authority dari telemetry; terkait [ADR-0003](0003-tiered-storage.md) dan [ADR-0008](0008-late-usage.md). Review baseline tetap dilacak melalui O11.
+
+## Implementation reconciliation — 24 September 2026
+
+Durable manual assignment, exact generation/epoch/owner checking, revocation and quarantined evidence are implemented under ADR-0029. Redis lease renewal, expiry detection, epoch rebuild and runtime recovery are not implemented. See [current source state](../implementation/CURRENT-STATE.md), [active HTTP operations](../implementation/HTTP-API.md), and [verification scope](../reviews/CONTRACT-EXECUTION.md). This note updates implementation status only; it does not create new reviewer approval or erase the original decision history.
 
 ## Context
 

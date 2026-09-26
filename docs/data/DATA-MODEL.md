@@ -1,8 +1,52 @@
 # Logical Data Model dan Persistence Contracts
 
-**Baseline 0.2; logical schema, bukan DDL/migration yang sudah dibuat.** Money semantics ada di [ACCOUNTING](ACCOUNTING.md), state enum di [LIFECYCLE](../contracts/EXECUTION-LIFECYCLE.md).
+**Physical implementation reconciled 25 September 2026; target logical model retained separately.** Money semantics ada di [ACCOUNTING](ACCOUNTING.md), state enum di [LIFECYCLE](../contracts/EXECUTION-LIFECYCLE.md).
 
-## 1. Entity catalogue
+## Physical models yang sudah ada
+
+Tabel berikut berasal dari [Prisma schema](../../prisma/schema.prisma), bukan dari nama konseptual pada baseline. Migration SQL [0001](../../prisma/migrations/0001_baseline/migration.sql)–[0010](../../prisma/migrations/0010_m2_invocation_route/migration.sql) memuat DDL dan custom constraints untuk M0, M1, runner authority, dan local M2 gateway. LegacySchemaMigration adalah provenance read-only, bukan feature execution.
+
+| Prisma model            | Physical table                 |
+| ----------------------- | ------------------------------ |
+| `Application`           | `m0.applications`              |
+| `Profile`               | `m0.profiles`                  |
+| `ContractCheck`         | `m0.contract_checks`           |
+| `LegacySchemaMigration` | `m0.schema_migrations`         |
+| `ControlApplication`    | `control.applications`         |
+| `AiConnection`          | `control.ai_connections`       |
+| `CredentialInstance`    | `control.credential_instances` |
+| `CredentialBinding`     | `control.credential_bindings`  |
+| `ProfileRevision`       | `control.profile_revisions`    |
+| `ProfileAlias`          | `control.profile_aliases`      |
+| `BudgetAccount`         | `control.budget_accounts`      |
+| `Execution`             | `control.executions`           |
+| `Attempt`               | `control.attempts`             |
+| `ExecutionResult`       | `control.execution_results`    |
+| `ProviderInvocation`    | `control.provider_invocations` |
+| `Reservation`           | `control.reservations`         |
+| `UsageObservation`      | `control.usage_observations`   |
+| `LedgerEntry`           | `control.ledger_entries`       |
+| `OutboxEvent`           | `control.outbox_events`        |
+| `InboxReceipt`          | `control.inbox_receipts`       |
+| `BudgetProjection`      | `control.budget_projections`   |
+| `AuditEntry`            | `control.audit_entries`        |
+| `ArtifactMetadata`      | `control.artifact_metadata`    |
+| `RunnerPool`            | `control.runner_pools`         |
+| `RunnerNode`            | `control.runner_nodes`         |
+| `AdmissionRateWindow`   | `control.admission_rate_windows` |
+| `ManagementReceipt`     | `control.management_receipts`  |
+| `RunnerAssignment`      | `control.runner_assignments`   |
+| `RunnerEvidence`        | `control.runner_evidence`      |
+
+M0 idempotency berada pada ContractCheck; M1 admission key/digest berada pada Execution, bukan tabel idempotency_records generik. Cancel intent disimpan sebagai timestamp pada Execution dan outbox event, bukan cancel_intents terpisah. ProfileAlias.version untuk concurrency berbeda dari revision profile yang dipilih. ManagementReceipt menyimpan caller-scoped key, digest dan historical response atomik dengan mutation/audit; deferred trigger mencegah incomplete commit. Window replay tujuh hari tidak otomatis menghapus record/key.
+
+RunnerAssignment memuat exact ownership/generation/epoch, proposal dan status. RunnerEvidence memuat intake yang selalu QUARANTINED pada endpoint sekarang; tidak otomatis menjadi UsageObservation atau LedgerEntry. Execution menyimpan assignmentGeneration dan coordinationEpoch. ProviderInvocation dan ExecutionResult sudah physical pada M2, termasuk connection attribution. Tool operation, runtime session, plugin package, object manifest dan global coordination recovery tables dari model target belum tersedia.
+
+Financial units memakai BigInt di database dan decimal string pada wire. DateTime diproyeksikan ke ISO string; current query keyset berbeda antarpermukaan sebagaimana [HTTP API](../implementation/HTTP-API.md). AuditEntry tidak mempunyai prompt atau generic payload; OutboxEvent mempunyai JSON payload, tetapi resource list baru mengecualikannya pada select. Batas page bytes tidak menggantikan batas item/field dan capacity testing.
+
+Bagian bernomor berikut adalah model target dan migration requirements, bukan daftar tabel yang semuanya telah terpasang.
+
+## 1. Target logical entity catalogue
 
 | Entity                | Identity/important fields                                                                                                           | Constraints / owner                                             |
 | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |

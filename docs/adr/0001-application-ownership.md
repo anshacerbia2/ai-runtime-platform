@@ -1,8 +1,12 @@
 # ADR-0001 — Application-owned workflow dan AI execution boundary
 
 **Tanggal:** 20 September 2026  
-**Status:** adopted for documentation baseline 0.2; implementation NOT VERIFIED.  
+**Status:** design adopted for baseline 0.2; current implementation coverage is stated below, not a blanket production verification.\
 **Dasar:** kebutuhan produk untuk aplikasi dengan dan tanpa business job. Review baseline tetap dilacak melalui O11.
+
+## Implementation reconciliation — 24 September 2026
+
+Application-owned workflow is retained. Local validation and application-scoped execution metadata exist; live AI execution and app migration do not. See [current source state](../implementation/CURRENT-STATE.md), [active HTTP operations](../implementation/HTTP-API.md), and [verification scope](../reviews/CONTRACT-EXECUTION.md). This note updates implementation status only; it does not create new reviewer approval or erase the original decision history.
 
 ## Context
 

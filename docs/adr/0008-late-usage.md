@@ -1,8 +1,12 @@
 # ADR-0008 — Verified late evidence dan post-window adjustment
 
 **Tanggal:** 20 September 2026  
-**Status:** adopted for documentation baseline 0.2; implementation NOT VERIFIED.  
+**Status:** design adopted for baseline 0.2; current implementation coverage is stated below, not a blanket production verification.\
 **Dasar:** pemisahan state authority [ADR-0005](0005-leases-fencing.md) dari verifikasi dan settlement [ADR-0007](0007-durable-accounting.md). Review baseline tetap dilacak melalui O11.
+
+## Implementation reconciliation — 24 September 2026
+
+Known old runner assignments can submit deduplicated evidence into QUARANTINED storage. Automatic provider verification, age-window processing and quarantine-to-ledger workflow are not implemented. See [current source state](../implementation/CURRENT-STATE.md), [active HTTP operations](../implementation/HTTP-API.md), and [verification scope](../reviews/CONTRACT-EXECUTION.md). This note updates implementation status only; it does not create new reviewer approval or erase the original decision history.
 
 ## Context
 

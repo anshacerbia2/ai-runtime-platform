@@ -106,7 +106,7 @@ export async function boundedBody(
       }
       size += value.byteLength;
       if (size > limit) {
-        await reader.cancel();
+        void reader.cancel().catch(() => {});
         throw new HttpFailure(413, 'PAYLOAD_TOO_LARGE');
       }
       parts.push(value);

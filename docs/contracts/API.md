@@ -1,10 +1,18 @@
 # Application API Contract
 
-**Design contract v1 — baseline 0.2; belum merupakan server/API yang sudah tersedia.** Owner requirement: [ADR-0001](../adr/0001-application-ownership.md), [ADR-0002](../adr/0002-managed-envelope.md). JSON berikut ilustratif tetapi harus valid; nilai profile/artifact adalah identifier contoh, bukan resource yang sudah dibuat.
+_*Target application execution contract v1 — baseline 0.2. /v1/* pada spesifikasi ini masih PLANNED; implemented HTTP surfaces dijelaskan terpisah di bawah._* Owner requirement: [ADR-0001](../adr/0001-application-ownership.md), [ADR-0002](../adr/0002-managed-envelope.md). JSON berikut ilustratif tetapi harus valid; nilai profile/artifact adalah identifier contoh, bukan resource yang sudah dibuat.
 
-## Implemented scope in M0
+## Implemented scope: lab, resources, compatibility, dan runner authority
 
 Local Contract Lab berjalan di `/api/m0/*`, terpisah dari semua endpoint execution `/v1/*` di bawah. [M0 OpenAPI](../../contracts/m0.openapi.json) menjelaskan endpoint lab aktif; [planned execution OpenAPI](../../contracts/execution-v1.planned.openapi.json) mencakup submission, snapshot, cancel dan stream envelope sebagai draft saja. List, usage, capabilities dan artifacts belum diekspor sebagai operations pada draft ini. [Shared schemas](../../contracts/schemas.json) dan [panduan M0](../development/M0.md) melengkapi batas validation-only.
+
+### Source saat ini
+
+[HTTP API aktual](../implementation/HTTP-API.md) mendokumentasikan 46 registered operations: /api/m0 lab, /api/v1 resource/assignment, /api/runner/v1 machine protocol, dan /api/m1 compatibility. [Runtime OpenAPI](../../contracts/runtime.openapi.json) dan [BFF OpenAPI](../../contracts/bff.openapi.json) sesuai source; assignment/runner/inbox/registration tidak semuanya diekspos oleh browser.
+
+Resource mutations sudah memakai receipt + expectedRevision, collection reads punya keyset pagination dan overview count. M1 admission masih metadata profileRef/inputDigest, bukan schema prompt /v1 di bawah. Cancel M1 memberi 201 untuk durable intent, berbeda dari target 200/202. X-Request-ID tersedia; traceparent, X-Execution-ID dan provider deadline propagation pada bagian target bukan fitur end-to-end yang sudah aktif.
+
+Bagian 1–10 menjelaskan execution design kecuali subsection yang secara eksplisit menyebut implemented client. Rujukan bentuk/status API aktif tetap catalogue di atas, bukan contoh /v1 target.
 
 ## 1. Transport dan identitas
 
@@ -157,16 +165,16 @@ sequenceDiagram
     autonumber
     participant C as Client / BFF
     participant API as AI Runtime API
-    participant DB as PostgreSQL (ReadCommitted)
+    participant DB as PostgreSQL (isolation sesuai operasi)
 
     C->>API: POST submission (Header: Idempotency-Key)
     API->>API: Canonical JSON serialization & SHA-256 (requestDigest)
-    API->>DB: Atomic transaction: createMany(skipDuplicates: true)
+    API->>DB: Atomic claim and admission according to operation contract
     alt New key (First admission)
-        DB-->>API: inserted.count = 1
+        DB-->>API: New admission committed
         API-->>C: 201 Created / 202 Accepted (replayed: false)
     else Duplicate key, same payload (Safe replay)
-        DB-->>API: inserted.count = 0 (skip), digest match
+        DB-->>API: Existing scoped key and matching digest
         API-->>C: 200 OK (replayed: true, existing execution/record)
     else Duplicate key, changed payload (Conflict)
         DB-->>API: digest mismatch
@@ -178,47 +186,19 @@ Alias profile disnapshot pada acceptance pertama; replay memakai snapshot lama, 
 
 Idempotency submission tidak menghapus biaya internal retry. Retry attempt memiliki ID baru, authorized budget baru/remaining envelope, dan operation key tool yang stabil. Respons replay untuk streaming memberi execution reference untuk attach stream/snapshot, bukan me-replay model dengan provider.
 
-### 8.1 Client turn lifecycle dan retry pattern
+### 8.1 Client turn lifecycle and replay ownership
 
-Bagi integrasi klien (Frontend / Mobile / Client SDK), siklus hidup pembuatan idempotency key dan penanganan retry diatur sebagai berikut:
+One logical submission owns one stable idempotency key and canonical payload. A new user turn creates a new key; timeout, reconnect, or a lost acknowledgement does not. Idempotent admission prevents duplicate admission records for that scope/key; it does not guarantee exactly-once provider execution or zero duplicate cost after an ambiguous upstream call. Attempt fencing, provider idempotency/status support, and accounting reconciliation remain separate controls.
 
-```mermaid
-sequenceDiagram
-    autonumber
-    actor User
-    participant FE as Client App / SDK
-    participant API as AI Runtime API
-    participant DB as PostgreSQL
-    participant LLM as Model Gateway / Provider
+The implemented browser client permits **up to three total attempts only on route-declared replay-safe operations**: lab validation, M1 admission and receipt-backed resource mutations. Other operations default to one. The BFF always performs one upstream attempt. A failed response after dispatch can remain unknown even after retries; the UI never asserts rollback or silently changes the logical key. Same key with a different canonical payload is a conflict, not a retry. Retry-After is a delay hint, not replay permission.
 
-    User->>FE: Submit prompt (tekan Enter / klik Send)
-    Note over FE: 1. Mint UUID turn baru (crypto.randomUUID())<br/>2. Render optimistic bubble & disable submit
-    FE->>API: POST /v1/chat (Header: Idempotency-Key: UUID)
-    API->>DB: Atomic check & admission
+The implemented client already uses one retry-owning layer, a monotonic overall deadline, jitter and a per-client retry budget. It retries eligible network or HTTP 502/503/504 failures, not arbitrary 4xx, invalid responses or caller cancellation. Future runtime SDKs must implement their own verified operation policy without multiplying proxy/client retries. A planned stream resumes by GET against its existing execution, not by repeating model submission.
 
-    alt Network timeout / Disconnect
-        Note over FE: 3. Client SDK retry otomatis<br/>(Wajib pakai UUID & payload yang sama persis)
-        FE->>API: RETRY POST /v1/chat (Header: Idempotency-Key: UUID)
-        API->>DB: Key sudah terdaftar! Hindari re-inference ganda
-        API-->>FE: Attach ke active stream atau kembalikan execution snapshot
-    else Normal execution
-        API->>LLM: Dispatch inference ke provider
-        LLM-->>API: Stream tokens / result
-        API-->>FE: Server-Sent Events (SSE) stream
-    end
+A validated HTTP response confirms the operation represented by that response, not completion of an unrelated health refresh or final AI execution. For asynchronous runtime submission, an accepted response and pending execution are different states. Client cancellation defaults to detachment; only the explicit authorized cancellation contract records cancel intent. Editing a local lab draft invalidates its old UI generation but does not roll back any already committed validation record.
 
-    FE-->>User: Tampilkan jawaban lengkap & aktifkan input box
-    Note over FE: 4. Turn selesai. Prompt berikutnya akan men-generate UUID baru.
-```
+See [ADR-0029](../adr/0029-replay-resources-runner-authority.md) and [implemented HTTP API](../implementation/HTTP-API.md) for current behavior. ADR-0028 records the earlier one-attempt hardening revision. Neither revision promises exactly-once provider execution.
 
-**Aturan implementasi pada Client / SDK:**
-
-1. **Satu Turn = Satu UUID**: UUID baru di-generate pada saat event submit dipicu oleh user. Klien dilarang men-generate UUID baru di tengah proses retry request yang sama.
-2. **Kompensasi Jaringan**: Saat transport HTTP mengalami timeout atau koneksi terputus, library klien (Fetch wrapper, Axios, atau SDK) harus me-retry request dengan payload dan `Idempotency-Key` yang identik.
-3. **Pencegahan Biaya Ganda**: Platform menjamin bahwa request dengan key yang sama tidak akan memicu inferensi LLM ganda ke upstream provider, sehingga kuota budget dan biaya token aman dari duplikasi.
-4. **Siklus Giliran Baru**: Text input baru dibersihkan dan di-unlock setelah turn saat ini mencapai status final (`completed`, `failed`, atau dibatalkan eksplisit oleh user).
-
-## 9. Error taxonomy
+## 9. Target execution error taxonomy (bukan seluruh code API aktif)
 
 | HTTP | Code                                                 | Semantics                                                              |
 | ---- | ---------------------------------------------------- | ---------------------------------------------------------------------- |
@@ -247,7 +227,7 @@ Error setelah SSE HTTP 200 menjadi `execution.failed`/control event dan snapshot
 }
 ```
 
-## 10. Cancellation, pagination, dan versioning
+## 10. Target execution cancellation, pagination, dan versioning
 
 Cancel idempotent per execution; alasan baru dapat diaudit tetapi tidak menciptakan second cancel command. Terminal execution tidak diubah kembali ke running/cancelled hanya karena request terlambat. Cancel-versus-complete dilinearisasi CAS server; lihat [lifecycle](EXECUTION-LIFECYCLE.md).
 

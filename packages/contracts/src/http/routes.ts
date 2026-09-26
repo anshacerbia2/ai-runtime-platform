@@ -10,6 +10,9 @@ import {
 } from '../control-plane.js';
 import * as lab from './lab.js';
 import * as control from './control-plane.js';
+import { resourceContract } from './resources.js';
+import { runnerContract, assignmentContract } from './runner.js';
+import { gatewayContract, browserGatewayContract } from './gateway.js';
 
 const c = initContract();
 
@@ -59,6 +62,10 @@ export const HistoryQuery = z
 
 export const apiContract = c.router(
   {
+    gateway: gatewayContract,
+    resources: resourceContract,
+    runner: runnerContract,
+    assignments: assignmentContract,
     live: {
       method: 'GET',
       path: '/health/live',
@@ -76,19 +83,27 @@ export const apiContract = c.router(
         path: '/api/m0/health',
         responses: { 200: lab.LabHealth },
       },
+      catalogue: {
+        method: 'GET',
+        path: '/api/m0/catalogue',
+        responses: { 200: lab.LabCatalogue },
+      },
       profiles: {
         method: 'GET',
         path: '/api/m0/profiles',
+        metadata: { deprecated: true, replacement: '/api/m0/catalogue' },
         responses: { 200: lab.LabProfiles },
       },
       examples: {
         method: 'GET',
         path: '/api/m0/examples',
+        metadata: { deprecated: true, replacement: '/api/m0/catalogue' },
         responses: { 200: lab.LabExamples },
       },
       schemas: {
         method: 'GET',
         path: '/api/m0/contracts',
+        metadata: { deprecated: true, replacement: '/api/m0/catalogue' },
         responses: { 200: lab.LabSchemas },
       },
       openapi: {
@@ -99,6 +114,14 @@ export const apiContract = c.router(
       validate: {
         method: 'POST',
         path: '/api/m0/validations',
+        metadata: {
+          behavior: {
+            replay: 'same-key',
+            maxAttempts: 3,
+            retryOwner: 'client',
+            fingerprint: 'sha256-canonical-kind-payload-v1',
+          },
+        },
         headers: keyHeaders,
         body: ValidationInput,
         responses: { 200: lab.ValidationResult, 201: lab.ValidationResult },
@@ -132,6 +155,14 @@ export const apiContract = c.router(
       admit: {
         method: 'POST',
         path: '/api/m1/admissions',
+        metadata: {
+          behavior: {
+            replay: 'same-key',
+            maxAttempts: 3,
+            retryOwner: 'client',
+            fingerprint: 'sha256-profileRef-NUL-inputDigest-v1',
+          },
+        },
         headers: keyHeaders,
         body: AdmissionCommand,
         responses: {
@@ -200,6 +231,8 @@ export const apiContract = c.router(
 
 /** Explicit exposure policy: machine-only routes never become browser routes automatically. */
 export const browserContract = c.router({
+  gateway: browserGatewayContract,
+  resources: apiContract.resources,
   lab: apiContract.lab,
   controlPlane: {
     snapshot: apiContract.controlPlane.snapshot,

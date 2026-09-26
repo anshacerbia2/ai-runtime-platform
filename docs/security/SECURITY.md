@@ -2,6 +2,12 @@
 
 **Baseline 0.2 — target controls, belum bukti security assessment.** [ADR-0011](../adr/0011-sandbox-security.md), [boundary](../architecture/BOUNDARIES.md), dan [gate](../testing/ACCEPTANCE.md).
 
+## Current enforcement and test boundary
+
+Source implements bearer principal separation, role/scope checks, app-owned admission/execution/artifact access, server-owned browser sessions, BFF Origin/Host and allowlist checks, projected response fields, caller-scoped management receipts, and exact runner authority. Outbox/credential resource lists exclude payload/secret reference at query time. Known stale assignment evidence is stored only in quarantine. See [HTTP catalogue](../implementation/HTTP-API.md) for exposure and [local evidence](../reviews/CONTRACT-EXECUTION.md) for actual tests.
+
+These controls are not a complete production security assessment. Operator authorization is currently broad platform-level within one organization; resource-granular approvals, sandbox/egress containment, actual provider secret resolution and deployment IAM/network enforcement remain incomplete. Local debug source and test logs are not a promise of production logging/retention compliance. The threat matrix below is a target requirement catalogue, not an assertion that each sandbox or live dependency test has passed.
+
 ## 1. Assets dan trust boundaries
 
 Assets: provider credentials, application identity, prompts/documents, artifacts, session checkpoints, usage evidence/ledger, operation approvals, budget accounts, host infrastructure. Trust boundaries: client/BFF -> API; API -> SoR; control plane -> supervisor; supervisor -> untrusted agent workspace; broker -> external provider/tool; public UI -> scoped stream/object grant.
@@ -73,7 +79,7 @@ Platform tidak pernah membaca atau memakai ulang ATI One portal session cookie. 
 
 Authorization dievaluasi pada authenticated application + profile revision + connection binding, bukan pada identifier yang dikirim caller. Mengetahui connection/plugin/runner ID tidak memberi authority.
 
-Actual provider credential dapat berupa API key/token, OAuth/service account, cloud workload identity, atau runtime/account session yang didukung adapter; material berasal dari secret manager/workload identity atau runner-local secret store. Secret/session tidak tampil di Admin UI, logs, database metadata, browser bundle, plugin manifest, registration, atau heartbeat. Injection harus minimum-scope dan minimum-lifetime.
+Actual provider credential dapat berupa API key/token, OAuth/service account, cloud workload identity, atau runtime/account session yang didukung adapter; material berasal dari secret manager/workload identity atau runner-local secret store. Secret/session material tidak boleh tampil di Admin UI, logs, browser bundle, plugin manifest, registration atau heartbeat. Database dapat menyimpan secret reference internal (bukan material); resource list/API projection mengecualikan reference tersebut. Injection harus minimum-scope dan minimum-lifetime.
 
 Plugin package wajib diverifikasi digest/status sebelum materialization. Sandbox menolak host path traversal, undeclared mounts, host secret access, dan egress di luar policy. Cross-app acceptance harus membuktikan App A tidak dapat menggunakan profile, plugin, artifact, credential instance, atau connection milik App B.
 

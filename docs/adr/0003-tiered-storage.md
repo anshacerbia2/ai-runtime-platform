@@ -1,8 +1,12 @@
 # ADR-0003 — Tiered Storage dan authoritative data paths
 
 **Tanggal:** 20 September 2026  
-**Status:** adopted for documentation baseline 0.2; implementation NOT VERIFIED.  
+**Status:** design adopted for baseline 0.2; current implementation coverage is stated below, not a blanket production verification.\
 **Dasar:** kebutuhan durability, retention, dan pemisahan jalur data. Detail otoritas finansial: [ADR-0007](0007-durable-accounting.md). Review baseline tetap dilacak melalui O11.
+
+## Implementation reconciliation — 24 September 2026
+
+PostgreSQL durable control/accounting/receipts/assignments are implemented. Redis web-session code is separate; runner hot-state/replay and object storage remain planned. See [current source state](../implementation/CURRENT-STATE.md), [active HTTP operations](../implementation/HTTP-API.md), and [verification scope](../reviews/CONTRACT-EXECUTION.md). This note updates implementation status only; it does not create new reviewer approval or erase the original decision history.
 
 ## Context
 

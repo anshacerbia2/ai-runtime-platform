@@ -1,5 +1,7 @@
 # D01–D03 — Context, Containers, dan Components
 
+**Implementation boundary — 24 September 2026:** Target container/components below include gateway and workers not present in the running source. The actual Next.js/BFF, API and PostgreSQL boundaries are shown in I01. See [I01–I04](10-implemented-contracts.md) and [current state](../implementation/CURRENT-STATE.md).
+
 **Authored baseline 0.2 views.** Diagram bukan deployment existing. Boundary otoritatif: [BOUNDARIES](../architecture/BOUNDARIES.md); overview: [ARCHITECTURE](../architecture/ARCHITECTURE.md).
 
 ## D01 — System context

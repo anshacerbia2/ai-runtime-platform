@@ -202,6 +202,9 @@ after(async () => {
   await db.runnerNode.deleteMany({ where: { id: { startsWith: prefix } } });
   await db.runnerPool.deleteMany({ where: { id: { startsWith: prefix } } });
   await db.aiConnection.deleteMany({ where: { id: { startsWith: prefix } } });
+  await db.admissionRateWindow.deleteMany({
+    where: { scopeKey: { contains: prefix } },
+  });
   await db.auditEntry.deleteMany({
     where: { OR: [scope, { resourceId: { startsWith: prefix } }] },
   });
@@ -395,6 +398,84 @@ test('G07 fifty concurrent admissions reserve exactly three units with no reject
     await db.reservation.count({ where: { accountId: f.accountId } }),
     3,
   );
+});
+
+test('G22 gateway concurrency cap is serialized before execution and hold creation', async () => {
+  const f = await fixture('gateway-capacity', '100', '1');
+  const currentApplication = await db.controlApplication.findUniqueOrThrow({
+    where: { id: a.id },
+  });
+  const activeBefore = await db.execution.count({
+    where: {
+      applicationId: a.id,
+      status: { in: ['ACCEPTED', 'RUNNING', 'RECONCILING'] },
+    },
+  });
+  await db.controlApplication.update({
+    where: { id: a.id },
+    data: {
+      gatewayMaxConcurrency: activeBefore + 2,
+      gatewayRequestsPerMinute: 1000000,
+    },
+  });
+  await db.aiConnection.update({
+    where: { id: f.connectionId },
+    data: { gatewayMaxConcurrency: 2, gatewayRequestsPerMinute: 1000000 },
+  });
+  try {
+    const responses = await Promise.all(
+      Array.from({ length: 10 }, () => f.admit()),
+    );
+    assert.equal(responses.filter((r) => r.statusCode === 201).length, 2);
+    assert.equal(
+      responses.filter((r) => r.statusCode === 429).length,
+      8,
+      responses.map((r) => r.body).join('\n'),
+    );
+    const account = await db.budgetAccount.findUniqueOrThrow({
+      where: { id: f.accountId },
+    });
+    assert.equal(account.heldUnits, 2n);
+    assert.equal(
+      await db.reservation.count({ where: { accountId: f.accountId } }),
+      2,
+    );
+  } finally {
+    await db.controlApplication.update({
+      where: { id: a.id },
+      data: {
+        gatewayMaxConcurrency: currentApplication.gatewayMaxConcurrency,
+        gatewayRequestsPerMinute: currentApplication.gatewayRequestsPerMinute,
+      },
+    });
+  }
+});
+
+test('G22 connection rate limit rolls back rejected admission counters and holds', async () => {
+  const f = await fixture('gateway-rate', '100', '1');
+  await db.aiConnection.update({
+    where: { id: f.connectionId },
+    data: { gatewayMaxConcurrency: 100, gatewayRequestsPerMinute: 2 },
+  });
+  const responses = [];
+  for (let index = 0; index < 5; index++) {
+    responses.push(await f.admit());
+  }
+  assert.equal(responses.filter((r) => r.statusCode === 201).length, 2);
+  assert.equal(responses.filter((r) => r.statusCode === 429).length, 3);
+  const account = await db.budgetAccount.findUniqueOrThrow({
+    where: { id: f.accountId },
+  });
+  assert.equal(account.heldUnits, 2n);
+  assert.equal(
+    await db.reservation.count({ where: { accountId: f.accountId } }),
+    2,
+  );
+  const window = await db.admissionRateWindow.findFirstOrThrow({
+    where: { scopeKey: 'connection:' + f.connectionId },
+    orderBy: { windowStart: 'desc' },
+  });
+  assert.equal(window.requestCount, 2);
 });
 
 test('G08/G09 injected transaction failures leave no orphan hold, observation, charge or outbox', async () => {
@@ -670,10 +751,17 @@ test('G27 credential metadata is allow-listed, mutation audit and CAS are atomic
     assert.equal(result.body.includes(secret), false);
     assert.equal(/secretRef|secret_ref/.test(result.body), false);
   }
-  await manage({ ...credential, expectedRevision: 2, secretRef: secret }, 400);
+  const secretUpdate = await request('PUT', 'control-plane', op, {
+    ...credential,
+    expectedRevision: 2,
+    secretRef: secret,
+  });
+  assert.equal(secretUpdate.statusCode, 200, secretUpdate.body);
+  assert.equal(secretUpdate.body.includes(secret), false);
+  assert.equal(/secretRef|secret_ref/.test(secretUpdate.body), false);
   assert.equal(
     await db.auditEntry.count({ where: { resourceId: credential.id } }),
-    2,
+    3,
   );
   const one = (await f.admit()).json().execution.id;
   const two = (await f.admit()).json().execution.id;

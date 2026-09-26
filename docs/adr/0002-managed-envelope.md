@@ -1,8 +1,12 @@
 # ADR-0002 — Managed Execution Envelope dan typed profiles
 
 **Tanggal:** 20 September 2026  
-**Status:** adopted for documentation baseline 0.2; implementation NOT VERIFIED.  
+**Status:** design adopted for baseline 0.2; current implementation coverage is stated below, not a blanket production verification.\
 **Dasar:** pemisahan lifecycle generik dan harness milik aplikasi, mengikuti [ADR-0001](0001-application-ownership.md). Review baseline tetap dilacak melalui O11.
+
+## Implementation reconciliation — 24 September 2026
+
+M0 request/profile validation and M1 immutable profile revision metadata exist. Full managed runtime envelope, provider enforcement and session portability remain planned. See [current source state](../implementation/CURRENT-STATE.md), [active HTTP operations](../implementation/HTTP-API.md), and [verification scope](../reviews/CONTRACT-EXECUTION.md). This note updates implementation status only; it does not create new reviewer approval or erase the original decision history.
 
 ## Context
 

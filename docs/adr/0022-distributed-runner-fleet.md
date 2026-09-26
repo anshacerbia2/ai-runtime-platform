@@ -2,7 +2,11 @@
 
 **Tanggal:** 21 September 2026 (Asia/Jakarta)
 
-**Status:** adopted in documentation; registry mulai P1, execution placement P3.
+**Status:** registry and manual durable authority implemented locally; autonomous execution placement/heartbeat remain P3 target.
+
+## Implementation reconciliation — 24 September 2026
+
+Authenticated registration, operator lifecycle and manual grant/revoke/exact fencing are implemented. Automatic placement, periodic heartbeat, Redis hot capacity and derived OFFLINE remain planned. See [current source state](../implementation/CURRENT-STATE.md), [active HTTP operations](../implementation/HTTP-API.md), and [verification scope](../reviews/CONTRACT-EXECUTION.md). This note updates implementation status only; it does not create new reviewer approval or erase the original decision history.
 
 ## Context
 

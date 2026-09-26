@@ -12,6 +12,10 @@
 >
 > The retired contract is kept here rather than deleted so that a return to portal-hosted delivery is a documented path.
 
+## Implementation reconciliation — 24 September 2026
+
+Retired internal-app requirements below are historical, not the implemented delivery path. The code uses standalone Next.js/BFF, root-scoped session and frame denial under ADR-0025/0026. See [current source state](../implementation/CURRENT-STATE.md), [active HTTP operations](../implementation/HTTP-API.md), and [verification scope](../reviews/CONTRACT-EXECUTION.md). This note updates implementation status only; it does not create new reviewer approval or erase the original decision history.
+
 ## Context
 
 AI Runtime Platform will be delivered as an **internal application inside ATI One**. It is not an ATI One shell replacement and not a Keycloak theme.

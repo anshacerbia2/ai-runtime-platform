@@ -2,6 +2,10 @@
 
 **Status:** implemented in source; persistent Broker/deployment wiring requires environment configuration.
 
+## Implementation reconciliation — 24 September 2026
+
+Shared contracts now compose resources and runner authority as well as M0/M1. Current Pact coverage is eleven interactions per boundary; frozen baselines keep the original nine. It is not exhaustive CDC for every operation. See [current source state](../implementation/CURRENT-STATE.md), [active HTTP operations](../implementation/HTTP-API.md), and [verification scope](../reviews/CONTRACT-EXECUTION.md). This note updates implementation status only; it does not create new reviewer approval or erase the original decision history.
+
 ## Decision
 
 The implemented M0/M1 REST surface has one source of truth in `packages/contracts/src/http`: method, path, parameters, query, request headers/body, success responses, and normalized error responses. Zod supplies runtime validation and inferred TypeScript input/output types. Clients use direct inference, not periodically regenerated DTOs.
@@ -10,7 +14,7 @@ The framework adapter uses `@ts-rest/core` with pinned version `3.53.0-rc.1`. Th
 
 ## Boundaries
 
-`ContractRoute` binds Nest routing and request/response validation to the shared endpoint. Handler response annotations and repository port types are inferred from those schemas. Runtime validation observes actual wire serialization, not only type assertions. Domain authorization, transactions, and provider execution remain owned by the API.
+`ContractRoute` binds Nest routing and request/response validation to the shared endpoint. Handler response annotations and repository port types are inferred from those schemas. Runtime validation checks explicit wire DTOs before serialization, and the BFF/client check received JSON. The old stringify/parse normalization is removed; type assertions alone are not validation. Domain authorization, transactions, and provider execution remain owned by the API.
 
 The browser uses operation clients such as `api.lab.health()`. No feature chooses an arbitrary URL/response-type pair. `labClient` composes catalogue reads without defining another wire DTO. Health, catalogue, and editor/mutation states are separate; a failed request is not proof that a database or API is offline.
 

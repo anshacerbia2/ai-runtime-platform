@@ -1,0 +1,257 @@
+// Sign-in page. Light content beside a navy stage: two dark fields next to
+// each other read muddy, and a light reading column also makes the step into
+// the (light) console continuous rather than a jump.
+.signin {
+  display: grid;
+  // Even split: the headline is two full sentences and needs the measure.
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-height: 100dvh;
+  background: var(--ds-surface-panel);
+  color: var(--ds-text-body);
+}
+
+// --- Left: identity and the single action ----------------------------------
+.signin-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-8);
+  justify-content: center;
+  padding: var(--ds-space-12) clamp(var(--space-8), 5vw, var(--space-20));
+}
+.signin-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-3);
+}
+.signin-brand-name {
+  color: var(--ds-text-primary);
+  font-size: var(--ds-font-size-card);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-snug);
+}
+.signin-copy h1 {
+  // Wide enough that each sentence holds its own line at the display size.
+  max-width: 32ch;
+  font-size: clamp(var(--fs-section), 2.5vw, var(--fs-display));
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-tight);
+  line-height: var(--ds-line-snug);
+}
+.signin-copy p {
+  max-width: 46ch;
+  margin-top: var(--ds-space-5);
+  color: var(--ds-text-muted);
+  font-size: var(--ds-font-size-md);
+  line-height: var(--ds-line-relaxed);
+}
+
+.signin-capabilities {
+  display: grid;
+  gap: var(--ds-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.signin-capabilities li {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-3);
+  color: var(--ds-text-body);
+  font-size: var(--ds-font-size-sm);
+}
+// Small square node, echoing the schematic rather than a generic tick.
+.signin-capabilities li::before {
+  content: '';
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--ds-radius-xs);
+  background: var(--ds-action-primary);
+}
+
+.signin-action {
+  display: grid;
+  gap: var(--ds-space-4);
+  justify-items: start;
+}
+.signin-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 0 var(--ds-space-8);
+  border: 0;
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-action-primary);
+  box-shadow: var(--ds-shadow-sm);
+  color: var(--ds-text-inverse);
+  font-size: var(--ds-font-size-sm);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-label);
+  text-decoration: none;
+  transition:
+    background var(--ds-transition-fast),
+    box-shadow var(--ds-transition-fast);
+}
+.signin-button:hover {
+  background: var(--ds-action-primary-hover);
+  box-shadow: var(--ds-shadow-md);
+  color: var(--ds-text-inverse);
+  text-decoration: none;
+}
+.signin-note {
+  max-width: 46ch;
+  color: var(--ds-text-faint);
+  font-size: var(--fs-meta);
+  line-height: var(--ds-line-normal);
+}
+.signin-alert {
+  padding: var(--ds-space-3) var(--ds-space-4);
+  border: 1px solid var(--ds-status-danger-border);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-status-danger-soft);
+  color: var(--ds-status-danger);
+  font-size: var(--fs-meta);
+}
+.signin-footer {
+  color: var(--ds-text-faint);
+  font-size: var(--fs-nano);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-wider);
+  text-transform: uppercase;
+}
+
+// --- Right: the schematic ---------------------------------------------------
+// One flat navy field, not a gradient or a second dark tone: the brand panel
+// only reads clean when it is a single colour beside the light column.
+.signin-stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ds-space-6);
+  padding: var(--ds-space-12) var(--ds-space-8);
+  background: var(--ds-surface-brand);
+  overflow: hidden;
+}
+.signin-schematic {
+  width: 100%;
+  max-width: 560px;
+  height: auto;
+}
+.signin-stage-caption {
+  color: var(--ds-text-inverse-faint);
+  font-family: var(--ds-font-mono);
+  font-size: var(--fs-micro);
+  letter-spacing: var(--ls-label);
+}
+
+// --- Schematic parts --------------------------------------------------------
+.schematic-grid {
+  stroke: var(--ds-brand-grid);
+  stroke-width: 1;
+}
+.schematic-outline {
+  stroke: var(--ds-brand-line-strong);
+  stroke-width: 1.25;
+}
+.schematic-core-ring {
+  stroke: var(--ds-brand-accent);
+  stroke-width: 1;
+  opacity: 0.5;
+}
+.schematic-divider,
+.schematic-hint {
+  stroke: var(--ds-brand-line);
+  stroke-width: 1;
+  stroke-linecap: round;
+}
+.schematic-link {
+  stroke: var(--ds-brand-line-strong);
+  stroke-width: 1.25;
+  stroke-dasharray: 3 5;
+  opacity: 0.55;
+}
+.schematic-dot,
+.schematic-core-dot {
+  fill: var(--ds-brand-accent);
+}
+
+// The travelling request: a short lit segment running the full path. Drawn on
+// top of the dashed link so the route reads even while the segment is midway.
+.schematic-pulse {
+  stroke: var(--ds-brand-accent-bright);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 26 420;
+  stroke-dashoffset: 446;
+  animation: schematic-travel 4.2s linear infinite;
+}
+@keyframes schematic-travel {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.schematic-dot,
+.schematic-core-dot {
+  animation: schematic-breathe 4.2s ease-in-out infinite;
+}
+@keyframes schematic-breathe {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+// Staggering keeps the three lanes from firing in unison.
+.schematic-delay-0 {
+  animation-delay: 0s;
+}
+.schematic-delay-1 {
+  animation-delay: 0.7s;
+}
+.schematic-delay-2 {
+  animation-delay: 1.4s;
+}
+.schematic-delay-3 {
+  animation-delay: 2.1s;
+}
+
+// --- Responsive -------------------------------------------------------------
+@media (max-width: 1024px) {
+  .signin {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+  // The schematic leads on narrow screens: it explains the product before the
+  // copy does, and a tall empty navy column would be worse.
+  .signin-stage {
+    order: -1;
+    padding: var(--ds-space-8) var(--ds-space-6);
+  }
+  .signin-panel {
+    gap: var(--ds-space-6);
+    padding: var(--ds-space-10) var(--ds-space-6) var(--ds-space-12);
+  }
+  .signin-schematic {
+    max-width: 440px;
+  }
+}
+
+@media (max-width: 640px) {
+  .signin-capabilities,
+  .signin-stage-caption {
+    display: none;
+  }
+  .signin-button {
+    width: 100%;
+  }
+  .signin-action {
+    justify-items: stretch;
+  }
+}

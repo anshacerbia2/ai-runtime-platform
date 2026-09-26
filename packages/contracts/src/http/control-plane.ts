@@ -10,6 +10,8 @@ export const ApplicationRecord = z.object({
   displayName: text,
   environment: text,
   keycloakClientId: text,
+  gatewayMaxConcurrency: z.number().int().positive(),
+  gatewayRequestsPerMinute: z.number().int().positive(),
   status: text,
   revision,
 });
@@ -21,6 +23,8 @@ export const ConnectionRecord = z.object({
   environment: text,
   sharingMode: text,
   quotaGroupRef: text.nullable(),
+  gatewayMaxConcurrency: z.number().int().positive(),
+  gatewayRequestsPerMinute: z.number().int().positive(),
   status: text,
   revision,
 });
@@ -47,6 +51,14 @@ export const ProfileRecord = z.object({
   revision,
   connectionId: text,
   capability: text,
+  providerAdapter: text,
+  model: text,
+  fallbackConnectionId: text.nullable(),
+  fallbackProviderAdapter: text.nullable(),
+  fallbackModel: text.nullable(),
+  maxOutputTokens: z.number().int().positive(),
+  timeoutMs: z.number().int().positive(),
+  streaming: z.boolean(),
   holdUnits: amount,
   accountIds: z.array(text),
   digest: text,
@@ -115,17 +127,30 @@ export const ApplicationSnapshot = z.object({
   ),
 });
 export const ControlSnapshot = z.union([OperatorSnapshot, ApplicationSnapshot]);
-export const ManagementResult = z.union([
-  ProfileRecord,
-  AliasRecord,
-  RunnerRecord,
-  ApplicationRecord,
-  ConnectionRecord,
-  CredentialRecord,
-  BindingRecord,
-  BudgetRecord,
-  PoolRecord,
+export const ManagementSchemas = {
+  application: ApplicationRecord,
+  connection: ConnectionRecord,
+  credential: CredentialRecord,
+  binding: BindingRecord,
+  profile: ProfileRecord,
+  alias: AliasRecord,
+  budget: BudgetRecord,
+  pool: PoolRecord,
+  runner: RunnerRecord,
+} as const;
+/** Legacy response gains an additive discriminator; new routes have one resource shape. */
+export const ManagementResult = z.discriminatedUnion('kind', [
+  ApplicationRecord.extend({ kind: z.literal('application') }),
+  ConnectionRecord.extend({ kind: z.literal('connection') }),
+  CredentialRecord.extend({ kind: z.literal('credential') }),
+  BindingRecord.extend({ kind: z.literal('binding') }),
+  ProfileRecord.extend({ kind: z.literal('profile') }),
+  AliasRecord.extend({ kind: z.literal('alias') }),
+  BudgetRecord.extend({ kind: z.literal('budget') }),
+  PoolRecord.extend({ kind: z.literal('pool') }),
+  RunnerRecord.extend({ kind: z.literal('runner') }),
 ]);
+
 export const AdmissionResult = z.object({
   execution: z.object({
     id: text,

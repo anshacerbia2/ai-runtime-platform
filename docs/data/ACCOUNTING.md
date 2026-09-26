@@ -1,6 +1,14 @@
 # Usage, Budget, dan Financial Reconciliation
 
-**Canonical design baseline 0.2; bukan sistem billing yang sudah diimplementasikan.** Keputusan utama [ADR-0007](../adr/0007-durable-accounting.md), [ADR-0008](../adr/0008-late-usage.md); perubahan terhadap principal dijelaskan M02/M04/M06 pada [rekonsiliasi](../reviews/RECONCILIATION.md).
+**Target accounting design baseline 0.2 dengan durable M1 subset yang sudah diimplementasikan; bukan live provider billing system.** Keputusan utama [ADR-0007](../adr/0007-durable-accounting.md), [ADR-0008](../adr/0008-late-usage.md); perubahan terhadap principal dijelaskan M02/M04/M06 pada [rekonsiliasi](../reviews/RECONCILIATION.md).
+
+## Current accounting subset
+
+[PrismaM1Repository](../../apps/api/src/modules/control-plane/infrastructure/prisma-m1.repository.ts) sudah mengimplementasikan admission, deterministic multi-account budget locking, reservation, cumulative UsageObservation, delta/correction LedgerEntry, transactional outbox dan idempotent PostgreSQL BudgetProjection/inbox. Race 50 admissions pada tiga unit, rollback injected failure, duplicate/cumulative evidence dan unknown-as-null mempunyai local integration evidence.
+
+Current admission hanya menerima profileRef/inputDigest dan membuat metadata execution/attempt; tidak melakukan inference. Operator usage:verify adalah jalur posting terotorisasi. Runner evidence intake menyimpan RunnerEvidence sebagai QUARANTINED, termasuk stale assignment, tanpa menulis ledger langsung. Belum ada automated trusted-provider lookup, quarantine-to-settlement workflow, 15-minute verification window, live price source atau multi-turn execution budget enforcement.
+
+Field physical schema tidak mencakup semua conceptual minimum fields di bawah, seperti complete invocation/provider trace atau production currency reconciliation. [Data model](DATA-MODEL.md), [lifecycle vocabulary](../contracts/EXECUTION-LIFECYCLE.md), [current evidence](../reviews/CONTRACT-EXECUTION.md). Batas implementasi ini bukan pelemahan kebutuhan verifikasi produksi.
 
 ## 1. Tujuan dan batas
 
@@ -54,7 +62,7 @@ COMMIT
 Only after commit may dispatch/invoke occur.
 ```
 
-Pseudocode, bukan SQL/migration yang sudah dijalankan. Row locking dan transaction isolation harus dibuktikan dengan concurrent tests; PostgreSQL menyediakan row-level locking (R09), tetapi implementasi multi-row accounting tetap tanggung jawab platform.
+Pseudocode di atas menjelaskan invariant, bukan skrip SQL untuk dijalankan. Jalur M1 yang memakai row locking dan Serializable transaction sudah diuji lokal sebagaimana evidence di atas; full provider dispatch dan production contention tetap perlu bukti terpisah.
 
 Contoh test: limit 3, charge 0, hold 0; 50 unique concurrent requests masing-masing hold 1. Tepat 3 diterima, 47 ditolak; akhir hold 3, charge 0, available 0. Rejected request tidak meninggalkan available -47. Replay key accepted tidak menambah hold lagi.
 

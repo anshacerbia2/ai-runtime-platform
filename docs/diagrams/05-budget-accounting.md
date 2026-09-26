@@ -1,5 +1,7 @@
 # D13–D15 — Admission, Settlement, dan Late Usage
 
+**Implementation boundary — 24 September 2026:** PostgreSQL admission, reservations, ledger and inbox/outbox have local tests. Redis projections and automated late-evidence verification in these target flows are not implemented; runner evidence currently enters quarantine. See [I01–I04](10-implemented-contracts.md) and [current state](../implementation/CURRENT-STATE.md).
+
 **Authored corrected flows.** Financial authority: [ACCOUNTING](../data/ACCOUNTING.md), [ADR-0007](../adr/0007-durable-accounting.md), [ADR-0008](../adr/0008-late-usage.md). Redis tidak menjadi satu-satunya saldo/hold.
 
 ## D13 — Atomic admission tanpa mutasi pada denial

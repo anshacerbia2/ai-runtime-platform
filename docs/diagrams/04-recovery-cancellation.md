@@ -1,5 +1,7 @@
 # D09–D12 — State, Lease, Orphan, dan Cancel
 
+**Implementation boundary — 24 September 2026:** Full lifecycle, Redis leases and recovery below remain targets. Current manual fencing and cancel-intent storage are implemented; state labels differ from parts of the physical M1 schema and no supervisor kill/restart is implied. See [I01–I04](10-implemented-contracts.md) and [current state](../implementation/CURRENT-STATE.md).
+
 **Authored corrected flows.** Canonical preconditions ada di [LIFECYCLE](../contracts/EXECUTION-LIFECYCLE.md) dan [OWNERSHIP-RECOVERY](../reliability/OWNERSHIP-RECOVERY.md). Diagram menyederhanakan details, tidak menggantikan transaction semantics.
 
 ## D09 — Public execution lifecycle

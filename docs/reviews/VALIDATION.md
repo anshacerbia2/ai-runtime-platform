@@ -2,6 +2,8 @@
 
 **Tanggal:** 20 September 2026 · **Baseline:** 0.2 · **Lingkup:** dokumentasi, bukan runtime implementation.
 
+Current documentation/source reconciliation is in [DOCUMENTATION-SYNC](DOCUMENTATION-SYNC.md); the current implemented API is in [HTTP-API](../implementation/HTTP-API.md). The dated records below remain historical.
+
 Bagian 1–4 mempertahankan hasil validasi baseline awal; bagian 5 merekam relokasi terdahulu. Hasil tersebut bukan klaim pengujian ulang saat pemeliharaan rujukan ADR pada bagian 6. Keputusan aktif dirujuk melalui [ADR](../adr/README.md).
 
 ## 1. Pemeriksaan baseline awal — catatan historis
@@ -61,7 +63,7 @@ Baseline awal menggunakan Git commit `376d435bf43589784b1f1a5d76f88be33b233365` 
 
 Only Markdown documentation is included in this change. Validation helpers and renderer dependencies were not added to the repository. Riwayat sumber yang telah dihapus tetap merupakan sejarah Git, bukan file yang harus tersedia untuk validasi atau navigasi aktif.
 
-## 4. Checks not performed or not implied
+## 4. Historical baseline checks not performed or not implied
 
 M0 local FE/API/PostgreSQL code now exists and its evidence is recorded separately in [M0](../milestones/M0.md). No live provider/agent execution, production budget ledger, distributed runner fleet, plugin registry, Keycloak federation, secret-manager integration, load test, sandbox attack test, billing reconciliation, failover drill, deployment, atau production cutover has been demonstrated. G01–G35 remain **NOT RUN** as production gates. P3.5 remains blocked pending actual implementation evidence.
 
@@ -109,7 +111,7 @@ M0 still does not implement Keycloak federation, Admin control-plane management,
 
 M0 local runtime/tooling configuration was consolidated behind `config/environment.mjs`. Local development uses Git-ignored `.env`; CI supplies the same required variables explicitly. Vite, Nest/Fastify, Prisma, Playwright, PostgreSQL setup/migration, contract export, dev runner, and tests now consume that validated boundary.
 
-Automated environment-boundary tests verify required values fail closed, boolean values are explicit, application/scripts source does not directly read env variables outside the gate, and no active source reads `.local/config.json`. Legacy `.local/config.json` was deleted after migration. The current M0+M1 suite now passes **30 contract tests, 24 unit/tooling tests, 30 integration tests, and 6 E2E tests**.
+Automated environment-boundary tests verify required values fail closed, boolean values are explicit, application/scripts source does not directly read env variables outside the gate, and no active source reads `.local/config.json`. Legacy `.local/config.json` was deleted after migration. At that environment-gate checkpoint, the M0+M1 suite passed **30 contract tests, 24 unit/tooling tests, 30 integration tests, and 6 E2E tests**.
 
 `DATABASE_URL` is no longer an alternate input path, PostgreSQL binary discovery was removed, and required port/browser/timeout/pool/path values have no silent fallback. M1 extends the same single environment gate with separate local operator/runner credentials and fail-closed `m1-oidc` ATI One/OIDC configuration. The OIDC verifier is tested locally with generated signing keys/JWKS transport; live ATI Keycloak and production secret-manager/deployment evidence remain future work.
 
@@ -144,7 +146,7 @@ Synchronized documents: frontend/code-structure/architecture/boundaries, securit
 
 The automated documentation check after this synchronization is **72 Markdown files, 585 local links, 0 missing file targets**, and `prettier --check .` passes. These verify link integrity and formatting only; they assert nothing about the decisions themselves.
 
-Implementation deliberately not started: the Vite-to-Next.js move, the BFF tier, the entry page, and the affected tooling (`scripts/dev.mjs`, `scripts/check-ui-tokens.mjs`, `scripts/lib/dependency-rules.mjs`, `config/hosting.mjs`, `playwright.config.ts`, `apps/web/package.json`). Those files still encode the internal-app/Vite contract and are known to be inconsistent with this documentation until the implementation lands.
+At the documentation-only adoption checkpoint, implementation was deliberately not started: the Vite-to-Next.js move, the BFF tier, the entry page, and the affected tooling (`scripts/dev.mjs`, `scripts/check-ui-tokens.mjs`, `scripts/lib/dependency-rules.mjs`, `config/hosting.mjs`, `playwright.config.ts`, `apps/web/package.json`). Those files still encode the internal-app/Vite contract and are known to be inconsistent with this documentation until the implementation lands.
 
 ## 13. Next.js/BFF implementation and regression verification
 
@@ -187,3 +189,23 @@ Local evidence for this change:
 The isolated Broker compatibility proof is part of GitHub Actions and is not a workstation result. Its actual workflow outcome must be checked separately. Production enforcement still requires the persistent Broker and rollout workflow to call the required gate; no production target, deployment, or approval is fabricated. See [Contract Operations](../development/CONTRACTS.md) and [ADR-0027](../adr/0027-shared-rest-consumer-contracts.md).
 
 Local logs are `.local/contracts-verify.log`, `.local/contracts-e2e.log`, and `.local/cdc-all.log`. Tests use generated credentials and delete only their own fixture records. User sign-in/layout changes outside this scope are retained in the working tree rather than included in this contract change.
+
+## 15. HTTP behavior and mutation outcome hardening — 24 September 2026
+
+The local HTTP audit and implementation are recorded in [HTTP-CONTRACT-AUDIT](HTTP-CONTRACT-AUDIT.md) and [ADR-0028](../adr/0028-http-behavior-and-outcome-semantics.md). The nested additive-field regression was reproduced before fixing response views. The provider's redundant response stringify/parse was removed without dropping response validation. Browser/BFF waits and response bytes are bounded, safe retry/correlation hints are preserved, and lab mutation/health generations have explicit independent outcomes.
+
+Fresh local evidence: npm run verify PASS, 30 request-contract tests, 15 API unit tests, 17 tooling tests, 30 PostgreSQL integration tests, 48 web/BFF tests, current/frozen Pact verification with an intentional incompatibility rejection, production build and client-bundle checks PASS. Browser E2E: 18 PASS on a newly started development server. Final focused lint/types are recorded separately after the final query-abort regression adjustment. Logs: .local/http-hardening-verify.log, .local/http-hardening-e2e.log, and .local/http-hardening-final-checks.log.
+
+An isolated serialization microbenchmark and its limitations are in the audit; it is not production throughput evidence. No persistent Broker deployment gate, live provider/Keycloak, deployed Redis, runtime streaming, backend deadline propagation, cross-language SDK, load/chaos, or production sign-off is claimed. The seven pre-existing sign-in/layout edits are protected; no commit or push was requested or performed.
+
+## Final contract-evolution closure — 24 September 2026
+
+The final local implementation passes the complete verify command, applied migration status and 21 browser scenarios with exit code zero. Detailed counts, source digest, replay/fencing evidence, failure-injection scope and remaining production gates are in [Contract execution evidence](CONTRACT-EXECUTION.md). The [request closure matrix](REQUEST-CLOSURE.md) distinguishes implemented API work from the unimplemented P2/P3 provider/streaming runtime. Earlier log counts remain historical.
+
+## Documentation synchronization — 24 September 2026
+
+All 80 existing Markdown documents were reconciled to current source and four as-built/audit references were added, for 84 files total. The active route catalogue matches 46 operations and 38 BFF method/path pairs; all 26 physical Prisma model/table pairs are listed. The server Markdown reader renders all 83 documents under docs/; Mermaid fences are displayed as code rather than rendered diagrams. JSON examples and code-fence balance were checked separately.
+
+Current verification is not represented by old closure counts: the first full verify had one integration failure (503 during a receipt test), then isolated recheck and full verify rerun passed without source changes by this task. Browser verification against an existing local dev server produced 20 PASS and one History reload timeout; a fresh server attempt was blocked by the workspace's active Next dev server. Neither failure was hidden, fixed in code, or counted as PASS.
+
+Two frontend files changed outside this docs-only task and were read back without overwrite. Source stayed stable during the final rerun checks. See [Documentation sync](DOCUMENTATION-SYNC.md) for the complete document inventory, logs and precise status, and [current implementation](../implementation/CURRENT-STATE.md) for as-built behavior. Historical gate records above retain their original scope and dates.

@@ -6,6 +6,7 @@ import { IdentityModule } from './modules/identity/identity.module.js';
 import { LocalAuthGuard } from './modules/identity/presentation/http/local-auth.guard.js';
 import { ContractLabModule } from './modules/contract-lab/contract-lab.module.js';
 import { ControlPlaneModule } from './modules/control-plane/control-plane.module.js';
+import { GatewayModule } from './modules/gateway/gateway.module.js';
 import { HttpExceptionFilter } from './shared/presentation/http-exception.filter.js';
 
 @Module({})
@@ -18,6 +19,7 @@ export class AppModule {
         IdentityModule,
         ContractLabModule,
         ControlPlaneModule,
+        GatewayModule,
       ],
       providers: [
         { provide: APP_GUARD, useClass: LocalAuthGuard },

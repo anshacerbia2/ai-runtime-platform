@@ -1,10 +1,20 @@
 # Documentation Index
 
-**Baseline 0.2 + adopted extensions through ADR-0026.** Entry point: [README](../README.md). M0 Contract Lab remains runnable; M1 registry foundation is in progress while full AI execution remains planned. [ADR](adr/README.md) is the active architectural decision reference.
+**Baseline 0.2 + extensions through ADR-0029.** Entry point: [README](../README.md). M0/M1 plus resource/receipt/runner-authority extensions are implemented locally; live AI execution remains planned. [ADR](adr/README.md) retains decisions and their historical context.
+
+## Start with the implemented system
+
+| Document                                                     | Purpose                                                                     |
+| ------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| [Current implementation](implementation/CURRENT-STATE.md)    | What source actually implements, and what remains planned                   |
+| [Active HTTP operations](implementation/HTTP-API.md)         | All 46 registered operations, auth, exposure, statuses and replay semantics |
+| [Implemented diagrams](diagrams/10-implemented-contracts.md) | Browser/API, receipt transaction, resource reads and runner fencing         |
+| [Source structure](architecture/CODE-STRUCTURE.md)           | Concrete module and file responsibilities                                   |
+| [Documentation sync evidence](reviews/DOCUMENTATION-SYNC.md) | Full document inventory, corrections and validation scope                   |
 
 ## Authority and traceability
 
-ADRs record decisions and trade-offs; architecture explains the system; detailed contracts/data/reliability pages define operational semantics; diagrams visualize them; acceptance documents define future evidence. [RECONCILIATION](reviews/RECONCILIATION.md) maps baseline topics and clarifications to ADRs, specifications, and gates. Prior review history remains in Git, not a required source file for current navigation.
+ADRs record decisions and trade-offs; architecture explains the system; detailed contracts/data/reliability pages define operational semantics; diagrams visualize them; acceptance documents distinguish local coverage from remaining production evidence. For current behavior, use code, migrations and registered contracts; divergences from the target remain explicit gaps. [RECONCILIATION](reviews/RECONCILIATION.md) maps baseline topics and clarifications to ADRs, specifications, and gates. Prior review history remains in Git, not a required source file for current navigation.
 
 ## Overview
 
@@ -17,11 +27,12 @@ ADRs record decisions and trade-offs; architecture explains the system; detailed
 
 ## Architecture and vocabulary
 
-| Document                                                      | Purpose                                   |
-| ------------------------------------------------------------- | ----------------------------------------- |
-| [docs/architecture/BOUNDARIES.md](architecture/BOUNDARIES.md) | Batas Produk, Actor, dan Kepemilikan      |
-| [docs/architecture/FRONTEND.md](architecture/FRONTEND.md)     | External app, BFF, CDD, dan design tokens |
-| [docs/GLOSSARY.md](GLOSSARY.md)                               | Glossary — Canonical Vocabulary           |
+| Document                                                                      | Purpose                                                                |
+| ----------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| [docs/architecture/BOUNDARIES.md](architecture/BOUNDARIES.md)                 | Batas Produk, Actor, dan Kepemilikan                                   |
+| [docs/architecture/FRONTEND.md](architecture/FRONTEND.md)                     | External app, BFF, CDD, dan design tokens                              |
+| [docs/architecture/ENV-MATURITY-MODEL.md](architecture/ENV-MATURITY-MODEL.md) | Configuration & Environment Maturity Model (Primitive to Beyond FAANG) |
+| [docs/GLOSSARY.md](GLOSSARY.md)                                               | Glossary — Canonical Vocabulary                                        |
 
 ## Contracts
 
@@ -99,3 +110,9 @@ Adopted in documentation means a baseline design choice, not implementation proo
 - [ADR-0021 — Optional Workspace & Remote Tools](adr/0021-workspace-remote-tools.md)
 - [ADR-0022 — Distributed Runner Fleet](adr/0022-distributed-runner-fleet.md)
 - [Fleet and connection diagram](diagrams/09-control-plane-fleet.md)
+
+## Verified HTTP contract implementation
+
+- [Request-to-implementation closure matrix](reviews/REQUEST-CLOSURE.md)
+- [Final local contract verification evidence](reviews/CONTRACT-EXECUTION.md)
+- [ADR-0029: replay receipts, resources and runner authority](adr/0029-replay-resources-runner-authority.md)

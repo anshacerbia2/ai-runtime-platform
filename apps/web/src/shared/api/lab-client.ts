@@ -21,18 +21,11 @@ export const labClient = {
   health: async (signal?: AbortSignal) =>
     successfulBody(await api.lab.health({ fetchOptions: { signal } })),
 
-  /** Health has its own query lifecycle; catalogue errors cannot overwrite it. */
+  /** One domain-facing catalogue read; storage composition stays behind the API. */
   async catalogue(signal?: AbortSignal): Promise<LabCatalogue> {
-    const [profiles, examples, schemas] = await Promise.all([
-      api.lab.profiles({ fetchOptions: { signal } }).then(successfulBody),
-      api.lab.examples({ fetchOptions: { signal } }).then(successfulBody),
-      api.lab.schemas({ fetchOptions: { signal } }).then(successfulBody),
-    ]);
-    return {
-      profiles: profiles.items,
-      examples: examples.items,
-      schemas: schemas.schemas,
-    };
+    return successfulBody(
+      await api.lab.catalogue({ fetchOptions: { signal } }),
+    );
   },
 
   validate: async (body: ValidationBody, key: string, signal?: AbortSignal) =>

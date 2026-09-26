@@ -2,6 +2,25 @@
 
 **Baseline 0.2.** Candidate parameters tidak sama dengan measured production guarantees. Principal menyediakan 5s/15s/5s, 10-minute stream window, dan 15-minute fast-path late usage; hardware/load/retention policy produksi tidak diberikan.
 
+## Implemented safety policy (not measured SLOs)
+
+| Boundary                            | Current code value                                     | Source / limitation                                                                |
+| ----------------------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------------- |
+| Browser unary overall wait          | At most 30,000 ms                                      | One monotonic deadline across attempts/body/backoff; not API/provider cancellation |
+| General browser response            | At most 8 MiB                                          | Actual bytes read; not total heap/RSS                                              |
+| Error diagnostics                   | At most 64 KiB                                         | Status/correlation survive malformed or oversized diagnostic bodies                |
+| Resource page                       | Default 20, maximum 100 items; 1 MiB response envelope | Projection/keyset before materialization; no global concurrency memory guarantee   |
+| Resource mutation response          | 64 KiB policy                                          | Historical resource receipt; database also constrains receipt JSON                 |
+| Declared replay-safe browser writes | At most 3 total HTTP attempts                          | Other operations remain one attempt; BFF adds no retry                             |
+| Per-client retry tokens             | Capacity 10, refill 1 per second                       | Load protection local to client instance, not a shared quota                       |
+| Receipt replay                      | 7 days, retained expired keys                          | No cleanup/tombstone deletion job; production retention/calibration open           |
+| Runner binding advertisement        | 65,536-byte messages, protocol v1                      | API configured body cap still applies; no streaming transport                      |
+| Database JSON validation            | 65,536 bytes by default, depth 32, 10,000 nodes        | Explicit representation validator, not unlimited generic cloning                   |
+
+References: [behavior policy](../../packages/contracts/src/http/behavior.ts), [resource policy](../../packages/contracts/src/http/resources.ts), [retry budget](../../apps/web/src/shared/api/retry-policy.ts), [runner protocol](../../packages/contracts/src/http/runner.ts), [JSON validator](../../apps/api/src/shared/infrastructure/json-value.ts). API/BFF configurable timeouts and limits remain in [configuration](../development/CONFIGURATION.md).
+
+Some database routines use different timeout/retry policies; do not extrapolate the receipted-management budget to every M1 transaction. No p95/p99, cluster memory cap, live TTFT or provider billing accuracy is inferred from these constants. Candidate Redis/SSE parameters below are not active timers.
+
 ## 1. Measurement definitions
 
 | SLI                     | Definisi                                                                                                    | Target status                                 |

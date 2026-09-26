@@ -1,12 +1,18 @@
 # AI Runtime Platform — Architecture
 
-**Baseline arsitektur:** 0.2 · **Jenis:** rancangan target. Implementasi M0 lokal dibatasi pada [Contract Lab](../milestones/M0.md); diagram di bawah bukan klaim seluruh platform telah berjalan.
+**Baseline arsitektur:** 0.2 · **Jenis:** rancangan target. Bagian target di bawah bukan klaim seluruh platform telah berjalan. M0/M1 dan perluasan kontrak lokal yang sudah tersedia dirinci di [kondisi aktual](../implementation/CURRENT-STATE.md).
 
 Dokumen ini menjabarkan kebutuhan produk dan keputusan aktif pada [ADR](../adr/README.md). Pemetaan topik, klarifikasi operasional, spesifikasi, dan gate tersedia di [decision traceability](../reviews/RECONCILIATION.md); riwayat review bukan dependency implementasi. Istilah MUST/WAJIB berarti requirement baseline, bukan bukti bahwa requirement sudah terpenuhi.
 
 ## Implementasi dan stack
 
-Backend menggunakan NestJS dengan FastifyAdapter; persistence memakai Prisma/PostgreSQL melalui repository ports. Domain dan use case tidak mengimpor Nest/Fastify/Prisma. Frontend React/Next.js App Router dipisah per feature, dengan BFF tier yang memegang session dan token custody serta meneruskan ke API. [Code structure](CODE-STRUCTURE.md) adalah peta source aktual; [ADR-0016](../adr/0016-nestjs-fastify.md), [ADR-0017](../adr/0017-prisma-postgresql.md), [ADR-0018](../adr/0018-clean-architecture-quality.md), dan [ADR-0026](../adr/0026-nextjs-bff.md) merekam alasan, alternatif, serta trade-off. Implementasi yang tersedia tetap M0 contract-only, bukan semua komponen target di diagram.
+Backend menggunakan NestJS dengan FastifyAdapter; persistence memakai Prisma/PostgreSQL melalui repository ports. Domain dan use case tidak mengimpor Nest/Fastify/Prisma. Frontend React/Next.js App Router dipisah per feature, dengan BFF tier yang memegang session dan token custody serta meneruskan ke API. [Code structure](CODE-STRUCTURE.md) adalah peta source aktual; [ADR-0016](../adr/0016-nestjs-fastify.md), [ADR-0017](../adr/0017-prisma-postgresql.md), [ADR-0018](../adr/0018-clean-architecture-quality.md), dan [ADR-0026](../adr/0026-nextjs-bff.md) merekam alasan, alternatif, serta trade-off. Implementasi tersedia mencakup M0 validation-only, M1 durable control/accounting, Next.js/BFF, resource APIs, management receipts, dan runner authority kernel. Provider gateway, autonomous workers dan SSE masih target, bukan komponen berjalan.
+
+## View implementasi 24 September 2026
+
+Jalur aktif adalah browser -> Next.js/BFF -> NestJS/Fastify -> PostgreSQL; machine runner dapat memakai registration/protocol/report/evidence, dan operator dapat grant/revoke assignment. Tidak ada process runner yang diluncurkan server oleh endpoint tersebut. Lihat [diagram I01–I04](../diagrams/10-implemented-contracts.md), [route catalogue](../implementation/HTTP-API.md) dan [ADR-0029](../adr/0029-replay-resources-runner-authority.md).
+
+Model status dan schema execution pada bagian target tidak selalu sama dengan vocabulary fisik M1. Perbedaannya dijelaskan pada [lifecycle aktual dan target](../contracts/EXECUTION-LIFECYCLE.md). Penyebutan API v1 execution di bawah berarti /v1/* yang PLANNED, bukan /api/v1 resource API yang sudah aktif.
 
 ## 1. Tujuan dan batas produk
 
@@ -65,7 +71,7 @@ Capability catalogue berada di [CAPABILITIES](../contracts/CAPABILITIES.md), kon
 
 ## 4. Boundary ownership
 
-Business retries, review, validation, retrieval ACL, publication, glossary, dan domain state tetap di aplikasi. Platform dapat melakukan bounded infrastructure retry yang dinyatakan profile dan aman terhadap side effect. Satu retry menciptakan attempt baru; tidak mengubah business job menjadi sukses.
+Business retries, review, validation, retrieval ACL, publication, glossary, dan domain state tetap di aplikasi. Platform dapat melakukan bounded infrastructure retry yang dinyatakan profile dan aman terhadap side effect. Retry execution runtime yang direncanakan menciptakan attempt baru; HTTP same-key replay pada implementasi sekarang tidak membuat logical mutation/admission baru dan tidak mengubah business job menjadi sukses.
 
 Direct-chat UI melalui backend/BFF secara default. Akses client langsung hanya dengan token delegated berumur pendek dan scope terbatas; provider key maupun service credential tidak boleh masuk browser. `application_id` tidak dipercaya dari request body. Detail actor, trust boundary, serta integrasi platform lain ada di [BOUNDARIES](BOUNDARIES.md).
 
@@ -140,7 +146,7 @@ Gunakan per-app identity, least privilege, approved package digests, egress allo
 
 [PLAN.md](../PLAN.md) mendefinisikan work packages; [ROADMAP.md](../ROADMAP.md) milestones dan dependency. Phase 2 membuktikan OpenRouter dan Direct Anthropic pada common capability. OpenRouter tetap boleh primary per profile. Claude adalah runtime pertama; Codex dan Gemini menyusul dengan compatibility tests.
 
-M0 telah memiliki vertical slice FE/BE/PostgreSQL untuk contract checks sesuai [ADR-0015](../adr/0015-testable-milestone-slices.md). Implementasi AI execution, accounting produksi, serta P1 dan fase lanjut **belum dikerjakan**; hasil uji lab tidak menutup gate produksi. [ADR index](../adr/README.md), [open decisions](../decisions/OPEN-QUESTIONS.md), [test gates](../testing/ACCEPTANCE.md), dan [validation record](../reviews/VALIDATION.md) membedakan keputusan desain, pertanyaan terbuka, serta bukti yang benar-benar tersedia.
+M0 telah memiliki vertical slice FE/BE/PostgreSQL untuk contract checks sesuai [ADR-0015](../adr/0015-testable-milestone-slices.md). P1 control-plane/accounting dan perluasan receipt/resource/fencing sudah diimplementasikan lokal. Live AI execution, automatic dispatch, Redis runner leases, dan accounting/operations produksi belum dibuktikan; hasil uji lokal tidak menutup gate produksi. [ADR index](../adr/README.md), [open decisions](../decisions/OPEN-QUESTIONS.md), [test gates](../testing/ACCEPTANCE.md), dan [validation record](../reviews/VALIDATION.md) membedakan keputusan desain, pertanyaan terbuka, serta bukti yang benar-benar tersedia.
 
 ## 13. Control Plane, connections, plugins, dan distributed fleet
 

@@ -6,6 +6,10 @@
 
 **Terkait:** [ADR-0012](0012-deployment-dispatch.md), [ADR-0015](0015-testable-milestone-slices.md), [ADR-0016](0016-nestjs-fastify.md), [ADR-0017](0017-prisma-postgresql.md).
 
+## Implementation reconciliation — 24 September 2026
+
+Inward-dependency, HTTP-boundary, serialization, token, type/lint/format and bundle gates are active. Next.js dev replaces Vite HMR; strict layering is a checked repository constraint, not a proof of all runtime behavior. See [current source state](../implementation/CURRENT-STATE.md), [active HTTP operations](../implementation/HTTP-API.md), and [verification scope](../reviews/CONTRACT-EXECUTION.md). This note updates implementation status only; it does not create new reviewer approval or erase the original decision history.
+
 ## Context
 
 User meminta seluruh kode readable, newline/format konsisten, folder yang mempunyai tanggung jawab jelas, dan Clean Architecture. M0 awal menumpuk banyak route, query, validasi, dan UI pada file besar. Memasang Nest/Prisma atau menjalankan formatter saja tidak memperbaiki arah dependency.
@@ -40,7 +44,7 @@ Static checker adalah guardrail repository, bukan pembuktian seluruh bentuk depe
 
 Jumlah file bertambah, tetapi perubahan tanggung jawab terlokalisasi dan use case dapat dibaca tanpa mengetahui transport/database. Ada biaya mapping serta factory wiring yang diterima; tidak memakai service locator global untuk menyembunyikannya. Ports diberi nama operasi aplikasi, bukan generic CRUD.
 
-Dev startup menunggu API siap sebelum frontend terbuka. Backend dikompilasi TypeScript agar decorator metadata konsisten; restart dev command setelah perubahan backend/shared contracts. Frontend tetap memakai Vite HMR. Ini menghindari race compiler-watch yang dapat membuat halaman pertama gagal saat bootstrap.
+Dev startup menunggu API siap sebelum frontend terbuka. Backend dikompilasi TypeScript agar decorator metadata konsisten; restart dev command setelah perubahan backend/shared contracts. Frontend sekarang memakai Next.js development server/HMR sesuai ADR-0026; Vite merupakan baseline yang sudah dipensiunkan. Ini menghindari race compiler-watch yang dapat membuat halaman pertama gagal saat bootstrap.
 
 ## Verification dan evolution
 

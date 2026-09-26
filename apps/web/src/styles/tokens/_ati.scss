@@ -54,10 +54,10 @@
   --ati-white: #ffffff;
 
   // --- Surfaces -------------------------------------------------------------
-  // DEPARTURE from the ATI neutrals (#f7f8fc / #f1f3f8 / #e4e7ef): those are
-  // blue-tinted and made the page read as coloured at full-window scale. These
-  // are near-neutral, so the navy and blue only appear where they are meant to.
-  --ati-canvas: #f9fafb;
+  // Canvas is the ATI portal's own `--color-bg` (slate-blue), so the console
+  // sits on the same field as the portal. Tints and lines inside cards stay
+  // near-neutral; only the page field carries the slate.
+  --ati-canvas: #f7f8fc;
   --ati-tint: #f3f3f5;
   --ati-tint-strong: #ebebee;
   --ati-line: #e6e6e9;
@@ -167,6 +167,8 @@
   --fs-nav-value: 11px;
   --fs-eyebrow: 13px;
   --fs-metric: 30px;
+  // Sign-in headline only; the console has no type this large.
+  --fs-display: 36px;
 
   --fw-regular: 400;
   --fw-medium: 500;

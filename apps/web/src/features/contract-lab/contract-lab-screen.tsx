@@ -15,9 +15,11 @@ import { useResourceQuery } from '../../shared/api/use-resource-query';
 export function ContractLabScreen() {
   const router = useRouter();
   const { resources, catalogue, refreshCatalogue } = useWorkspace();
-  const { state: health, refresh: refreshHealth } = useResourceQuery(
-    labClient.health,
-  );
+  const {
+    state: health,
+    refresh: refreshHealth,
+    refreshOrThrow: refreshHealthAfterSave,
+  } = useResourceQuery(labClient.health);
   const [operationError, setOperationError] = useState<Error | null>(null);
 
   return (
@@ -40,7 +42,7 @@ export function ContractLabScreen() {
       {resources ? (
         <ContractLabPage
           resources={resources}
-          onSaved={refreshHealth}
+          onSaved={refreshHealthAfterSave}
           onHistory={() => router.push('/history')}
           onError={setOperationError}
         />

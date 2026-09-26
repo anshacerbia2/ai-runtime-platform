@@ -1,3 +1,6 @@
+import { ManagementResult, receiptPolicy } from '@ai-runtime/contracts/http';
+import { presentRunner, presentAudit, presentOutbox } from './wire-mappers.js';
+import { databaseJson } from '../../../shared/infrastructure/json-value.js';
 import { createHash, randomUUID } from 'node:crypto';
 import type {
   AdmissionCommand,
@@ -17,17 +20,6 @@ import type {
   M1Repository,
   UsageResult,
 } from '../application/m1-repository.port.js';
-
-type Wire<T> = T extends Date
-  ? string
-  : T extends readonly (infer U)[]
-    ? Wire<U>[]
-    : T extends object
-      ? { [K in keyof T]: Wire<T[K]> }
-      : T;
-function wire<T>(value: T): Wire<T> {
-  return JSON.parse(JSON.stringify(value)) as Wire<T>;
-}
 
 const asString = (value: bigint) => value.toString();
 const digest = (value: string) =>
@@ -62,7 +54,10 @@ function retryableTransactionError(error: unknown, depth = 0): boolean {
   if (
     record.code === 'P2034' ||
     record.code === '40001' ||
-    record.code === '40P01'
+    record.code === '40P01' ||
+    record.originalCode === '40001' ||
+    record.originalCode === '40P01' ||
+    record.kind === 'TransactionWriteConflict'
   ) {
     return true;
   }
@@ -70,6 +65,14 @@ function retryableTransactionError(error: unknown, depth = 0): boolean {
     typeof record.message === 'string' &&
     /serialize access|serialization failure|deadlock detected/i.test(
       record.message,
+    )
+  ) {
+    return true;
+  }
+  if (
+    typeof record.originalMessage === 'string' &&
+    /serialize access|serialization failure|deadlock detected/i.test(
+      record.originalMessage,
     )
   ) {
     return true;
@@ -109,11 +112,14 @@ export class PrismaM1Repository implements M1Repository {
               displayName: true,
               environment: true,
               keycloakClientId: true,
+              gatewayMaxConcurrency: true,
+              gatewayRequestsPerMinute: true,
               status: true,
               revision: true,
             },
           }),
           this.database.credentialBinding.findMany({
+            take: 201,
             where: { applicationId },
             select: {
               id: true,
@@ -126,6 +132,7 @@ export class PrismaM1Repository implements M1Repository {
             orderBy: [{ connectionId: 'asc' }, { id: 'asc' }],
           }),
           this.database.profileRevision.findMany({
+            take: 201,
             where: { applicationId },
             select: {
               id: true,
@@ -133,6 +140,14 @@ export class PrismaM1Repository implements M1Repository {
               revision: true,
               connectionId: true,
               capability: true,
+              providerAdapter: true,
+              model: true,
+              fallbackConnectionId: true,
+              fallbackProviderAdapter: true,
+              fallbackModel: true,
+              maxOutputTokens: true,
+              timeoutMs: true,
+              streaming: true,
               holdUnits: true,
               accountIds: true,
               digest: true,
@@ -140,6 +155,7 @@ export class PrismaM1Repository implements M1Repository {
             orderBy: [{ profileRef: 'asc' }, { revision: 'desc' }],
           }),
           this.database.budgetAccount.findMany({
+            take: 201,
             where: { applicationId },
             select: {
               id: true,
@@ -159,6 +175,12 @@ export class PrismaM1Repository implements M1Repository {
             take: 50,
           }),
         ]);
+      if ([bindings, profiles, budgets].some((rows) => rows.length > 200)) {
+        throw new ApplicationError(
+          'RESOURCE_EXHAUSTED',
+          'Legacy snapshot capacity exceeded; use paginated resource APIs.',
+        );
+      }
       return {
         application,
         bindings,
@@ -191,17 +213,21 @@ export class PrismaM1Repository implements M1Repository {
       runners,
     ] = await Promise.all([
       this.database.controlApplication.findMany({
+        take: 201,
         select: {
           id: true,
           displayName: true,
           environment: true,
           keycloakClientId: true,
+          gatewayMaxConcurrency: true,
+          gatewayRequestsPerMinute: true,
           status: true,
           revision: true,
         },
         orderBy: [{ environment: 'asc' }, { id: 'asc' }],
       }),
       this.database.aiConnection.findMany({
+        take: 201,
         select: {
           id: true,
           displayName: true,
@@ -210,12 +236,15 @@ export class PrismaM1Repository implements M1Repository {
           environment: true,
           sharingMode: true,
           quotaGroupRef: true,
+          gatewayMaxConcurrency: true,
+          gatewayRequestsPerMinute: true,
           status: true,
           revision: true,
         },
         orderBy: [{ environment: 'asc' }, { id: 'asc' }],
       }),
       this.database.credentialInstance.findMany({
+        take: 201,
         select: {
           id: true,
           connectionId: true,
@@ -227,6 +256,7 @@ export class PrismaM1Repository implements M1Repository {
         orderBy: [{ connectionId: 'asc' }, { id: 'asc' }],
       }),
       this.database.credentialBinding.findMany({
+        take: 201,
         select: {
           id: true,
           applicationId: true,
@@ -238,9 +268,11 @@ export class PrismaM1Repository implements M1Repository {
         orderBy: [{ applicationId: 'asc' }, { connectionId: 'asc' }],
       }),
       this.database.profileAlias.findMany({
+        take: 201,
         orderBy: [{ applicationId: 'asc' }, { profileRef: 'asc' }],
       }),
       this.database.profileRevision.findMany({
+        take: 201,
         select: {
           id: true,
           applicationId: true,
@@ -248,6 +280,14 @@ export class PrismaM1Repository implements M1Repository {
           revision: true,
           connectionId: true,
           capability: true,
+          providerAdapter: true,
+          model: true,
+          fallbackConnectionId: true,
+          fallbackProviderAdapter: true,
+          fallbackModel: true,
+          maxOutputTokens: true,
+          timeoutMs: true,
+          streaming: true,
           holdUnits: true,
           accountIds: true,
           digest: true,
@@ -259,9 +299,13 @@ export class PrismaM1Repository implements M1Repository {
           { revision: 'desc' },
         ],
       }),
-      this.database.budgetAccount.findMany({ orderBy: { id: 'asc' } }),
-      this.database.runnerPool.findMany({ orderBy: { id: 'asc' } }),
+      this.database.budgetAccount.findMany({
+        take: 201,
+        orderBy: { id: 'asc' },
+      }),
+      this.database.runnerPool.findMany({ take: 201, orderBy: { id: 'asc' } }),
       this.database.runnerNode.findMany({
+        take: 201,
         select: {
           id: true,
           ownerSubject: true,
@@ -278,6 +322,24 @@ export class PrismaM1Repository implements M1Repository {
       }),
     ]);
 
+    if (
+      [
+        applications,
+        connections,
+        credentials,
+        bindings,
+        aliases,
+        profiles,
+        budgets,
+        pools,
+        runners,
+      ].some((rows) => rows.length > 200)
+    ) {
+      throw new ApplicationError(
+        'RESOURCE_EXHAUSTED',
+        'Legacy snapshot capacity exceeded; use paginated resource APIs.',
+      );
+    }
     return {
       applications,
       connections,
@@ -305,18 +367,30 @@ export class PrismaM1Repository implements M1Repository {
 
   private async transaction<T>(
     work: (tx: Prisma.TransactionClient) => Promise<T>,
+    bounded = false,
   ): Promise<T> {
+    const deadline = Date.now() + 15000;
     for (let retry = 0; ; retry++) {
+      if (bounded && Date.now() >= deadline) {
+        throw new ApplicationError(
+          'DEPENDENCY_UNAVAILABLE',
+          'Transaction replay budget exhausted; reconcile the request key.',
+        );
+      }
       try {
         return await this.database.$transaction(work, {
           isolationLevel: 'Serializable',
-          maxWait: 15000,
-          timeout: 15000,
+          maxWait: bounded
+            ? Math.max(1, Math.min(2000, deadline - Date.now()))
+            : 15000,
+          timeout: bounded
+            ? Math.max(1, Math.min(5000, deadline - Date.now()))
+            : 15000,
         });
       } catch (error) {
         if (
           (retryableTransactionError(error) || isPrismaCode(error, 'P2002')) &&
-          retry < 64
+          retry < (bounded ? 5 : 64)
         ) {
           await transactionBackoff(retry);
           continue;
@@ -336,595 +410,867 @@ export class PrismaM1Repository implements M1Repository {
   }
 
   async manage(principal: Principal, command: ManagementCommand) {
-    return this.transaction(async (tx) => {
-      const actor = principal.subject;
-      const audited = async (
-        action: string,
-        resourceId: string,
-        revision: number,
-        applicationId: string | null = null,
-      ) => {
-        await tx.auditEntry.create({
-          data: {
-            id: randomUUID(),
-            actor,
-            action,
-            resourceId,
-            revision,
-            applicationId,
-          },
-        });
-      };
+    return this.transaction((tx) => this.manageIn(tx, principal, command));
+  }
 
-      if (command.kind === 'application') {
-        const current = await tx.controlApplication.findUnique({
-          where: { id: command.id },
-        });
-        if (command.expectedRevision === 0) {
-          if (current) {
-            conflict('Application already exists.');
-          }
-          const created = await tx.controlApplication.create({
-            data: {
-              id: command.id,
-              displayName: command.displayName,
-              environment: command.environment,
-              keycloakClientId: command.keycloakClientId,
-              status: command.status,
-            },
-            select: {
-              id: true,
-              displayName: true,
-              environment: true,
-              keycloakClientId: true,
-              status: true,
-              revision: true,
-            },
-          });
-          await audited(
-            'application.created',
-            created.id,
-            created.revision,
-            created.id,
+  /** Shared use case for compatibility and resource APIs; the caller owns the transaction. */
+  async manageIn(
+    tx: Prisma.TransactionClient,
+    principal: Principal,
+    command: ManagementCommand,
+  ) {
+    const result = await this.applyManagement(tx, principal, command);
+    return ManagementResult.parse({ ...result, kind: command.kind });
+  }
+
+  async manageReceipted(
+    principal: Principal,
+    command: ManagementCommand,
+    key: string,
+  ) {
+    const scopeKey = digest(principal.kind + ':' + principal.subject);
+    const requestDigest = jsonDigest({
+      version: 1,
+      operation: command.kind,
+      command,
+    });
+    const id = randomUUID();
+    return this.transaction(async (tx) => {
+      // In-progress claims remain invisible until this SHORT transaction commits.
+      const inserted = await tx.managementReceipt.createMany({
+        data: [
+          {
+            id,
+            scopeKey,
+            requestKey: key,
+            operation: command.kind,
+            requestDigest,
+            response: {},
+            completed: false,
+            expiresAt: new Date(Date.now() + receiptPolicy.replayWindowMs),
+          },
+        ],
+        skipDuplicates: true,
+      });
+      const prior = await tx.managementReceipt.findUniqueOrThrow({
+        where: { scopeKey_requestKey: { scopeKey, requestKey: key } },
+      });
+      if (inserted.count === 0) {
+        if (
+          prior.requestDigest !== requestDigest ||
+          prior.operation !== command.kind
+        ) {
+          conflict('Request key belongs to a different operation or payload.');
+        }
+        if (!prior.completed || !prior.completedAt) {
+          throw new ApplicationError(
+            'DEPENDENCY_UNAVAILABLE',
+            'The first operation has not completed.',
           );
-          return created;
         }
-        if (!current) {
-          notFound();
+        if (prior.expiresAt.getTime() <= Date.now()) {
+          throw new ApplicationError(
+            'REQUEST_KEY_EXPIRED',
+            'Receipt replay window expired; the key is retained and cannot be reused.',
+          );
         }
-        if (current.revision !== command.expectedRevision) {
-          conflict('Application revision changed.');
+        return {
+          resource: ManagementResult.parse(prior.response),
+          receipt: {
+            id: prior.id,
+            key,
+            replayed: true,
+            completedAt: prior.completedAt.toISOString(),
+          },
+        };
+      }
+      const resource = await this.manageIn(tx, principal, command);
+      const completedAt = new Date();
+      await tx.managementReceipt.update({
+        where: { id },
+        data: {
+          response: databaseJson(resource),
+          completed: true,
+          completedAt,
+        },
+      });
+      return {
+        resource,
+        receipt: {
+          id,
+          key,
+          replayed: false,
+          completedAt: completedAt.toISOString(),
+        },
+      };
+    }, true);
+  }
+
+  private async applyManagement(
+    tx: Prisma.TransactionClient,
+    principal: Principal,
+    command: ManagementCommand,
+  ) {
+    const actor = principal.subject;
+    const audited = async (
+      action: string,
+      resourceId: string,
+      revision: number,
+      applicationId: string | null = null,
+    ) => {
+      await tx.auditEntry.create({
+        data: {
+          id: randomUUID(),
+          actor,
+          action,
+          resourceId,
+          revision,
+          applicationId,
+        },
+      });
+    };
+
+    if (command.kind === 'application') {
+      const current = await tx.controlApplication.findUnique({
+        where: { id: command.id },
+      });
+      if (command.expectedRevision === 0) {
+        if (current) {
+          conflict('Application already exists.');
         }
-        const updated = await tx.controlApplication.update({
-          where: { id: command.id },
+        const created = await tx.controlApplication.create({
           data: {
+            id: command.id,
             displayName: command.displayName,
             environment: command.environment,
             keycloakClientId: command.keycloakClientId,
+            gatewayMaxConcurrency: command.gatewayMaxConcurrency ?? 100,
+            gatewayRequestsPerMinute: command.gatewayRequestsPerMinute ?? 600,
             status: command.status,
-            revision: { increment: 1 },
           },
           select: {
             id: true,
             displayName: true,
             environment: true,
             keycloakClientId: true,
+            gatewayMaxConcurrency: true,
+            gatewayRequestsPerMinute: true,
             status: true,
             revision: true,
           },
         });
         await audited(
-          'application.updated',
-          updated.id,
-          updated.revision,
-          updated.id,
+          'application.created',
+          created.id,
+          created.revision,
+          created.id,
         );
-        return updated;
+        return created;
       }
-
-      if (command.kind === 'connection') {
-        const current = await tx.aiConnection.findUnique({
-          where: { id: command.id },
-        });
-        if (command.sharingMode === 'SHARED' && !command.quotaGroupRef) {
-          throw new ApplicationError(
-            'INVALID_REQUEST',
-            'Shared connection requires quotaGroupRef.',
-          );
-        }
-        if (command.sharingMode === 'DEDICATED') {
-          const owners = await tx.credentialBinding.findMany({
-            where: { connectionId: command.id, status: 'ENABLED' },
-            distinct: ['applicationId'],
-            select: { applicationId: true },
-          });
-          if (owners.length > 1) {
-            conflict(
-              'Shared connection still has multiple application bindings.',
-            );
-          }
-        }
-        const data = {
+      if (!current) {
+        notFound();
+      }
+      if (current.revision !== command.expectedRevision) {
+        conflict('Application revision changed.');
+      }
+      const updated = await tx.controlApplication.update({
+        where: { id: command.id },
+        data: {
           displayName: command.displayName,
           environment: command.environment,
-          provider: command.provider,
-          authMode: command.authMode,
-          sharingMode: command.sharingMode,
-          quotaGroupRef: command.quotaGroupRef,
+          keycloakClientId: command.keycloakClientId,
+          gatewayMaxConcurrency:
+            command.gatewayMaxConcurrency ?? current.gatewayMaxConcurrency,
+          gatewayRequestsPerMinute:
+            command.gatewayRequestsPerMinute ??
+            current.gatewayRequestsPerMinute,
           status: command.status,
-        };
-        if (command.expectedRevision === 0) {
-          if (current) {
-            conflict('Connection already exists.');
-          }
-          const created = await tx.aiConnection.create({
-            data: { id: command.id, ...data },
-          });
-          await audited('connection.created', created.id, created.revision);
-          return created;
+          revision: { increment: 1 },
+        },
+        select: {
+          id: true,
+          displayName: true,
+          environment: true,
+          keycloakClientId: true,
+          gatewayMaxConcurrency: true,
+          gatewayRequestsPerMinute: true,
+          status: true,
+          revision: true,
+        },
+      });
+      await audited(
+        'application.updated',
+        updated.id,
+        updated.revision,
+        updated.id,
+      );
+      return updated;
+    }
+
+    if (command.kind === 'connection') {
+      const current = await tx.aiConnection.findUnique({
+        where: { id: command.id },
+      });
+      if (command.sharingMode === 'SHARED' && !command.quotaGroupRef) {
+        throw new ApplicationError(
+          'INVALID_REQUEST',
+          'Shared connection requires quotaGroupRef.',
+        );
+      }
+      if (command.sharingMode === 'DEDICATED') {
+        const owners = await tx.credentialBinding.findMany({
+          where: { connectionId: command.id, status: 'ENABLED' },
+          distinct: ['applicationId'],
+          select: { applicationId: true },
+        });
+        if (owners.length > 1) {
+          conflict(
+            'Shared connection still has multiple application bindings.',
+          );
         }
+      }
+      const gatewayMaxConcurrency =
+        command.gatewayMaxConcurrency ?? current?.gatewayMaxConcurrency ?? 100;
+      const gatewayRequestsPerMinute =
+        command.gatewayRequestsPerMinute ??
+        current?.gatewayRequestsPerMinute ??
+        600;
+      if (command.sharingMode === 'SHARED') {
+        const peers = await tx.aiConnection.findMany({
+          where: {
+            id: { not: command.id },
+            sharingMode: 'SHARED',
+            quotaGroupRef: command.quotaGroupRef,
+            status: 'ENABLED',
+          },
+          select: {
+            gatewayMaxConcurrency: true,
+            gatewayRequestsPerMinute: true,
+          },
+        });
+        if (
+          peers.some(
+            (peer) =>
+              peer.gatewayMaxConcurrency !== gatewayMaxConcurrency ||
+              peer.gatewayRequestsPerMinute !== gatewayRequestsPerMinute,
+          )
+        ) {
+          throw new ApplicationError(
+            'INVALID_REQUEST',
+            'Shared quota-group connections must use identical gateway limits.',
+          );
+        }
+      }
+      const data = {
+        displayName: command.displayName,
+        environment: command.environment,
+        provider: command.provider,
+        authMode: command.authMode,
+        sharingMode: command.sharingMode,
+        quotaGroupRef: command.quotaGroupRef,
+        gatewayMaxConcurrency,
+        gatewayRequestsPerMinute,
+        status: command.status,
+      };
+      if (command.expectedRevision === 0) {
+        if (current) {
+          conflict('Connection already exists.');
+        }
+        const created = await tx.aiConnection.create({
+          data: { id: command.id, ...data },
+        });
+        await audited('connection.created', created.id, created.revision);
+        return created;
+      }
+      if (!current) {
+        notFound();
+      }
+      if (current.revision !== command.expectedRevision) {
+        conflict('Connection revision changed.');
+      }
+      const updated = await tx.aiConnection.update({
+        where: { id: command.id },
+        data: { ...data, revision: { increment: 1 } },
+      });
+      await audited('connection.updated', updated.id, updated.revision);
+      return updated;
+    }
+
+    if (command.kind === 'credential') {
+      const connection = await tx.aiConnection.findUnique({
+        where: { id: command.connectionId },
+      });
+      if (!connection) {
+        notFound('Connection not found.');
+      }
+      if (
+        (command.residency === 'RUNNER_LOCAL' && !command.runnerRef) ||
+        (command.residency === 'CENTRAL' && command.runnerRef)
+      ) {
+        throw new ApplicationError(
+          'INVALID_REQUEST',
+          'Credential residency and runnerRef disagree.',
+        );
+      }
+      const current = await tx.credentialInstance.findUnique({
+        where: { id: command.id },
+      });
+      const data = {
+        connectionId: command.connectionId,
+        secretRef:
+          command.secretRef === undefined
+            ? (current?.secretRef ?? null)
+            : command.secretRef,
+        residency: command.residency,
+        runnerRef: command.runnerRef,
+        status: command.status,
+      };
+      let result;
+      if (command.expectedRevision === 0) {
+        if (current) {
+          conflict('Credential metadata already exists.');
+        }
+        result = await tx.credentialInstance.create({
+          data: { id: command.id, ...data },
+        });
+      } else {
         if (!current) {
           notFound();
         }
         if (current.revision !== command.expectedRevision) {
-          conflict('Connection revision changed.');
+          conflict('Credential revision changed.');
         }
-        const updated = await tx.aiConnection.update({
+        result = await tx.credentialInstance.update({
           where: { id: command.id },
           data: { ...data, revision: { increment: 1 } },
         });
-        await audited('connection.updated', updated.id, updated.revision);
-        return updated;
       }
+      await audited(
+        command.expectedRevision === 0
+          ? 'credential.created'
+          : 'credential.updated',
+        result.id,
+        result.revision,
+      );
+      return {
+        id: result.id,
+        connectionId: result.connectionId,
+        residency: result.residency,
+        runnerRef: result.runnerRef,
+        status: result.status,
+        revision: result.revision,
+      };
+    }
 
-      if (command.kind === 'credential') {
-        const connection = await tx.aiConnection.findUnique({
-          where: { id: command.connectionId },
+    if (command.kind === 'binding') {
+      const application = await tx.controlApplication.findUnique({
+        where: { id: command.applicationId },
+      });
+      const connection = await tx.aiConnection.findUnique({
+        where: { id: command.connectionId },
+      });
+      if (!application || !connection) {
+        notFound('Application or connection not found.');
+      }
+      if (connection.sharingMode === 'DEDICATED') {
+        const other = await tx.credentialBinding.findFirst({
+          where: {
+            connectionId: command.connectionId,
+            status: 'ENABLED',
+            applicationId: { not: command.applicationId },
+          },
         });
-        if (!connection) {
-          notFound('Connection not found.');
+        if (other) {
+          throw new ApplicationError(
+            'POLICY_DENIED',
+            'Dedicated connection is already owned by another application.',
+          );
+        }
+      }
+      const current = await tx.credentialBinding.findUnique({
+        where: { id: command.id },
+      });
+      const data = {
+        applicationId: command.applicationId,
+        connectionId: command.connectionId,
+        profileRef: command.profileRef,
+        status: command.status,
+      };
+      let result;
+      if (command.expectedRevision === 0) {
+        if (current) {
+          conflict('Binding already exists.');
+        }
+        result = await tx.credentialBinding.create({
+          data: { id: command.id, ...data },
+        });
+      } else {
+        if (!current) {
+          notFound();
+        }
+        if (current.revision !== command.expectedRevision) {
+          conflict('Binding revision changed.');
+        }
+        result = await tx.credentialBinding.update({
+          where: { id: command.id },
+          data: { ...data, revision: { increment: 1 } },
+        });
+      }
+      await audited(
+        command.expectedRevision === 0 ? 'binding.created' : 'binding.updated',
+        result.id,
+        result.revision,
+        result.applicationId,
+      );
+      return result;
+    }
+
+    if (command.kind === 'budget') {
+      if (Boolean(command.applicationId) === Boolean(command.quotaGroupRef)) {
+        throw new ApplicationError(
+          'INVALID_REQUEST',
+          'Budget must scope exactly one application or quota group.',
+        );
+      }
+      const current = await tx.budgetAccount.findUnique({
+        where: { id: command.id },
+      });
+      const limitUnits = BigInt(command.limitUnits);
+      if (current && limitUnits < current.heldUnits + current.postedUnits) {
+        throw new ApplicationError(
+          'INVALID_REQUEST',
+          'Budget limit cannot fall below current exposure.',
+        );
+      }
+      const data = {
+        applicationId: command.applicationId,
+        quotaGroupRef: command.quotaGroupRef,
+        unit: command.unit,
+        period: command.period,
+        limitUnits,
+      };
+      let result;
+      if (command.expectedRevision === 0) {
+        if (current) {
+          conflict('Budget already exists.');
+        }
+        result = await tx.budgetAccount.create({
+          data: { id: command.id, ...data },
+        });
+      } else {
+        if (!current) {
+          notFound();
+        }
+        if (current.revision !== command.expectedRevision) {
+          conflict('Budget revision changed.');
         }
         if (
-          (command.residency === 'RUNNER_LOCAL' && !command.runnerRef) ||
-          (command.residency === 'CENTRAL' && command.runnerRef)
+          (current.unit !== command.unit ||
+            current.period !== command.period ||
+            current.applicationId !== command.applicationId ||
+            current.quotaGroupRef !== command.quotaGroupRef) &&
+          (await tx.profileRevision.count({
+            where: { accountIds: { has: command.id } },
+          })) > 0
         ) {
           throw new ApplicationError(
             'INVALID_REQUEST',
-            'Credential residency and runnerRef disagree.',
+            'Active budget scope/unit/period is immutable.',
           );
         }
-        const current = await tx.credentialInstance.findUnique({
+        result = await tx.budgetAccount.update({
           where: { id: command.id },
+          data: { ...data, revision: { increment: 1 } },
         });
-        const data = {
-          connectionId: command.connectionId,
-          residency: command.residency,
-          runnerRef: command.runnerRef,
-          status: command.status,
-        };
-        let result;
-        if (command.expectedRevision === 0) {
-          if (current) {
-            conflict('Credential metadata already exists.');
-          }
-          result = await tx.credentialInstance.create({
-            data: { id: command.id, ...data },
-          });
-        } else {
-          if (!current) {
-            notFound();
-          }
-          if (current.revision !== command.expectedRevision) {
-            conflict('Credential revision changed.');
-          }
-          result = await tx.credentialInstance.update({
-            where: { id: command.id },
-            data: { ...data, revision: { increment: 1 } },
-          });
-        }
-        await audited(
-          command.expectedRevision === 0
-            ? 'credential.created'
-            : 'credential.updated',
-          result.id,
-          result.revision,
-        );
-        return {
-          id: result.id,
-          connectionId: result.connectionId,
-          residency: result.residency,
-          runnerRef: result.runnerRef,
-          status: result.status,
-          revision: result.revision,
-        };
       }
+      await audited(
+        command.expectedRevision === 0 ? 'budget.created' : 'budget.updated',
+        result.id,
+        result.revision,
+        result.applicationId,
+      );
+      return {
+        ...result,
+        limitUnits: asString(result.limitUnits),
+        heldUnits: asString(result.heldUnits),
+        postedUnits: asString(result.postedUnits),
+      };
+    }
 
-      if (command.kind === 'binding') {
-        const [application, connection] = await Promise.all([
-          tx.controlApplication.findUnique({
-            where: { id: command.applicationId },
-          }),
-          tx.aiConnection.findUnique({ where: { id: command.connectionId } }),
-        ]);
-        if (!application || !connection) {
-          notFound('Application or connection not found.');
-        }
-        if (connection.sharingMode === 'DEDICATED') {
-          const other = await tx.credentialBinding.findFirst({
-            where: {
-              connectionId: command.connectionId,
-              status: 'ENABLED',
-              applicationId: { not: command.applicationId },
-            },
-          });
-          if (other) {
-            throw new ApplicationError(
-              'POLICY_DENIED',
-              'Dedicated connection is already owned by another application.',
-            );
-          }
-        }
-        const current = await tx.credentialBinding.findUnique({
-          where: { id: command.id },
-        });
-        const data = {
+    if (command.kind === 'profile') {
+      const application = await tx.controlApplication.findUnique({
+        where: { id: command.applicationId },
+      });
+      const connection = await tx.aiConnection.findUnique({
+        where: { id: command.connectionId },
+      });
+      const alias = await tx.profileAlias.findUnique({
+        where: {
+          applicationId_profileRef: {
+            applicationId: command.applicationId,
+            profileRef: command.id,
+          },
+        },
+      });
+      if (
+        !application ||
+        !connection ||
+        application.status !== 'ENABLED' ||
+        connection.status !== 'ENABLED'
+      ) {
+        notFound('Enabled application/connection not found.');
+      }
+      const allowed = await tx.credentialBinding.findFirst({
+        where: {
           applicationId: command.applicationId,
           connectionId: command.connectionId,
-          profileRef: command.profileRef,
-          status: command.status,
-        };
-        let result;
-        if (command.expectedRevision === 0) {
-          if (current) {
-            conflict('Binding already exists.');
-          }
-          result = await tx.credentialBinding.create({
-            data: { id: command.id, ...data },
-          });
-        } else {
-          if (!current) {
-            notFound();
-          }
-          if (current.revision !== command.expectedRevision) {
-            conflict('Binding revision changed.');
-          }
-          result = await tx.credentialBinding.update({
-            where: { id: command.id },
-            data: { ...data, revision: { increment: 1 } },
-          });
-        }
-        await audited(
-          command.expectedRevision === 0
-            ? 'binding.created'
-            : 'binding.updated',
-          result.id,
-          result.revision,
-          result.applicationId,
+          status: 'ENABLED',
+          OR: [{ profileRef: null }, { profileRef: command.id }],
+        },
+      });
+      if (!allowed) {
+        throw new ApplicationError(
+          'POLICY_DENIED',
+          'Connection is not bound to this application/profile.',
         );
-        return result;
       }
-
-      if (command.kind === 'budget') {
-        if (Boolean(command.applicationId) === Boolean(command.quotaGroupRef)) {
+      if ((alias?.version ?? 0) !== command.expectedRevision) {
+        conflict('Profile revision changed.');
+      }
+      const accounts = await tx.budgetAccount.findMany({
+        where: { id: { in: command.accountIds } },
+      });
+      if (accounts.length !== new Set(command.accountIds).size) {
+        notFound('Budget account not found.');
+      }
+      for (const account of accounts) {
+        const validApplication =
+          account.applicationId === command.applicationId;
+        const validQuota =
+          account.quotaGroupRef !== null &&
+          account.quotaGroupRef === connection.quotaGroupRef;
+        if (!validApplication && !validQuota) {
           throw new ApplicationError(
-            'INVALID_REQUEST',
-            'Budget must scope exactly one application or quota group.',
+            'POLICY_DENIED',
+            'Budget account is outside the application/connection scope.',
           );
         }
-        const current = await tx.budgetAccount.findUnique({
-          where: { id: command.id },
-        });
-        const limitUnits = BigInt(command.limitUnits);
-        if (current && limitUnits < current.heldUnits + current.postedUnits) {
-          throw new ApplicationError(
-            'INVALID_REQUEST',
-            'Budget limit cannot fall below current exposure.',
-          );
-        }
-        const data = {
+      }
+      if (new Set(accounts.map((item) => item.unit)).size !== 1) {
+        throw new ApplicationError(
+          'INVALID_REQUEST',
+          'Profile budget accounts must use one measurement unit.',
+        );
+      }
+      if (
+        !accounts.some(
+          (item) => item.applicationId === command.applicationId,
+        ) ||
+        (connection.sharingMode === 'SHARED' &&
+          !accounts.some(
+            (item) => item.quotaGroupRef === connection.quotaGroupRef,
+          ))
+      ) {
+        throw new ApplicationError(
+          'INVALID_REQUEST',
+          'Application and shared quota budgets are required.',
+        );
+      }
+      const latest = await tx.profileRevision.findFirst({
+        where: {
           applicationId: command.applicationId,
-          quotaGroupRef: command.quotaGroupRef,
-          unit: command.unit,
-          period: command.period,
-          limitUnits,
-        };
-        let result;
-        if (command.expectedRevision === 0) {
-          if (current) {
-            conflict('Budget already exists.');
-          }
-          result = await tx.budgetAccount.create({
-            data: { id: command.id, ...data },
-          });
-        } else {
-          if (!current) {
-            notFound();
-          }
-          if (current.revision !== command.expectedRevision) {
-            conflict('Budget revision changed.');
-          }
-          if (
-            (current.unit !== command.unit ||
-              current.period !== command.period ||
-              current.applicationId !== command.applicationId ||
-              current.quotaGroupRef !== command.quotaGroupRef) &&
-            (await tx.profileRevision.count({
-              where: { accountIds: { has: command.id } },
-            })) > 0
-          ) {
-            throw new ApplicationError(
-              'INVALID_REQUEST',
-              'Active budget scope/unit/period is immutable.',
-            );
-          }
-          result = await tx.budgetAccount.update({
-            where: { id: command.id },
-            data: { ...data, revision: { increment: 1 } },
-          });
-        }
-        await audited(
-          command.expectedRevision === 0 ? 'budget.created' : 'budget.updated',
-          result.id,
-          result.revision,
-          result.applicationId,
+          profileRef: command.id,
+        },
+        orderBy: { revision: 'desc' },
+      });
+      const nextRevision = (latest?.revision ?? 0) + 1;
+      const accountIds = [...new Set(command.accountIds)].sort();
+      const providerAdapter = command.providerAdapter ?? 'UNCONFIGURED';
+      const model = command.model ?? 'UNCONFIGURED';
+      const fallbackConnectionId = command.fallbackConnectionId ?? null;
+      const fallbackProviderAdapter = command.fallbackProviderAdapter ?? null;
+      const fallbackModel = command.fallbackModel ?? null;
+      const fallbackParts = [
+        fallbackConnectionId,
+        fallbackProviderAdapter,
+        fallbackModel,
+      ];
+      if (
+        fallbackParts.some((value) => value !== null) &&
+        fallbackParts.some((value) => value === null)
+      ) {
+        throw new ApplicationError(
+          'INVALID_REQUEST',
+          'Fallback connection, provider adapter and model must be configured together.',
         );
-        return {
-          ...result,
-          limitUnits: asString(result.limitUnits),
-          heldUnits: asString(result.heldUnits),
-          postedUnits: asString(result.postedUnits),
-        };
       }
-
-      if (command.kind === 'profile') {
-        const [application, connection, alias] = await Promise.all([
-          tx.controlApplication.findUnique({
-            where: { id: command.applicationId },
-          }),
-          tx.aiConnection.findUnique({ where: { id: command.connectionId } }),
-          tx.profileAlias.findUnique({
-            where: {
-              applicationId_profileRef: {
-                applicationId: command.applicationId,
-                profileRef: command.id,
-              },
-            },
-          }),
-        ]);
+      const maxOutputTokens = command.maxOutputTokens ?? 2048;
+      const timeoutMs = command.timeoutMs ?? 30000;
+      const streaming = command.streaming ?? false;
+      if (
+        providerAdapter !== 'UNCONFIGURED' &&
+        connection.provider !== providerAdapter
+      ) {
+        throw new ApplicationError(
+          'INVALID_REQUEST',
+          'Profile provider adapter must match its AI connection provider.',
+        );
+      }
+      if (fallbackConnectionId && fallbackProviderAdapter && fallbackModel) {
+        if (command.capability === 'agent_execute') {
+          throw new ApplicationError(
+            'INVALID_REQUEST',
+            'Gateway fallback cannot be configured for agent runtime profiles.',
+          );
+        }
+        const fallbackConnection = await tx.aiConnection.findUnique({
+          where: { id: fallbackConnectionId },
+        });
         if (
-          !application ||
-          !connection ||
-          application.status !== 'ENABLED' ||
-          connection.status !== 'ENABLED'
+          !fallbackConnection ||
+          fallbackConnection.status !== 'ENABLED' ||
+          fallbackConnection.environment !== connection.environment
         ) {
-          notFound('Enabled application/connection not found.');
+          notFound(
+            'Enabled fallback connection in the same environment not found.',
+          );
         }
-        const allowed = await tx.credentialBinding.findFirst({
+        if (fallbackConnection.sharingMode !== 'DEDICATED') {
+          throw new ApplicationError(
+            'VERSION_UNSUPPORTED',
+            'M2 fallback currently requires a dedicated alternate connection.',
+          );
+        }
+        if (fallbackConnection.provider !== fallbackProviderAdapter) {
+          throw new ApplicationError(
+            'INVALID_REQUEST',
+            'Fallback provider adapter must match its AI connection provider.',
+          );
+        }
+        const fallbackAllowed = await tx.credentialBinding.findFirst({
           where: {
             applicationId: command.applicationId,
-            connectionId: command.connectionId,
+            connectionId: fallbackConnectionId,
             status: 'ENABLED',
             OR: [{ profileRef: null }, { profileRef: command.id }],
           },
         });
-        if (!allowed) {
+        if (!fallbackAllowed) {
           throw new ApplicationError(
             'POLICY_DENIED',
-            'Connection is not bound to this application/profile.',
+            'Fallback connection is not bound to this application/profile.',
           );
         }
-        if ((alias?.version ?? 0) !== command.expectedRevision) {
-          conflict('Profile revision changed.');
-        }
-        const accounts = await tx.budgetAccount.findMany({
-          where: { id: { in: command.accountIds } },
+        const fallbackCredential = await tx.credentialInstance.findFirst({
+          where: {
+            connectionId: fallbackConnectionId,
+            residency: 'CENTRAL',
+            status: 'ENABLED',
+            secretRef: { not: null },
+          },
+          select: { id: true },
         });
-        if (accounts.length !== new Set(command.accountIds).size) {
-          notFound('Budget account not found.');
-        }
-        for (const account of accounts) {
-          const validApplication =
-            account.applicationId === command.applicationId;
-          const validQuota =
-            account.quotaGroupRef !== null &&
-            account.quotaGroupRef === connection.quotaGroupRef;
-          if (!validApplication && !validQuota) {
-            throw new ApplicationError(
-              'POLICY_DENIED',
-              'Budget account is outside the application/connection scope.',
-            );
-          }
-        }
-        if (new Set(accounts.map((item) => item.unit)).size !== 1) {
+        if (!fallbackCredential) {
           throw new ApplicationError(
-            'INVALID_REQUEST',
-            'Profile budget accounts must use one measurement unit.',
+            'POLICY_DENIED',
+            'Fallback connection has no enabled central credential reference.',
           );
         }
         if (
-          !accounts.some(
-            (item) => item.applicationId === command.applicationId,
-          ) ||
-          (connection.sharingMode === 'SHARED' &&
-            !accounts.some(
-              (item) => item.quotaGroupRef === connection.quotaGroupRef,
-            ))
+          fallbackConnectionId === command.connectionId &&
+          fallbackProviderAdapter === providerAdapter &&
+          fallbackModel === model
         ) {
           throw new ApplicationError(
             'INVALID_REQUEST',
-            'Application and shared quota budgets are required.',
+            'Fallback route must differ from the primary route.',
           );
         }
-        const latest = await tx.profileRevision.findFirst({
-          where: {
-            applicationId: command.applicationId,
-            profileRef: command.id,
-          },
-          orderBy: { revision: 'desc' },
-        });
-        const nextRevision = (latest?.revision ?? 0) + 1;
-        const accountIds = [...new Set(command.accountIds)].sort();
-        const definition = {
+      }
+      const definition = {
+        applicationId: command.applicationId,
+        profileRef: command.id,
+        revision: nextRevision,
+        connectionId: command.connectionId,
+        capability: command.capability,
+        providerAdapter,
+        model,
+        fallbackConnectionId,
+        fallbackProviderAdapter,
+        fallbackModel,
+        maxOutputTokens,
+        timeoutMs,
+        streaming,
+        holdUnits: command.holdUnits,
+        accountIds,
+      };
+      const created = await tx.profileRevision.create({
+        data: {
+          id: randomUUID(),
           applicationId: command.applicationId,
           profileRef: command.id,
           revision: nextRevision,
           connectionId: command.connectionId,
           capability: command.capability,
-          holdUnits: command.holdUnits,
+          providerAdapter,
+          model,
+          fallbackConnectionId,
+          fallbackProviderAdapter,
+          fallbackModel,
+          maxOutputTokens,
+          timeoutMs,
+          streaming,
+          holdUnits: BigInt(command.holdUnits),
           accountIds,
-        };
-        const created = await tx.profileRevision.create({
-          data: {
-            id: randomUUID(),
-            applicationId: command.applicationId,
-            profileRef: command.id,
-            revision: nextRevision,
-            connectionId: command.connectionId,
-            capability: command.capability,
-            holdUnits: BigInt(command.holdUnits),
-            accountIds,
-            digest: jsonDigest(definition),
-          },
-        });
-        await tx.profileAlias.upsert({
-          where: {
-            applicationId_profileRef: {
-              applicationId: command.applicationId,
-              profileRef: command.id,
-            },
-          },
-          create: {
-            applicationId: command.applicationId,
-            profileRef: command.id,
-            revision: nextRevision,
-            enabled: command.enabled,
-          },
-          update: {
-            revision: nextRevision,
-            enabled: command.enabled,
-            version: { increment: 1 },
-          },
-        });
-        await audited(
-          'profile.published',
-          command.id,
-          nextRevision,
-          command.applicationId,
-        );
-        return {
-          id: created.id,
-          applicationId: created.applicationId,
-          profileRef: created.profileRef,
-          revision: created.revision,
-          connectionId: created.connectionId,
-          capability: created.capability,
-          holdUnits: asString(created.holdUnits),
-          accountIds: created.accountIds,
-          digest: created.digest,
-          enabled: command.enabled,
-          aliasVersion: (alias?.version ?? 0) + 1,
-        };
-      }
-
-      if (command.kind === 'alias') {
-        const where = {
+          digest: jsonDigest(definition),
+        },
+      });
+      await tx.profileAlias.upsert({
+        where: {
           applicationId_profileRef: {
             applicationId: command.applicationId,
             profileRef: command.id,
           },
-        };
-        const current = await tx.profileAlias.findUnique({ where });
-        if (!current) {
-          notFound('Profile alias not found.');
-        }
-        if (current.version !== command.expectedRevision) {
-          conflict('Alias version changed.');
-        }
-        const profile = await tx.profileRevision.findUnique({
-          where: {
-            applicationId_profileRef_revision: {
-              applicationId: command.applicationId,
-              profileRef: command.id,
-              revision: command.revision,
-            },
-          },
-        });
-        if (!profile) {
-          notFound('Profile revision not found.');
-        }
-        const result = await tx.profileAlias.update({
-          where,
-          data: {
-            revision: command.revision,
-            enabled: command.enabled,
-            version: { increment: 1 },
-          },
-        });
-        await audited(
-          'profile.alias-updated',
-          command.id,
-          result.version,
-          command.applicationId,
-        );
-        return result;
-      }
-
-      if (command.kind === 'pool') {
-        const current = await tx.runnerPool.findUnique({
-          where: { id: command.id },
-        });
-        const data = {
-          environment: command.environment,
-          region: command.region,
-          minimumVersion: command.minimumVersion,
-          status: command.status,
-        };
-        let result;
-        if (command.expectedRevision === 0) {
-          if (current) {
-            conflict('Runner pool already exists.');
-          }
-          result = await tx.runnerPool.create({
-            data: { id: command.id, ...data },
-          });
-        } else {
-          if (!current) {
-            notFound();
-          }
-          if (current.revision !== command.expectedRevision) {
-            conflict('Runner pool revision changed.');
-          }
-          result = await tx.runnerPool.update({
-            where: { id: command.id },
-            data: { ...data, revision: { increment: 1 } },
-          });
-        }
-        await audited(
-          command.expectedRevision === 0
-            ? 'runner-pool.created'
-            : 'runner-pool.updated',
-          result.id,
-          result.revision,
-        );
-        return result;
-      }
-
-      const current = await tx.runnerNode.findUnique({
-        where: { id: command.id },
+        },
+        create: {
+          applicationId: command.applicationId,
+          profileRef: command.id,
+          revision: nextRevision,
+          enabled: command.enabled,
+        },
+        update: {
+          revision: nextRevision,
+          enabled: command.enabled,
+          version: { increment: 1 },
+        },
       });
+      await audited(
+        'profile.published',
+        command.id,
+        nextRevision,
+        command.applicationId,
+      );
+      return {
+        id: created.id,
+        applicationId: created.applicationId,
+        profileRef: created.profileRef,
+        revision: created.revision,
+        connectionId: created.connectionId,
+        capability: created.capability,
+        providerAdapter: created.providerAdapter,
+        model: created.model,
+        fallbackConnectionId: created.fallbackConnectionId,
+        fallbackProviderAdapter: created.fallbackProviderAdapter,
+        fallbackModel: created.fallbackModel,
+        maxOutputTokens: created.maxOutputTokens,
+        timeoutMs: created.timeoutMs,
+        streaming: created.streaming,
+        holdUnits: asString(created.holdUnits),
+        accountIds: created.accountIds,
+        digest: created.digest,
+        enabled: command.enabled,
+        aliasVersion: (alias?.version ?? 0) + 1,
+      };
+    }
+
+    if (command.kind === 'alias') {
+      const where = {
+        applicationId_profileRef: {
+          applicationId: command.applicationId,
+          profileRef: command.id,
+        },
+      };
+      const current = await tx.profileAlias.findUnique({ where });
       if (!current) {
-        notFound('Runner is not registered.');
+        notFound('Profile alias not found.');
       }
-      if (current.revision !== command.expectedRevision) {
-        conflict('Runner revision changed.');
+      if (current.version !== command.expectedRevision) {
+        conflict('Alias version changed.');
       }
-      const updated = await tx.runnerNode.update({
-        where: { id: command.id },
-        data: { status: command.status, revision: { increment: 1 } },
+      const profile = await tx.profileRevision.findUnique({
+        where: {
+          applicationId_profileRef_revision: {
+            applicationId: command.applicationId,
+            profileRef: command.id,
+            revision: command.revision,
+          },
+        },
       });
-      await audited('runner.lifecycle', updated.id, updated.revision);
-      return wire(updated);
+      if (!profile) {
+        notFound('Profile revision not found.');
+      }
+      const result = await tx.profileAlias.update({
+        where,
+        data: {
+          revision: command.revision,
+          enabled: command.enabled,
+          version: { increment: 1 },
+        },
+      });
+      await audited(
+        'profile.alias-updated',
+        command.id,
+        result.version,
+        command.applicationId,
+      );
+      return result;
+    }
+
+    if (command.kind === 'pool') {
+      const current = await tx.runnerPool.findUnique({
+        where: { id: command.id },
+      });
+      const data = {
+        environment: command.environment,
+        region: command.region,
+        minimumVersion: command.minimumVersion,
+        status: command.status,
+      };
+      let result;
+      if (command.expectedRevision === 0) {
+        if (current) {
+          conflict('Runner pool already exists.');
+        }
+        result = await tx.runnerPool.create({
+          data: { id: command.id, ...data },
+        });
+      } else {
+        if (!current) {
+          notFound();
+        }
+        if (current.revision !== command.expectedRevision) {
+          conflict('Runner pool revision changed.');
+        }
+        result = await tx.runnerPool.update({
+          where: { id: command.id },
+          data: { ...data, revision: { increment: 1 } },
+        });
+      }
+      await audited(
+        command.expectedRevision === 0
+          ? 'runner-pool.created'
+          : 'runner-pool.updated',
+        result.id,
+        result.revision,
+      );
+      return result;
+    }
+
+    const current = await tx.runnerNode.findUnique({
+      where: { id: command.id },
     });
+    if (!current) {
+      notFound('Runner is not registered.');
+    }
+    if (current.revision !== command.expectedRevision) {
+      conflict('Runner revision changed.');
+    }
+    const updated = await tx.runnerNode.update({
+      where: { id: command.id },
+      data: { status: command.status, revision: { increment: 1 } },
+    });
+    await audited('runner.lifecycle', updated.id, updated.revision);
+    return presentRunner(updated);
   }
 
   async admit(
@@ -1012,6 +1358,80 @@ export class PrismaM1Repository implements M1Repository {
             );
           }
 
+          const routeScope =
+            connection.sharingMode === 'SHARED'
+              ? 'quota:' + connection.quotaGroupRef
+              : 'connection:' + connection.id;
+          const admissionScopes = [
+            'application:' + applicationId,
+            routeScope,
+          ].sort();
+          for (const scope of admissionScopes) {
+            await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${scope}, 0))`;
+          }
+          const [applicationActive] = await tx.$queryRaw<
+            Array<{ count: bigint }>
+          >`SELECT count(*)::bigint AS count
+              FROM control.executions
+              WHERE application_id = ${applicationId}
+                AND status IN ('ACCEPTED','RUNNING','RECONCILING')`;
+          if (
+            (applicationActive?.count ?? 0n) >=
+            BigInt(application.gatewayMaxConcurrency)
+          ) {
+            throw new ApplicationError(
+              'RESOURCE_EXHAUSTED',
+              'Application gateway concurrency exhausted.',
+            );
+          }
+          const routeRows =
+            connection.sharingMode === 'SHARED'
+              ? await tx.$queryRaw<
+                  Array<{ count: bigint }>
+                >`SELECT count(*)::bigint AS count
+                     FROM control.executions e
+                     JOIN control.profile_revisions p ON p.id = e.profile_revision_id
+                     JOIN control.ai_connections c ON c.id = p.connection_id
+                     WHERE e.status IN ('ACCEPTED','RUNNING','RECONCILING')
+                       AND c.quota_group_ref = ${connection.quotaGroupRef}`
+              : await tx.$queryRaw<
+                  Array<{ count: bigint }>
+                >`SELECT count(*)::bigint AS count
+                     FROM control.executions e
+                     JOIN control.profile_revisions p ON p.id = e.profile_revision_id
+                     WHERE e.status IN ('ACCEPTED','RUNNING','RECONCILING')
+                       AND p.connection_id = ${connection.id}`;
+          if (
+            (routeRows[0]?.count ?? 0n) >=
+            BigInt(connection.gatewayMaxConcurrency)
+          ) {
+            throw new ApplicationError(
+              'RESOURCE_EXHAUSTED',
+              'AI connection gateway concurrency exhausted.',
+            );
+          }
+          const consumeRate = async (scope: string, limit: number) => {
+            const rows = await tx.$queryRaw<
+              Array<{ request_count: number }>
+            >`INSERT INTO control.admission_rate_windows(scope_key, window_start, request_count)
+               VALUES (${scope}, date_trunc('minute', clock_timestamp()), 1)
+               ON CONFLICT(scope_key, window_start) DO UPDATE
+                 SET request_count = control.admission_rate_windows.request_count + 1
+                 WHERE control.admission_rate_windows.request_count < ${limit}
+               RETURNING request_count`;
+            if (!rows.length) {
+              throw new ApplicationError(
+                'RESOURCE_EXHAUSTED',
+                'Gateway admission rate limit exceeded.',
+              );
+            }
+          };
+          await consumeRate(
+            'application:' + applicationId,
+            application.gatewayRequestsPerMinute,
+          );
+          await consumeRate(routeScope, connection.gatewayRequestsPerMinute);
+
           const sortedAccounts = [...profile.accountIds].sort();
           const locked: Array<{
             id: string;
@@ -1067,6 +1487,14 @@ export class PrismaM1Repository implements M1Repository {
             capability: profile.capability,
             connectionId: profile.connectionId,
             quotaGroupRef: connection.quotaGroupRef,
+            providerAdapter: profile.providerAdapter,
+            model: profile.model,
+            fallbackConnectionId: profile.fallbackConnectionId,
+            fallbackProviderAdapter: profile.fallbackProviderAdapter,
+            fallbackModel: profile.fallbackModel,
+            maxOutputTokens: profile.maxOutputTokens,
+            timeoutMs: profile.timeoutMs,
+            streaming: profile.streaming,
             holdUnits: asString(profile.holdUnits),
             accountIds: sortedAccounts,
             profileDigest: profile.digest,
@@ -1658,18 +2086,18 @@ export class PrismaM1Repository implements M1Repository {
           revision: runner.revision,
         },
       });
-      return wire(runner);
+      return presentRunner(runner);
     });
   }
 
   async readOutbox() {
-    return wire(
+    return (
       await this.database.outboxEvent.findMany({
         where: { deliveredAt: null },
         orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
         take: 200,
-      }),
-    );
+      })
+    ).map(presentOutbox);
   }
 
   async recordInbox(_principal: Principal, consumer: string, eventId: string) {
@@ -1724,12 +2152,12 @@ export class PrismaM1Repository implements M1Repository {
   }
 
   async readAudit(_principal: Principal, applicationId?: string) {
-    return wire(
+    return (
       await this.database.auditEntry.findMany({
         where: applicationId ? { applicationId } : undefined,
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         take: 200,
-      }),
-    );
+      })
+    ).map(presentAudit);
   }
 }

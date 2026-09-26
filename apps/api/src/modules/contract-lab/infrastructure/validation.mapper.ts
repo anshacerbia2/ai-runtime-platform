@@ -4,6 +4,7 @@ import type {
 } from '../../../infrastructure/database/generated/client.js';
 import type { ValidationRecord } from '../domain/validation-record.js';
 import { CheckReport } from '@ai-runtime/contracts';
+import { databaseJson } from '../../../shared/infrastructure/json-value.js';
 
 export function toValidationRecord(record: ContractCheck): ValidationRecord {
   if (!['chat', 'generate', 'execution'].includes(record.kind)) {
@@ -24,5 +25,5 @@ export function toValidationRecord(record: ContractCheck): ValidationRecord {
 
 /** Explicit serialization boundary, never a Prisma type exposed to a use case. */
 export function toDatabaseJson(value: unknown): Prisma.InputJsonValue {
-  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
+  return databaseJson(value);
 }

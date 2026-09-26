@@ -26,7 +26,8 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   webServer: {
-    command: 'npm run dev',
+    // Avoid an extra npm/cmd process tree around the owned test server.
+    command: 'node scripts/dev.mjs',
     url: baseURL,
     reuseExistingServer: config.playwright.reuseExistingServer,
     timeout: config.playwright.webServerTimeoutMs,

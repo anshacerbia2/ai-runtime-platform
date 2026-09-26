@@ -14,6 +14,8 @@ export const ManagementCommand = z.discriminatedUnion('kind', [
       displayName: label,
       environment: id,
       keycloakClientId: id,
+      gatewayMaxConcurrency: z.number().int().min(1).max(10000).optional(),
+      gatewayRequestsPerMinute: z.number().int().min(1).max(1000000).optional(),
       status,
     })
     .strict(),
@@ -32,6 +34,8 @@ export const ManagementCommand = z.discriminatedUnion('kind', [
       ]),
       sharingMode: z.enum(['DEDICATED', 'SHARED']),
       quotaGroupRef: id.nullable(),
+      gatewayMaxConcurrency: z.number().int().min(1).max(10000).optional(),
+      gatewayRequestsPerMinute: z.number().int().min(1).max(1000000).optional(),
       status,
     })
     .strict(),
@@ -40,6 +44,13 @@ export const ManagementCommand = z.discriminatedUnion('kind', [
       kind: z.literal('credential'),
       ...base,
       connectionId: id,
+      secretRef: z
+        .string()
+        .min(1)
+        .max(240)
+        .regex(/^[A-Za-z0-9][A-Za-z0-9._:/-]*$/)
+        .nullable()
+        .optional(),
       residency: z.enum(['CENTRAL', 'RUNNER_LOCAL']),
       runnerRef: id.nullable(),
       status,
@@ -68,6 +79,17 @@ export const ManagementCommand = z.discriminatedUnion('kind', [
         'structured_generate',
         'agent_execute',
       ]),
+      providerAdapter: z.enum(['openrouter', 'direct-anthropic']).optional(),
+      model: z.string().min(1).max(200).optional(),
+      fallbackConnectionId: id.nullable().optional(),
+      fallbackProviderAdapter: z
+        .enum(['openrouter', 'direct-anthropic'])
+        .nullable()
+        .optional(),
+      fallbackModel: z.string().min(1).max(200).nullable().optional(),
+      maxOutputTokens: z.number().int().min(1).max(32768).optional(),
+      timeoutMs: z.number().int().min(1).max(3600000).optional(),
+      streaming: z.boolean().optional(),
       holdUnits: units,
       accountIds: z.array(id).min(1).max(8),
       enabled: z.boolean(),

@@ -6,6 +6,12 @@ Shared AI execution platform untuk aplikasi yang membutuhkan direct chat, struct
 
 **Fixed implementation stack:** NestJS + Fastify HTTP adapter + Prisma + PostgreSQL; frontend React/TypeScript + Next.js App Router dengan BFF tier. Struktur dan aturan dependency: [CODE-STRUCTURE](docs/architecture/CODE-STRUCTURE.md). Keputusan stack: [ADR-0016](docs/adr/0016-nestjs-fastify.md)–[ADR-0018](docs/adr/0018-clean-architecture-quality.md) dan [ADR-0026](docs/adr/0026-nextjs-bff.md). Web delivery/auth: [ADR-0025](docs/adr/0025-external-app-standalone-auth.md). Platform-control/fleet decisions: [ADR-0019](docs/adr/0019-application-connections-credentials.md)–[ADR-0022](docs/adr/0022-distributed-runner-fleet.md). Backend stack sudah diterapkan pada M0; migrasi web ke Next.js App Router/BFF sudah diimplementasikan, dengan opaque session cookie, server-side token custody, dan server-rendered docs. Fitur produksi tetap mengikuti gate.
 
+## Kondisi source saat ini
+
+M0/M1 sudah mencakup hardening HTTP/UI dan perluasan [ADR-0027–0029](docs/adr/README.md): resource APIs /api/v1, independent pagination/count overview, atomic management receipts dengan optimistic concurrency, bounded client retry, machine-only runner authority/fencing, quarantine evidence, serta explicit mappers dan serialization CI gate. Tidak ada autonomous runner dispatch atau live AI execution.
+
+Mulai dari [kondisi implementasi aktual](docs/implementation/CURRENT-STATE.md), [46 operasi HTTP aktif](docs/implementation/HTTP-API.md), dan [diagram implementasi](docs/diagrams/10-implemented-contracts.md). Rancangan target, fitur PLANNED, dan hasil tes historis tetap dibedakan. Source dan migration adalah rujukan perilaku saat ini; status verifikasi terbaru ada di [sinkronisasi dokumentasi](docs/reviews/DOCUMENTATION-SYNC.md).
+
 ## Coba lokal
 
 ```powershell
@@ -28,13 +34,13 @@ Alamat FE/API, PostgreSQL, browser-test settings, credentials, dan timeout beras
 | Kontrak integrasi aplikasi                        | [API](docs/contracts/API.md)                              |
 | Seluruh dokumen dan reading paths                 | [Documentation index](docs/INDEX.md)                      |
 | Visual alur normal dan kegagalan                  | [Diagram catalogue](docs/diagrams/README.md)              |
-| Keputusan arsitektur, alternatif, dan konsekuensi | [26 ADR](docs/adr/README.md)                              |
+| Keputusan arsitektur, alternatif, dan konsekuensi | [29 ADR](docs/adr/README.md)                              |
 | Pemetaan keputusan ke spesifikasi dan pengujian   | [Decision traceability](docs/reviews/RECONCILIATION.md)   |
 | Pengujian produksi yang masih harus dibuktikan    | [Acceptance gates](docs/testing/ACCEPTANCE.md)            |
 
 Dokumen perencanaan dan changelog berada di `docs/`; arsitektur utama berada di `docs/architecture/ARCHITECTURE.md`. `README.md` tetap menjadi pintu masuk repository.
 
-## Mental model
+## Mental model produk target (bukan seluruhnya aktif)
 
 ```text
 Application
@@ -53,7 +59,7 @@ Application decides the next business step
 
 Direct chat tidak membutuhkan business job atau plugin. Public capability baseline adalah `chat`, `generate`, `structured_generate`, dan `agent_execute`; lihat [Capability Catalogue](docs/contracts/CAPABILITIES.md). Execution ID dan authenticated app identity tetap tersedia. Model, provider, agent runtime, credential binding, dan app-owned harness adalah konsep terpisah.
 
-## Baseline choices
+## Baseline choices untuk execution plane yang direncanakan
 
 OpenRouter-first dengan pembuktian Direct Anthropic adapter pada Phase 2; primary route ditentukan profile. Claude adalah runtime awal. Managed Execution Envelope menormalkan lifecycle, bukan menjanjikan semua agent identik. Tiered storage memisahkan durable PostgreSQL state/accounting, Redis heartbeat/replay, dan object artifacts.
 

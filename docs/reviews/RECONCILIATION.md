@@ -2,6 +2,12 @@
 
 **20 September 2026.** Register ini memetakan topik dan klarifikasi baseline ke [ADR](../adr/README.md), spesifikasi, dan pengujian. ADR adalah rujukan keputusan aktif; register ini bukan sumber aturan atau approval tersendiri.
 
+## Implementation reconciliation — 24 September 2026
+
+[Current state](../implementation/CURRENT-STATE.md) describes code, while this register retains decision traceability. ADR-0027 adds shared HTTP/CDC, ADR-0028 records the earlier bounded one-attempt client, and ADR-0029 implements receipt replay, independent resource APIs, per-operation retry and manual runner authority. The underlying PostgreSQL kernel is locally tested; Redis lease recovery and live execution remain targets.
+
+The same term may refer to a conceptual target or a physical implementation: idempotency_records is not a universal physical table, ACTIVE is not the current Attempt.authority SQL value, and Redis web sessions are not runtime sessions/leases. See [physical data model](../data/DATA-MODEL.md), [lifecycle](../contracts/EXECUTION-LIFECYCLE.md), and [documentation sync](DOCUMENTATION-SYNC.md).
+
 ## 1. Otoritas dan batas
 
 Kebutuhan produk tetap: platform agnostic; app owns job/workflow; direct chat tanpa fake job; OpenRouter awal; Claude/Codex/Gemini; plugin contract; audit penggunaan per process. Keputusan dan trade-off dijelaskan di ADR, gambaran sistem di [Architecture](../architecture/ARCHITECTURE.md), dan operational semantics pada kontrak/data/reliability.
@@ -38,7 +44,7 @@ Review baseline yang belum selesai tetap dicatat sebagai O11 pada [OPEN-QUESTION
 | M09 | Aplikasi melalui authenticated API; topology berdasarkan kebutuhan; PostgreSQL financial authority                                       | [ADR-0003](../adr/0003-tiered-storage.md), [ADR-0012](../adr/0012-deployment-dispatch.md) | G01/G07      |
 | M10 | Stable operation key lintas attempts/business retry untuk operasi sah yang sama; receiver scope/retention diverifikasi                   | [ADR-0010](../adr/0010-tool-side-effects.md)                                              | G13/G14      |
 
-Gate IDs merujuk [ACCEPTANCE](../testing/ACCEPTANCE.md); seluruh implementation gates masih NOT RUN. Peta ini tidak mengubah isi keputusan, parameter kandidat, atau acceptance criteria.
+Gate IDs merujuk [ACCEPTANCE](../testing/ACCEPTANCE.md), yang sekarang memisahkan local coverage dari full runtime/production evidence. Sejumlah P1 dan authority-kernel tests sudah lulus lokal; tidak ada blanket NOT RUN/PASS untuk seluruh catalogue. Peta ini tidak mengubah keputusan atau memberi approval baru.
 
 ## 4. Cakupan keputusan pendukung
 

@@ -4,6 +4,10 @@
 
 **Status:** adopted in documentation; implementation bertahap P2–P3.
 
+## Implementation reconciliation — 24 September 2026
+
+Plugin Registry, artifact package signing and ephemeral materialization remain target design. No corresponding executable plugin model/route is introduced by the resource API changes. See [current source state](../implementation/CURRENT-STATE.md), [active HTTP operations](../implementation/HTTP-API.md), and [verification scope](../reviews/CONTRACT-EXECUTION.md). This note updates implementation status only; it does not create new reviewer approval or erase the original decision history.
+
 ## Context
 
 Plugin seperti Scribe membutuhkan prompts, skills, scripts, atau runtime-specific assets, tetapi platform tidak boleh mengasumsikan semua workload memiliki plugin dan tidak boleh memasang arbitrary plugin permanen pada API/control-plane host.

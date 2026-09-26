@@ -48,11 +48,19 @@ The API process does not need the confidential-client secret or session sealing 
 
 ## HTTP protection
 
-The BFF allows only explicit M0/M1 route/method pairs. It ignores browser Authorization, cookies, proxy headers, and arbitrary upstream destinations when constructing the API hop. Mutations require an exact allowed Origin and JSON media type; auth forms also validate Origin. Fetch Metadata and Host checks reject cross-site and rebinding requests. Request and response bodies are bounded; redirects and arbitrary response headers are not forwarded. Server errors do not echo private upstream details.
+The BFF allows only route/method pairs in browserContract, including new /api/v1 resource operations and supported M0/M1 compatibility calls. Machine-only runner/assignment/registration/inbox operations remain excluded. It ignores browser Authorization, cookies, proxy headers, and arbitrary upstream destinations when constructing the API hop. Mutations require an exact allowed Origin and JSON media type; auth forms also validate Origin. Fetch Metadata and Host checks reject cross-site and rebinding requests. Request and response bodies are bounded; redirects and arbitrary response headers are not forwarded. Server errors do not echo private upstream details.
 
 Framing is denied. Runtime CSP allows form navigation only to self and the configured issuer origin; no wildcard issuer is used. Same-origin referrer policy preserves native POST Origin checks while suppressing cross-origin referrers. Public entry rendering does not establish an authenticated session.
 
 This session Redis is distinct from the still-planned runner heartbeat/capacity/lease tier. Adding BFF sessions does not claim runner placement, provider execution, or production readiness.
+
+## Console reads, mutations and documentation rendering
+
+Control Plane now loads independent paginated resource collections and a count-only overview. Each collection keeps its own error and cursor state; the legacy snapshot is no longer the page data source. API mutation contracts exist separately from the read-only resource tables. Contract Lab owns generation-bound mutation state and bounded same-key automatic replay; save success does not wait for health refresh.
+
+The docs reader reads Markdown from WEB_DOCS_ROOT on the server. Source/code-file links are not arbitrary file-download routes. Mermaid fences remain code in the built-in Markdown view; use a compatible repository/Markdown renderer for diagram visualization. Development reads current files; an immutable production bundle should deploy source and docs together.
+
+When testing with temporary loopback ports, set M0_ALLOWED_ORIGINS to the exact matching web origin in the same process environment. Changing only M0_WEB_PORT is correctly rejected by the origin policy. Keep .env untouched when using temporary test overrides. PLAYWRIGHT_REUSE_EXISTING_SERVER=false requires the selected web/API ports to be free; never kill unrelated processes to make a test pass.
 
 ## Verification
 

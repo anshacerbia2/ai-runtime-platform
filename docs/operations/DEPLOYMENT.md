@@ -2,9 +2,17 @@
 
 **Target baseline 0.2, bukan topology yang sudah di-deploy.** [ADR-0012](../adr/0012-deployment-dispatch.md).
 
+## Current local topology and deployment gaps
+
+Implemented source runs Next.js/BFF and NestJS/Fastify as separate Node processes against PostgreSQL. /api/v1 resources and /api/runner/v1 authority endpoints live in that API process. There is no automatically launched gateway pool, runner supervisor, object store or Redis runner coordinator. Nonlocal web-session Redis/OIDC adapters are present but the local fixture suite is not evidence of their deployment. [Current state](../implementation/CURRENT-STATE.md), [implemented diagram](../diagrams/10-implemented-contracts.md).
+
+Migrations 0001–0010 are the current schema history. Receipt and authority tables/generations must survive rollback. New resource clients must not be routed to old code that does not implement their replay contract. The declared runner binding is bounded HTTP/JSON v1; it is not a released fleet SDK or proven cross-network rollout.
+
+Sections 1–7 describe target execution deployment. Their readiness, drain, lease and recovery requirements are not endpoints/jobs that can be assumed to exist today.
+
 ## 1. Initial topology
 
-Modular control-plane service; gateway execution pool; agent supervisor/worker pool terpisah; PostgreSQL; Redis hot tier; object store; secret manager; observability collector. Modul tidak semuanya harus microservice. Default implementation language candidate TypeScript untuk reuse runner boundary; keputusan final dicatat O01, bukan requirement bahwa semua app harus berpindah bahasa.
+Modular control-plane service; gateway execution pool; agent supervisor/worker pool terpisah; PostgreSQL; Redis hot tier; object store; secret manager; observability collector. Modul tidak semuanya harus microservice. Source API/web/contracts yang aktif memakai TypeScript sesuai O01/ADR-0016–0018/0026. Ini bukan requirement bahwa seluruh aplikasi consumer atau future runner harus berpindah bahasa.
 
 API ingress autentikasi/authorization -> admission -> direct gateway atau durable dispatch. Agent compute tidak menempel pada process API. Network policy memisahkan client ingress, control/storage, sandbox egress, dan provider/tool destinations. Aplikasi mengakses API, bukan Redis/PostgreSQL langsung.
 
@@ -54,11 +62,11 @@ ingress -> Next.js (web + BFF) -> NestJS/Fastify (domain API) -> PostgreSQL
 
 The Next.js tier is the only public entry. It terminates the browser session, holds the confidential OIDC client, and calls the API server-side with a bearer token. The API remains an OAuth resource server validating JWTs against realm JWKS and is not exposed publicly. Deployment MUST NOT route browsers directly to the API.
 
-Liveness for the web tier checks process responsiveness; readiness additionally requires reachability of the API and of the OIDC discovery/JWKS endpoints, because neither sign-in nor any console read can succeed without them. The API keeps its existing health semantics.
+Deployment readiness should be defined for each required dependency and tested against the real topology. The current source does not provide a dedicated web readiness endpoint proving API/issuer/Redis health. Cached sessions, discovery/JWKS and individual routes have different dependency needs; do not claim every read always contacts the issuer. The API has public process liveness and authenticated lab DB-backed health, not a universal runtime readiness probe.
 
 The app uses a dedicated confidential Keycloak client per environment and does not reuse the ATI One portal client. Callback and post-logout URIs are registered under this platform's origin and must match exactly. Rotating the client secret is a web-tier restart, not an API restart. See [Frontend Architecture](../architecture/FRONTEND.md) and [ADR-0026](../adr/0026-nextjs-bff.md).
 
-`docs/` Markdown is a build input for the web tier, so documentation changes require a web rebuild to appear.
+The server reads Markdown from WEB_DOCS_ROOT and production tracing includes the docs tree. Development can read changed files directly; rebuild/redeploy immutable production code/docs bundles together. The built-in reader displays Mermaid fences as code, not generated diagrams.
 
 ## 9. Distributed runner fleet
 

@@ -2,6 +2,12 @@
 
 **Baseline 0.2.** Managed Execution Envelope menjaga common lifecycle; cognitive harness tetap dimiliki app/team. Profil diterjemahkan dan diuji, bukan dijanjikan universal.
 
+## Implementasi profile yang tersedia
+
+M0 demo Profile berlabel contract-only dan dipakai validasi. M1/M2 ProfileRevision menyimpan immutable application/profile revision, primary connection/provider/model, optional explicit fallback connection/provider/model, capability, holdUnits/accountIds, gateway limits dan digest; ProfileAlias menyimpan selected revision, enabled dan concurrency version. Publication/repoint alias tersedia pada resource API dengan receipt. Gateway invoke/stream/fallback lokal sudah diimplementasikan; plugin packaging dan per-runtime agent/session compatibility tetap target M3+.
+
+Sumber: [Prisma models](../../prisma/schema.prisma), [command schemas](../../packages/contracts/src/control-plane.ts), [resource contract](../../packages/contracts/src/http/resources.ts), [gateway contract](../../packages/contracts/src/http/gateway.ts), [current state](../implementation/CURRENT-STATE.md). `chat`, `generate`, dan `structured_generate` sudah local-implemented; `agent_execute` tetap contract-only.
+
 ## 1. Konsep yang tidak boleh dicampur
 
 | Konsep             | Contoh ilustratif                                          | Fungsi                                                                    |
@@ -67,14 +73,14 @@ prepare(profile snapshot, workspace, scoped grants); start(attempt); streamEvent
 
 Runtime harus mengungkap tool/approval/session support dan batas enforcement. Sumber programatis resmi tersedia untuk Codex SDK dan headless Gemini (R01/R05 di [SOURCES](../reviews/SOURCES.md)); pilihan versi dan detail integrasi masih harus diverifikasi saat implementasi. Claude SDK usage dapat berupa estimate, bukan authoritative billing (R04). Baseline tidak mengasumsikan semua runtime memberikan per-invocation detail.
 
-## 6. Planned compatibility matrix
+## 6. Compatibility matrix
 
-Legenda: PLANNED berarti requirement yang akan diuji; CONDITIONAL berarti support hanya setelah profile/runtime specific proof; DEFERRED bukan fitur MVP.
+Legenda: LOCAL berarti adapter/path tersedia dan lulus local conformance/integration tests; CONDITIONAL berarti support hanya setelah profile/runtime specific proof; DEFERRED bukan fitur MVP. LOCAL bukan production deployment approval.
 
 | Jalur                    | Chat/structured                        | Tools/workspace                                                           | Resume                                | Detailed usage                                  | Status   |
 | ------------------------ | -------------------------------------- | ------------------------------------------------------------------------- | ------------------------------------- | ----------------------------------------------- | -------- |
-| OpenRouter gateway       | PLANNED; supported model/provider only | Caller-controlled tool-call output bila enabled, tanpa autonomous sandbox | App conversation, bukan agent session | Provider evidence sesuai source capability      | P2       |
-| Direct Anthropic gateway | PLANNED; model constraints apply       | Sama batas gateway                                                        | App conversation                      | Provider-specific mapping                       | P2 proof |
+| OpenRouter gateway       | LOCAL; chat/generate/structured + SSE  | No autonomous sandbox/tools in M2                                         | Event replay by execution             | Provider-reported usage normalized              | P2 local |
+| Direct Anthropic gateway | LOCAL dual-adapter proof               | No autonomous sandbox/tools in M2                                         | Event replay by execution             | Provider-specific cumulative usage mapping      | P2 local |
 | Claude runtime           | Agent workload                         | CONDITIONAL approved sandbox/tools                                        | CONDITIONAL same runtime/version      | Observed summary atau invocation sesuai adapter | P3       |
 | Codex runtime            | Agent workload                         | CONDITIONAL                                                               | CONDITIONAL                           | Must map/test                                   | P5       |
 | Gemini runtime           | Agent workload                         | CONDITIONAL                                                               | CONDITIONAL                           | Must map/test                                   | P6       |
@@ -86,7 +92,7 @@ Filter eligible routes berdasarkan identity, profile capability, model/schema, d
 
 Direct Anthropic membuktikan adapter kedua pada P2, tidak otomatis menjadi primary produksi. Common contract suite mencakup successful response, errors, stream cancellation, schema rejection, and usage normalization. Operational failover suite terpisah.
 
-Safe fallback diperbolehkan sebelum side effect/output yang mengikat, dengan attempt log dan reservation yang cukup. Ambiguous upstream acceptance perlu reconciliation/risk policy; retry masih dapat menambah biaya. Jangan campurkan partial outputs dari dua routes sebagai satu final result.
+Implementasi M2 mengizinkan satu fallback yang eksplisit di immutable profile revision hanya ketika primary menghasilkan outcome `not-sent` sebelum provider-start/output/usage evidence. Fallback membuat durable attempt/invocation baru tanpa membuat admission/reservation kedua. Ambiguous acceptance atau partial output masuk reconciliation dan tidak pernah di-splice dengan route lain. Fallback shared-connection belum diaktifkan; alternate route saat ini harus dedicated sampai quota semantics lintas-route dibuktikan.
 
 OpenRouter routing dapat dikonfigurasi untuk parameter support dan ZDR (R02/R03 di SOURCES). Platform tetap memverifikasi constraints rute/plugin; tidak menyatakan blanket compliance dari nama provider. Health cache dan circuit breaker tidak menggantikan durable admission.
 

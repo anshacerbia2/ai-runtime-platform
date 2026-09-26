@@ -2,6 +2,14 @@
 
 **Design baseline 0.2.** Source principal: Redis heartbeat 5s/TTL 15s dan fencing; amendment: conditional renewal, durable authority transitions, quarantine, dan explicit cross-store limitations. [ADR-0005](../adr/0005-leases-fencing.md).
 
+## Implemented kernel versus target recovery
+
+Sejak ADR-0029, manual grant/revoke/report dan typed evidence intake tersedia di source. [PrismaRunnerAuthority](../../apps/api/src/modules/control-plane/infrastructure/prisma-runner-authority.ts) mengunci execution row, memeriksa exact token owner/generation/epoch, memeriksa runner eligibility/capacity, menyimpan assignment dan mempertahankan late evidence dalam quarantine. Revocation menambah generation barrier sebelum old reports ditolak; future generation tidak dipercaya. Result proposal bukan finalization execution.
+
+Yang belum ada: Redis runner lease proof/renewal, reaper, coordinated epoch rebuild, process supervisor, autonomous reassignment, sandbox termination dan actual provider effects. Registration lastHeartbeatAt bukan periodic heartbeat implementation. Manual authority code tidak memanggil Redis untuk mengecek lease; aturan Redis di bagian target tetap persyaratan untuk runtime yang belum aktif.
+
+Bagian 1–9 berikut menggambarkan recovery target. Jangan menjadikannya runbook untuk service Redis/worker yang belum diimplementasikan. Local tests membuktikan authority kernel dan race yang dicakup, bukan full G04–G06 chaos. [Current state](../implementation/CURRENT-STATE.md), [as-built I04](../diagrams/10-implemented-contracts.md).
+
 ## 1. Authority model
 
 PostgreSQL menyimpan execution current attempt/generation, assignment owner, coordination epoch, revision, status, cancel intent. Monotonic generation dialokasikan pada durable assignment/revocation; tidak berasal dari counter Redis yang bisa hilang. Worker tidak punya write credential database.

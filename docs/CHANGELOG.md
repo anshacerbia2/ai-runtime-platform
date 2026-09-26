@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased — 24 September 2026 — source-first documentation synchronization
+
+Reviewed all existing repository Markdown against registered routes, physical schema, actual client/UI/BFF behavior and dated verification records. Added current-state and exhaustive HTTP references plus I01–I04 implemented diagrams. Updated architecture, lifecycle, data, configuration, milestones, roadmaps, acceptance scope and ADR implementation notices. Historical adoption/test records remain dated; provider/streaming/sandbox targets are explicitly planned. No application source, migration SQL, generated contract artifact or existing user UI edit is changed by this documentation-only task. Results and complete inventory are in [documentation sync](reviews/DOCUMENTATION-SYNC.md).
+
+## Unreleased — receipt-backed resource APIs and runner authority
+
+Added independent versioned resource operations, bounded keyset lists and count-only overview, atomic request receipts with retained expiry keys, explicit retry ownership and total request budget, typed runner authority messages with durable fencing and late-evidence quarantine, explicit database/wire mappers and serialization AST gate. Additive migrations preserve existing history. The console no longer fetches the legacy full snapshot. Local verification is recorded in [contract execution evidence](reviews/CONTRACT-EXECUTION.md); provider execution and autonomous dispatch remain separate gates.
+
+## Unreleased — 24 September 2026 — HTTP behavior and mutation outcome hardening
+
+Bounded browser/BFF unary reads and waits, removed provider response JSON roundtrip, added additive nested response views while retaining strict command schemas, preserved safe retry/correlation diagnostics, and separated mutation outcome from secondary health state. Added generation fencing for editor/key/scenario changes, explicit unknown write outcomes, and adversarial unit/browser tests. OpenAPI exports shared behavioral metadata. At this earlier hardening checkpoint, no automatic retry, live SSE runtime, end-to-end backend deadline propagation, or production readiness was claimed; the later receipt/resource entry supersedes its retry policy. See [HTTP audit](reviews/HTTP-CONTRACT-AUDIT.md) and [ADR-0028](adr/0028-http-behavior-and-outcome-semantics.md).
+
 ## Unreleased — Next.js App Router and server-owned BFF implementation
 
 Replaced the Vite SPA and development credential proxy with Next.js App Router, stable feature URLs, a standalone entry page, and authenticated server-rendered documentation. Implemented confidential OIDC Authorization Code + PKCE/state/nonce verification, opaque signed session references, encrypted Redis-held tokens, coordinated refresh, and app-local logout. Added allowlisted, bounded BFF forwarding with CSRF/host checks; retired proxy-secret authority from the API. Preserved existing CDD components, SCSS tokens, M0 contracts, and M1 data. Added protocol/session/transport/Markdown regression tests and a production client-bundle scan. Live ATI Keycloak and deployed Redis/ingress evidence remain separate from local tests.

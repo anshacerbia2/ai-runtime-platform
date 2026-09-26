@@ -2,6 +2,12 @@
 
 **Target design, bukan laporan perubahan pada repo aplikasi.** Berdasarkan kebutuhan dan project patterns dalam percakapan. Source code aplikasi tidak diubah oleh task dokumentasi ini.
 
+## Internal console migration already implemented
+
+The platform console has moved from legacy /api/m1/control-plane snapshot reads to independent /api/v1 resource pages and a count overview. New resource mutations return explicit receipt envelopes. Legacy routes remain a compatibility surface, not the recommended path for new consumers. Existing request keys and immutable history are not reset during migration.
+
+This does not mean Scribe, Farexlate, Themis or RAG applications now call a live platform provider endpoint. /v1 execution routes, provider invocation and runtime streaming below remain future integration work. [Implemented HTTP API](../implementation/HTTP-API.md) and [current state](../implementation/CURRENT-STATE.md) define what can be integrated today.
+
 ## 1. Common integration seam
 
 App keeps job/workflow -> calls platform client with profile + typed input + optional process/step -> receives execution ID/result/events -> validates business output -> decides next step. Platform credential replaces provider-specific integration at this seam; business schema/validation remains app-owned.

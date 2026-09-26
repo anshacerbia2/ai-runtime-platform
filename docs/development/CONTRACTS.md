@@ -20,15 +20,23 @@ Consumer tests invoke the same inferred client/forwarder used by the product. Cu
 
 ## Framework and type boundaries
 
-The Nest binding validates requests and actual serialized responses and uses contract-derived handler return types. Web features never supply a free generic DTO to an untyped URL. Only transport/SDK glue handles `unknown`; feature response shapes are inferred. The mechanical boundary check rejects reintroduced M0/M1 endpoint literals and duplicate wire interfaces in the client code.
+The Nest binding validates requests and explicit mapped wire DTOs before serialization and uses contract-derived handler return types. Web features never supply a free generic DTO to an untyped URL. Only transport/SDK glue handles `unknown`; feature response shapes are inferred. The mechanical boundary check rejects reintroduced implemented API endpoint literals and duplicate wire interfaces in the client code.
 
 The selected ts-rest core version is pinned and release-candidate, because the current stable line does not support this project's Zod/Nest combination. No peer compatibility checks are disabled. See [ADR-0027](../adr/0027-shared-rest-consumer-contracts.md).
 
 ## Status and error handling
 
-`ApiClientError` distinguishes HTTP, transport, timeout, cancellation, and invalid response errors and preserves correlation identifiers. Error fields are checked against shared schemas. No mutation is retried automatically. Empty success bodies require an explicit no-body response in the endpoint contract.
+`ApiClientError` distinguishes HTTP, transport, timeout, cancellation, and invalid response errors and preserves correlation identifiers. Error fields are checked against shared schemas. Automatic retry is operation-declared: receipt-backed resource mutations, lab validation, and admission allow up to three attempts within one deadline; other mutations remain one-attempt. Empty success bodies require an explicit no-body response in the endpoint contract.
 
 Catalogue loading, health checks, and editor/mutation errors have independent lifecycles. Closing an error message cannot change a health observation. Failed checks show unconfirmed/unknown state and clearly labelled last-known values; a durable save is not changed into failure because a secondary health refresh failed.
+
+## Current coverage and contract sources
+
+[HTTP-API](../implementation/HTTP-API.md) lists 46 active operations and their 38 browser-exposed method/path pairs. routes.ts composes resources.ts and runner.ts; no /v1 execution stream is enabled. OpenAPI now includes provider/browser authentication models, optional response correlation/retry headers, additive response-property acceptance and legacy replacement notes. The generation format is documentation metadata; it does not automatically create an independently verified Python/Go SDK.
+
+Current Pact consumers contain eleven interactions per hop, adding bounded overview and application-page reads to the original nine. Frozen baseline files retain their original expectations. This is not exhaustive Pact coverage of all 46 operations; remaining management/runner behavior is checked by shared schemas and integration/fault tests. [Expectations](../../tests/cdc/expectations.ts) are consumer-authored, not copied from provider validators.
+
+The client RetryBudget and one monotonic timeout are local process policies. BFF adds no retries and cannot promise API/provider transaction cancellation. Run npm run serialization:check as part of verification. Latest completed evidence and documentation-only reruns remain separate in [CONTRACT-EXECUTION](../reviews/CONTRACT-EXECUTION.md) and [DOCUMENTATION-SYNC](../reviews/DOCUMENTATION-SYNC.md).
 
 ## Persistent Broker pipeline
 
@@ -71,3 +79,15 @@ The web deployable contains both `runtime-console` and `runtime-bff` compatibili
 `cdc:broker-proof` is restricted to a loopback Broker and the `contract-ci` environment. CI provisions disposable Broker/PostgreSQL services, publishes current and frozen consumers, publishes positive and intentionally negative provider results, records simulated deployed versions, and checks the matrix. Compatible candidates must pass, while a known incompatible version and an unverified version must fail. The simulated records are test evidence, never production deployment records.
 
 See [Configuration](CONFIGURATION.md) and [Validation](../reviews/VALIDATION.md).
+
+## Behavioral contract and mutation outcome hardening
+
+See [ADR-0028](../adr/0028-http-behavior-and-outcome-semantics.md) and the [HTTP audit](../reviews/HTTP-CONTRACT-AUDIT.md). The shared unary policy and exported x-runtime-behavior add explicit safety ceilings and replay semantics. Browser and BFF deadlines cover their local awaits, not an end-to-end API transaction cancellation guarantee. Request abort never proves rollback.
+
+Mutation lifecycle is idle/pending/success/error/unknown, independent of health and catalogue query state. An acknowledged save is successful even while health refresh is pending or fails. A transport/protocol failure after dispatch can leave the write outcome unknown; reconcile or replay the same key and canonical payload. Automatic retries now follow ADR-0029 per-operation declarations: up to three attempts for eligible keyed writes, one otherwise. Retry-After supplies a bounded delay hint and does not authorize replay.
+
+Known response fields stay validated; unknown response fields are stripped at nested wire-view boundaries. Command schemas remain strict. The provider interceptor validates already-mapped wire DTOs without JSON roundtripping; the BFF still reprojects sanitized response fields. Generated OpenAPI describes published payloads, while external SDK readers must also implement the documented additive-field policy. No Python/Go consumer conformance is asserted.
+
+## Resource and runner extensions
+
+New clients use /api/v1 resource operations and count-only overview; /api/runner/v1 is a separate machine-only binding. Mutation receipts, cursor rules, retry budgets, and runner authority are defined in [ADR-0029](../adr/0029-replay-resources-runner-authority.md). Run npm run serialization:check, npm run verify, and npm run test:e2e. See [current execution evidence](../reviews/CONTRACT-EXECUTION.md).

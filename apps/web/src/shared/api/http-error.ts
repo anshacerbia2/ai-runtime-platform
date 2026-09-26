@@ -8,6 +8,28 @@ export type {
 } from '@ai-runtime/contracts/http';
 import type { ApiErrorPayload } from '@ai-runtime/contracts/http';
 
+export type RequestOutcome =
+  'not-sent' | 'not-applicable' | 'rejected' | 'unknown';
+
+/** Retry-After is a server delay hint, never permission to replay a mutation. */
+export function retryAfterMs(
+  value: string | null,
+  now = Date.now(),
+): number | undefined {
+  if (!value || value.length > 128) {
+    return undefined;
+  }
+  const text = value.trim();
+  const delay = /^[0-9]+$/.test(text)
+    ? Number(text) * 1000
+    : /^[A-Za-z]{3}, /.test(text)
+      ? Date.parse(text) - now
+      : NaN;
+  return Number.isFinite(delay) && delay >= 0
+    ? Math.min(delay, 86_400_000)
+    : undefined;
+}
+
 export interface ApiClientErrorOptions {
   kind: ClientErrorKind;
   status: number | null;
@@ -19,6 +41,8 @@ export interface ApiClientErrorOptions {
   requestId?: string;
   executionId?: string | null;
   cause?: unknown;
+  outcome?: RequestOutcome;
+  retryAfterMs?: number;
 }
 
 export class ApiClientError extends Error {
@@ -31,6 +55,8 @@ export class ApiClientError extends Error {
   readonly retryable?: boolean;
   readonly requestId?: string;
   readonly executionId?: string | null;
+  readonly outcome?: RequestOutcome;
+  readonly retryAfterMs?: number;
 
   constructor(options: ApiClientErrorOptions) {
     super(options.code + ': ' + options.message, { cause: options.cause });
@@ -46,6 +72,8 @@ export class ApiClientError extends Error {
     this.retryable = options.retryable;
     this.requestId = options.requestId;
     this.executionId = options.executionId;
+    this.outcome = options.outcome;
+    this.retryAfterMs = options.retryAfterMs;
   }
 
   getFieldError(field: string): string | undefined {

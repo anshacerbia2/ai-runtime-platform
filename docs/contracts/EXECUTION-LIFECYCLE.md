@@ -1,6 +1,26 @@
 # Execution dan Attempt Lifecycle
 
-**Canonical state model baseline 0.2.** Mengadopsi empat dimensi principal dengan amendment M01 pada [rekonsiliasi](../reviews/RECONCILIATION.md). Semua nama status di dokumen/diagram merujuk halaman ini.
+**Target execution state model baseline 0.2, dengan pemetaan physical implementation di bawah.** Mengadopsi pemisahan dimensi pada [rekonsiliasi](../reviews/RECONCILIATION.md). Target enum tidak boleh diperlakukan sebagai enum yang seluruh transisinya sudah dijalankan M1.
+
+## Vocabulary dan transisi aktual — 24 September 2026
+
+Sumber: [schema Prisma](../../prisma/schema.prisma), [CHECK constraints 0004](../../prisma/migrations/0004_m1_integrity/migration.sql), [runner authority](../../apps/api/src/modules/control-plane/infrastructure/prisma-runner-authority.ts), [runner contract](../../packages/contracts/src/http/runner.ts).
+
+| Record/dimensi         | Nilai di database/kontrak aktif                            | Batas implementasi                                                                                             |
+| ---------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Execution.status       | ACCEPTED, RUNNING, SUCCEEDED, FAILED, CANCELLED (DB CHECK) | Admission menghasilkan ACCEPTED; typed runner start dapat menghasilkan RUNNING. Finalization AI tidak tersedia |
+| Attempt.status         | PREPARED, RUNNING, SUCCEEDED, FAILED, CANCELLED (DB CHECK) | PREPARED pada admission; RUNNING pada accepted start; tidak ada full automatic retry/supervisor lifecycle      |
+| Attempt.authority      | UNASSIGNED, OWNED, FENCED, RELEASED                        | Grant/start memakai OWNED, revocation FENCED; target ACTIVE bukan nilai SQL yang dipakai                       |
+| Attempt.compute        | NOT_APPLICABLE, RUNNING, STOPPED, UNKNOWN                  | Tidak ada sandbox process verifier dalam patch ini                                                             |
+| Attempt.external       | NONE, IN_FLIGHT, COMPLETE, UNKNOWN                         | Tidak ada live tool effect pipeline                                                                            |
+| RunnerAssignment.state | GRANTED, STARTED, RESULT_PROPOSED, FENCED                  | Exact owner/generation/epoch enforcement dan row locking                                                       |
+| Reservation.state      | RESERVED, PENDING_RECONCILIATION, SETTLED, OVERAGE_SETTLED | Accounting berbasis evidence lokal, bukan invoice provider live                                                |
+
+M1 ExecutionView memiliki beberapa status string terbuka; schema target Snapshot bukan response router M1 yang sama. Nilai SUCCEEDED pada DB tidak boleh diam-diam didokumentasikan sebagai COMPLETED yang sudah keluar dari API. Full target enum di bagian berikut memerlukan versioned implementation/migration sebelum dipakai.
+
+Cancel intent sekarang disimpan pada cancelRequestedAt dan outbox, bukan langsung mengganti status menjadi CANCEL_REQUESTED/CANCELLED. Result.proposed menyimpan proposal, bukan completion atau budget settlement. Fenced runner tidak boleh melaporkan perubahan state, tetapi evidence dari known old assignment tetap dapat dikarantina.
+
+Grant/revoke manual dapat menggunakan attempt yang sudah ada dengan generation baru. Itu tidak membuktikan rencana runtime retry yang harus mengelola attempt baru, process termination, remote outcome, dan remaining budget. Lihat [kondisi aktual](../implementation/CURRENT-STATE.md) dan [as-built flow](../diagrams/10-implemented-contracts.md).
 
 ## 1. Execution tidak sama dengan business job
 

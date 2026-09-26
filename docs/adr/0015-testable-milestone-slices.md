@@ -6,6 +6,10 @@
 
 **Dasar:** user meminta FE, BE, dan DB tersedia sejak M0 supaya tiap fase dapat dicoba. Mengikuti [ADR-0001](0001-application-ownership.md), [ADR-0002](0002-managed-envelope.md), dan [ADR-0013](0013-evolution-gates.md).
 
+## Implementation reconciliation — 24 September 2026
+
+The original M0 technical slice is implemented. Its initial Vite/Fastify standalone choices are historical: Nest/Prisma and Next.js/BFF now provide the slice. Live inference remains absent. See [current source state](../implementation/CURRENT-STATE.md), [active HTTP operations](../implementation/HTTP-API.md), and [verification scope](../reviews/CONTRACT-EXECUTION.md). This note updates implementation status only; it does not create new reviewer approval or erase the original decision history.
+
 ## Status pemilihan stack
 
 Pilihan Fastify standalone pada record awal ini digantikan oleh [ADR-0016](0016-nestjs-fastify.md) dan persistence raw-pg oleh [ADR-0017](0017-prisma-postgresql.md). Batas local contract-only dan testable milestone tetap berlaku. Struktur/quality mengikuti [ADR-0018](0018-clean-architecture-quality.md).
@@ -14,7 +18,7 @@ Pilihan Fastify standalone pada record awal ini digantikan oleh [ADR-0016](0016-
 
 P0 semula hanya contract/decision closure. Dokumen saja tidak memberi feedback integrasi dari browser hingga database. Menjalankan model berbayar sebelum admission, credential policy, dan reliability siap justru melompati boundary P1/P2.
 
-## Decision
+## Original decision at M0 adoption (stack subsequently superseded)
 
 Bangun vertical slice lokal: React + TypeScript/Vite frontend, Fastify backend, PostgreSQL terpisah, serta package Zod bersama untuk validation/type/JSON Schema. Dependency dikunci dalam package-lock.json; runtime yang diuji dicatat dalam milestone evidence. Schema execution v1 tetap draft, terpisah dari endpoint Contract Lab yang benar-benar berjalan.
 

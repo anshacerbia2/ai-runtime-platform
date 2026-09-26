@@ -4,6 +4,10 @@
 
 **Status:** adopted in documentation; implementation mulai P3.
 
+## Implementation reconciliation — 24 September 2026
+
+Runtime workspace and MCP/remote-tool adapters remain planned. Artifact metadata and web sessions are not implementation of agent workspace/session execution. See [current source state](../implementation/CURRENT-STATE.md), [active HTTP operations](../implementation/HTTP-API.md), and [verification scope](../reviews/CONTRACT-EXECUTION.md). This note updates implementation status only; it does not create new reviewer approval or erase the original decision history.
+
 ## Context
 
 Scribe V2 memakai pola in/out/result.json, tetapi direct chat dan banyak inference request tidak membutuhkan filesystem workspace. Platform harus menggeneralisasi pola artifact tanpa menjadikan struktur Scribe sebagai kontrak universal.

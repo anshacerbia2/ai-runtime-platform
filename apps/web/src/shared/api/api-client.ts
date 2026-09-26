@@ -1,14 +1,19 @@
+import { RetryBudget } from './retry-policy';
 import { browserContract, initClient } from '@ai-runtime/contracts/http';
-import { fetchContract } from './http-client';
+import { fetchContract, type HttpClientLimits } from './http-client';
 import { ApiClientError } from './http-error';
 
 /** Injected transport is useful for consumer tests; production always calls the same-origin BFF. */
-export function createApiClient(transport: typeof fetch = fetch) {
+export function createApiClient(
+  transport: typeof fetch = fetch,
+  limits: HttpClientLimits = {},
+) {
+  const retryBudget = new RetryBudget();
   return initClient(browserContract, {
     baseUrl: '',
     credentials: 'same-origin',
     throwOnUnknownStatus: true,
-    api: (args) => fetchContract(args, transport),
+    api: (args) => fetchContract(args, transport, limits, retryBudget),
   });
 }
 

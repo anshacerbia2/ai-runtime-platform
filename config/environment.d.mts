@@ -35,6 +35,13 @@ export interface RuntimeEnvironment {
     readonly applicationName: string;
   };
   readonly databaseUrl: string;
+  readonly gateway: {
+    readonly openrouterApiKey?: string;
+    readonly anthropicApiKey?: string;
+    /** Programmatic test override; environment loader intentionally uses official endpoints. */
+    readonly openrouterEndpoint?: string;
+    readonly anthropicEndpoint?: string;
+  };
   readonly seedTxMaxWaitMs: number;
   readonly seedTxTimeoutMs: number;
   readonly dev: {

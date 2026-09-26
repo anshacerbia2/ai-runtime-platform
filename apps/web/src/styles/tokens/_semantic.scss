@@ -65,6 +65,21 @@
   // The signature gradient, reserved for the brand mark.
   --ds-brand-gradient: var(--ati-gradient-blue);
 
+  // --- Brand field ----------------------------------------------------------
+  // Full-navy surfaces, used only by the sign-in page. The console rail is
+  // white, so this is the one place the brand owns the whole viewport.
+  --ds-surface-brand: var(--ati-navy);
+  --ds-surface-brand-deep: var(--ati-navy-900);
+  --ds-brand-accent: var(--ati-blue);
+  --ds-brand-accent-hover: var(--ati-blue-600);
+  --ds-brand-accent-bright: var(--ati-blue-300);
+  --ds-brand-line: rgba(255, 255, 255, 0.14);
+  --ds-brand-line-strong: rgba(255, 255, 255, 0.28);
+  --ds-brand-grid: rgba(255, 255, 255, 0.05);
+  --ds-brand-alert: rgba(212, 59, 59, 0.16);
+  --ds-brand-alert-line: rgba(255, 255, 255, 0.24);
+  --ds-text-inverse-faint: rgba(255, 255, 255, 0.58);
+
   // --- Status ---------------------------------------------------------------
   --ds-status-success: var(--ati-success);
   --ds-status-success-soft: var(--ati-success-bg);
@@ -134,22 +149,26 @@
   // --- Navigation -----------------------------------------------------------
   // White rail against the tinted canvas; the active row is accent-tinted
   // rather than grey, which is what keeps the nav from reading as chrome.
-  --ds-nav-surface: var(--ati-white);
-  --ds-nav-border: var(--ati-line);
-  // The rail stays white, so brand presence here is the active row: navy text
-  // and a navy indicator over a faint brand tint.
-  --ds-nav-text: var(--ati-gray-600);
-  --ds-nav-text-active: var(--ati-navy);
-  --ds-nav-hover: var(--ati-tint);
-  --ds-nav-active: var(--ati-blue-50);
+  --ds-nav-surface: var(--ati-navy-900);
+  --ds-nav-border: rgba(255, 255, 255, 0.1);
+  // Navy rail, matching the ATI portal's own NavRail. Text values are solid
+  // ramp steps rather than white-alpha so contrast on navy is predictable:
+  // body 8.1:1, captions 5.7:1, active row 16.9:1.
+  --ds-nav-text: var(--ati-gray-300);
+  --ds-nav-text-active: var(--ati-white);
+  --ds-nav-hover: rgba(255, 255, 255, 0.07);
+  --ds-nav-active: rgba(255, 255, 255, 0.11);
   --ds-nav-active-border: transparent;
   --ds-nav-label: var(--ati-gray-400);
   --ds-nav-detail: var(--ati-gray-400);
   --ds-nav-eyebrow: var(--ati-gray-400);
-  --ds-nav-marker: var(--ati-navy);
+  // Brand accent lifted a step so it reads against the navy field.
+  --ds-nav-marker: var(--ati-blue-300);
 
   // --- Composite treatments -------------------------------------------------
-  --ds-topbar-glass: rgba(255, 255, 255, 0.82);
+  // Solid white bar, not glass: over a navy rail a translucent header shows
+  // the rail through it at the seam.
+  --ds-topbar-glass: var(--ati-white);
   --ds-scrim: rgba(10, 37, 64, 0.2);
   --ds-ring-success: 0 0 0 3px var(--ds-status-success-soft);
   --ds-inset-accent: inset 0 0 0 1px var(--ati-blue);

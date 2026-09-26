@@ -4,13 +4,17 @@
 **Status:** implemented locally; live issuer and deployed session-store evidence remain separate
 **Scope:** web application framework, server tier ownership, and token custody
 
+## Implementation reconciliation — 24 September 2026
+
+Next.js/BFF, encrypted server session adapters and sanitized Markdown reader are implemented. Redis integration is a configured nonlocal path, not a runner lease service. Mermaid fences are shown as code by the built-in reader. See [current source state](../implementation/CURRENT-STATE.md), [active HTTP operations](../implementation/HTTP-API.md), and [verification scope](../reviews/CONTRACT-EXECUTION.md). This note updates implementation status only; it does not create new reviewer approval or erase the original decision history.
+
 ## Context
 
 At adoption, `apps/web` was a Vite single-page application: a static bundle with no server of its own. Two requirements cannot be met inside that shape.
 
 **Confidential-client custody.** [ADR-0025](0025-external-app-standalone-auth.md) requires an OIDC Authorization Code flow with a confidential client. Code exchange, client secret custody, refresh, and session cookies all require a server owned by the web tier. A static bundle has none, which leaves only two bad options: put the flow in the browser (the secret leaks and the grant type degrades), or put it in the NestJS API (the domain API acquires browser-session concerns and a second authentication model).
 
-**Server-side document rendering.** `docs/` holds roughly seventy Markdown records — ADRs, architecture, contracts, operations. Surfacing them in the console means reading the filesystem at build or request time. A Vite build would require a glob plugin and ship a Markdown parser to every visitor.
+**Server-side document rendering.** At adoption, docs/ held roughly seventy Markdown records. The selected implementation now reads and sanitizes Markdown server-side from the configured filesystem root. It does not ship a Markdown parser to each browser; this describes the chosen code path, not a claim that every possible Vite documentation build must parse in the browser.
 
 [SECURITY.md](../security/SECURITY.md) already lists `client/BFF -> API` among the system's trust boundaries. The BFF tier was assumed by the existing security model but was not yet implemented at adoption.
 
@@ -39,7 +43,7 @@ The BFF owns, and is the only tier that owns:
 
 ### BFF non-responsibilities
 
-The BFF SHALL NOT contain domain logic, business rules, validation authority, or database access. It has no Prisma client and no direct PostgreSQL connection. Every domain read or write is a call to the NestJS API.
+The BFF SHALL NOT contain domain mutation/authorization authority or database access. It does validate and reproject HTTP wire responses; that trust-boundary check is not ownership of domain business rules. It has no Prisma client and no direct PostgreSQL connection. Every domain read or write is a call to the NestJS API.
 
 A route handler that does more than authenticate, shape, and forward belongs in `apps/api`.
 
@@ -69,7 +73,7 @@ The rule SHALL be narrowed from _workspace path_ to _execution context_: client 
 
 - **Keep Vite; put the OIDC flow in NestJS.** Rejected: the domain API acquires cookie/session/redirect concerns and a second authentication model alongside its resource-server role, and the documentation surface remains unsolved.
 - **Keep Vite; add a small dedicated BFF service.** Rejected: a third deployable and a third build pipeline to avoid a framework the web tier would benefit from anyway; server rendering of documents would still need separate work.
-- **Next.js static export (`output: 'export'`).** Rejected: no server, so it solves neither requirement — it is the current Vite situation with heavier tooling.
+- **Next.js static export (`output: 'export'`).** Rejected: no server, so it solves neither requirement — it would retain the static-only deployment limitations present at adoption.
 - **Remix or TanStack Start.** Not rejected on merit; both satisfy the requirements. Next.js is selected for ecosystem familiarity and because no requirement distinguishes them. This is a preference, recorded as one.
 - **Move `docs/` rendering to a separate documentation site.** Rejected: the console is where operators already are, and the records are versioned with the code.
 
@@ -79,9 +83,9 @@ The deployment gains a second Node process, so topology, health checks, and the 
 
 A BFF tier creates a standing risk of business logic accumulating in route handlers. The non-responsibilities above exist to be enforced, not merely stated, and belong in review.
 
-Tooling affected: `scripts/dev.mjs` (previously spawned Vite; now launches the Next.js web runner), `scripts/check-ui-tokens.mjs` (hardcodes `apps/web/src`), `scripts/lib/dependency-rules.mjs`, `apps/web/package.json`, `playwright.config.ts`, and `config/hosting.mjs`. None of these are load-bearing for domain correctness.
+Tooling affected: `scripts/dev.mjs` (previously spawned Vite; now launches the Next.js web runner), `scripts/check-ui-tokens.mjs` (hardcodes `apps/web/src`), `scripts/lib/dependency-rules.mjs`, `apps/web/package.json`, `playwright.config.ts`, and `config/hosting.mjs`. These files do not implement domain mutations, but configuration and boundary checks affect authentication, origin and deployment guarantees and remain covered by tests.
 
-Server-rendered Markdown means `docs/` becomes a build input for `apps/web`. Content changes affect the web build, and broken links surface as build failures as well as `docs:check` failures.
+Server-rendered Markdown means `docs/` becomes a build input for `apps/web`. Content is read by the server from the configured docs root and included in deployment tracing. Broken links are caught by docs:check; Next build alone is not a guarantee of link validation. Rebuild/redeploy an immutable production bundle after content changes.
 
 ## Verification
 

@@ -24,7 +24,7 @@ for (const file of roots.flatMap(files)) {
   function visit(node) {
     if (
       (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) &&
-      /^\/api\/m[01](?:\/|$)/.test(node.text)
+      /^\/api\/(?:m[01]|v1|runner\/v1)(?:\/|$)/.test(node.text)
     ) {
       failures.push(
         file + ': endpoint literals belong in the shared contract.',
@@ -51,6 +51,7 @@ for (const file of roots.flatMap(files)) {
 for (const file of [
   'apps/api/src/modules/contract-lab/presentation/http',
   'apps/api/src/modules/control-plane/presentation/http',
+  'apps/api/src/modules/gateway/presentation/http',
 ]
   .flatMap(files)
   .filter((file) => file.endsWith('.controller.ts'))) {
@@ -68,5 +69,5 @@ if (failures.length) {
   throw new Error(failures.join('\n'));
 }
 console.log(
-  'Contract boundary PASS: no manual M0/M1 client URLs or duplicated wire DTOs; all provider controllers bind shared routes.',
+  'Contract boundary PASS: no manual implemented API client URLs or duplicated wire DTOs; all provider controllers bind shared routes.',
 );

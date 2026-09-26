@@ -1,5 +1,7 @@
 # D19–D21 — Deployment, Data, dan Trust Boundaries
 
+**Implementation boundary — 24 September 2026:** Topology and logical ERD below remain target views. Current physical receipt/assignment/evidence tables are listed in DATA-MODEL; no cloud, sandbox or Redis runner deployment is asserted. See [I01–I04](10-implemented-contracts.md) and [current state](../implementation/CURRENT-STATE.md).
+
 **Authored target views, not an installed topology.** [DEPLOYMENT](../operations/DEPLOYMENT.md), [DATA-MODEL](../data/DATA-MODEL.md), [SECURITY](../security/SECURITY.md).
 
 ## D19 — Initial deployment topology

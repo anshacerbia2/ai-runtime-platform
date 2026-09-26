@@ -1,6 +1,6 @@
 # Diagram Catalogue
 
-**Baseline 0.2.** 23 numbered Mermaid diagrams plus one architecture overview. These are authored target views, not screenshots of a running deployment. Canonical textual contracts define preconditions and failure semantics when a diagram omits detail.
+**Target baseline 0.2 and current implementation views.** D01–D23 retain the target design; I01–I04 show the implemented HTTP/control-plane subset as of 24 September 2026. The architecture overview and fleet view are also target diagrams, not installed topology. Canonical contracts and implementation notes define details omitted by a drawing.
 
 | Diagram | View and flow                                      | Source                                                           |
 | ------- | -------------------------------------------------- | ---------------------------------------------------------------- |
@@ -27,6 +27,17 @@
 | D21     | Trust and permission boundaries                    | [07-deployment-data-security.md](07-deployment-data-security.md) |
 | D22     | Dependency and readiness flow                      | [08-evolution-migration.md](08-evolution-migration.md)           |
 | D23     | Per-application migration and rollback             | [08-evolution-migration.md](08-evolution-migration.md)           |
+
+## Implemented views
+
+| Diagram | Current source flow                                  | Document                                             |
+| ------- | ---------------------------------------------------- | ---------------------------------------------------- |
+| I01     | Browser/BFF/API/PostgreSQL and machine boundaries    | [Implemented contracts](10-implemented-contracts.md) |
+| I02     | Atomic management receipt and acknowledgement replay | [Implemented contracts](10-implemented-contracts.md) |
+| I03     | Independent bounded resource queries                 | [Implemented contracts](10-implemented-contracts.md) |
+| I04     | Durable runner fencing and quarantined late evidence | [Implemented contracts](10-implemented-contracts.md) |
+
+Start with I01–I04 for what exists today, then D01–D23 for the wider planned execution platform. [Current state](../implementation/CURRENT-STATE.md) separates the two.
 
 ## Reading paths
 

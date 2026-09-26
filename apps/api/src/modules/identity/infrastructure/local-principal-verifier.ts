@@ -31,7 +31,7 @@ export class LocalPrincipalVerifier implements PrincipalVerifier {
         subject: 'local-runner',
         kind: 'runner',
         roles: ['runtime-runner'],
-        scopes: ['runner:register'],
+        scopes: ['runner:register', 'runner:report'],
       };
     }
     const app = await this.applications.verify(token);

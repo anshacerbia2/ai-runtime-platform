@@ -181,6 +181,7 @@ const files = {
     browserContract,
     'AI Runtime Platform — browser API',
     CONTRACT_VERSION,
+    { boundary: 'browser' },
   ),
   'execution-v1.planned.openapi.json': target,
 };

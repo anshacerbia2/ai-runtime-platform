@@ -2,6 +2,12 @@
 
 **Design v1.** Authority: [ADR-0009](../adr/0009-stream-replay.md). Event contract adalah milik platform; source protocol SSE mendefinisikan event ID/reconnect, bukan durability aplikasi (R06 pada [SOURCES](../reviews/SOURCES.md)).
 
+## Implementasi saat ini dan batas desain
+
+Belum ada HTTP SSE/token stream route, codec, subscriber queue, Last-Event-ID recovery atau live model delta pipeline. Semua flow replay/retention di bawah adalah target. [Event schema](../../packages/contracts/src/schemas/events.ts) mengenali envelope/type tetapi payload masih record-of-unknown, bukan discriminated payload per event. Keberadaan schema ini tidak membuktikan semantik delta sudah divalidasi.
+
+Yang aktif adalah [runner v1 messages](../../packages/contracts/src/http/runner.ts) untuk started, result.proposed, dan evidence melalui bounded unary JSON, serta durable outbox entries seperti execution.admitted, budget.updated, execution.cancel-requested dan runner.result-proposed. Ini tidak sama dengan seluruh katalog event target. [Current API](../implementation/HTTP-API.md) mencatat route yang sebenarnya.
+
 ## 1. Dua kelas event
 
 | Class                 | Contoh                                                                                      | Penyimpanan/jaminan                                                          |
@@ -38,7 +44,7 @@ data: {"event_id":"event-123","payload":{"text":"Hasil"}}
 
 ```
 
-Implementasi codec menghasilkan field `id:`, `event:`, `data:` tepat sesuai protokol tanpa prefiks spasi. Heartbeat connection adalah SSE comment, tidak menambah model usage.
+Codec yang akan diimplementasikan harus menghasilkan field `id:`, `event:`, `data:` tepat sesuai protokol tanpa prefiks spasi. Heartbeat connection adalah SSE comment, tidak menambah model usage.
 
 ## 3. Event catalogue
 

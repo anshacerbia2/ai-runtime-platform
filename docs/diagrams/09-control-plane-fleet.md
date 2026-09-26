@@ -1,5 +1,7 @@
 # Control Plane, AI Connections, dan Distributed Runner Fleet
 
+**Implementation boundary — 24 September 2026:** Target fleet view: registry, bindings and manual assignment/fencing are implemented. Plugin registry, automatic placement, secret materialization and Redis liveness remain planned. See [I01–I04](10-implemented-contracts.md) and [current state](../implementation/CURRENT-STATE.md).
+
 ```mermaid
 flowchart LR
     App["Application<br/>Keycloak identity"] --> API["AI Runtime API"]

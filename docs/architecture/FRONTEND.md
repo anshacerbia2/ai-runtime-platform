@@ -5,7 +5,7 @@
 
 ## 1. Product placement
 
-AI Runtime Platform is an **external application** listed in the ATI One catalogue.
+The hosting contract places AI Runtime Platform as an **external application**, to be linked from the ATI One catalogue. Local implementation does not prove that a production catalogue entry or issuer registration has been provisioned.
 
 ATI One provides discovery only — a catalogue entry linking to this platform's own public origin. It does not proxy, mount, frame, or authenticate requests. The platform owns its public origin, its full path space from `/`, its application session, its operation-level authorization, its backend API, and its Keycloak OIDC client.
 
@@ -27,7 +27,7 @@ The platform uses a dedicated confidential Keycloak client against the shared re
 ```text
 visitor
   -> platform entry page (unauthenticated)
-  -> "Sign in with Keycloak"
+  -> "Continue with ATI SSO"
   -> Keycloak authorization request
   -> Keycloak login UI (ai-portal deployment)
   -> callback to /auth/callback
@@ -36,7 +36,7 @@ visitor
   -> platform console
 ```
 
-The platform never renders a credential form and never receives a password. A visitor who already holds a realm session returns from Keycloak without a second prompt, so shared SSO survives without portal hosting.
+The platform never renders a credential form and never receives a password. An existing realm session may allow SSO without a second prompt according to issuer policy; this is a deployment behavior to verify, not a universal local test guarantee.
 
 Tokens stay server-side. The browser receives an opaque session cookie: `Secure`, `HttpOnly`, `SameSite=Lax`, scoped to `/`, and namespaced to this client. Callback and post-logout URIs must match Keycloak registration exactly. These are security invariants.
 
@@ -55,7 +55,7 @@ Feature/page code must not be imported into shared component layers.
 
 Orthogonal to that layering is the **execution-context boundary**: server-only code lives under `src/server/` and may use Node built-ins; everything else is client-reachable and may not. Route handlers stay thin and delegate to `src/server/`. No code under `apps/web/` may import Nest, Prisma, or a database driver, in either context.
 
-## 4. Target source shape
+## 4. Current source shape
 
 Under [ADR-0026](../adr/0026-nextjs-bff.md) the web workspace is a Next.js App Router application:
 
@@ -77,7 +77,7 @@ apps/web/
         login/route.ts         # begins the authorization request
         callback/route.ts      # code exchange, session issue
         logout/route.ts
-        logged-out/route.ts
+        logged-out/page.tsx
       api/[...path]/route.ts   # authenticated forwarding to apps/api
 
     server/                    # server-only; Node built-ins permitted here
@@ -99,6 +99,8 @@ apps/web/
       history/
       schemas/
       roadmap/
+      auth/                    # standalone entry schematic
+      workspace/               # catalogue and shell orchestration
 
     shared/
       api/                     # typed response parsing
@@ -140,16 +142,20 @@ Outside the token adapter/source, the target is no direct hardcoded colors, spac
 
 ### Brand core versus working scale
 
-`_ati.scss` holds two layers. The **brand core** — navy family, blue accent, signature gradients — is copied verbatim from the ATI design system and is not hand-tuned locally; it is re-pulled from `ai-portal/frontend/src/design-system/tokens/colors.css` when that source changes. The **working scale** — neutral surfaces, elevation, and status — is owned by this console.
+`_ati.scss` holds two layers. The **brand core** — navy family, blue accent, signature gradients — is represented in the local token source. That source is the current implementation authority. No automatic synchronization with the separate ai-portal repository is implemented or verified by this documentation update. The **working scale** — neutral surfaces, elevation, and status — is owned by this console.
 
-Where the working scale departs from the ATI values, the reason is recorded inline at the token. Two departures are active:
+The earlier token adaptation recorded two departures below. Treat the contrast observations as historical design rationale, not a fresh measurement of every current component:
 
 1. **Surfaces are near-neutral** rather than the blue-tinted ATI neutrals, which read as a colour at full-window scale.
 2. **Status colours are darkened** from the ATI hues. The source values are tuned for fills; used as badge text on their own soft backgrounds they measure roughly 3.1–3.9:1, short of the WCAG 2.2 AA target in section 8. The hues are unchanged.
 
-Brand presence in this console is the navy heading colour, the navy active-navigation state, and the logo-crossbar gradient on the brand mark. The gradient is used nowhere else; the navigation rail is a white surface, unlike the ATI Portal navy rail.
+Brand presence in this console is the navy heading colour, the navy active-navigation state, and the logo-crossbar gradient on the brand mark. The separate entry/sign-in stage has its own feature styling and semantic tokens. Do not infer a universal gradient restriction from the earlier shell implementation; current usage is in styles and the token-boundary checker.
 
 ## 6. Component-Driven Development
+
+### Implemented inventory versus expansion targets
+
+Current primitive source contains Button and Select. Reusable components include Badge, DataTable, EmptyState, Icon, MetricCard, Panel and StatusOverview; compositions include AppShell, navigation/sidebar/topbar, PageRegion and PageHeader. Shared feedback supplies ErrorBanner and QueryFeedback. Not every example in the taxonomy below exists as a standalone exported component. Storybook/isolated visual-state certification remains planned; page screenshots and selected keyboard/overflow tests do not prove every target accessibility state.
 
 ### Primitives
 
@@ -263,13 +269,23 @@ The app owns a full browser viewport across phone, tablet, and desktop. Use dyna
 
 ## 11. BFF boundary
 
-The BFF is a session and forwarding tier, not a second backend. It owns the confidential client, code exchange, refresh, the session cookie, server-side API calls, and the `docs/` Markdown reader. It owns no domain logic, no validation authority, and no database access.
+The BFF is a session and forwarding tier, not a second backend. It owns the confidential client, code exchange, refresh, the session cookie, server-side API calls, and the `docs/` Markdown reader. It owns no domain mutation/authorization authority and no database access. It does validate and reproject wire responses at its trust boundary.
 
 ```text
 browser --session cookie--> Next.js BFF --bearer token--> NestJS API --> PostgreSQL
 ```
 
 A route handler that does more than authenticate, shape, and forward belongs in `apps/api`. See [ADR-0026](../adr/0026-nextjs-bff.md).
+
+## Implemented data and outcome lifecycles
+
+The resource console calls independent /api/v1 collections with per-collection pagination, loading/error state and retries by user action. Its overview contains independent counts only. There are no resource CRUD forms or plugin-management UI implied by these tables. A failed collection leaves sibling collections usable. Legacy snapshot no longer drives this page.
+
+Contract Lab separates catalogue, health and mutation state. idle/pending/success/error/unknown belongs to the originating operation generation. Pending includes bounded automatic retry for declared replay-safe writes, not secondary health refresh. A saved invalid report is a successful persistence operation with a rejected contract. Editing the request invalidates an old response without claiming rollback.
+
+Shared browser transport enforces deadline/bytes/media type/response shape; only eligible operations receive up to three attempts with identical key/body. BFF has one upstream attempt. [HTTP catalogue](../implementation/HTTP-API.md), [source state](../implementation/CURRENT-STATE.md), [ADR-0029](../adr/0029-replay-resources-runner-authority.md).
+
+The docs reader loads Markdown from the configured filesystem root and sanitizes its output. It rewrites in-catalogue Markdown links for /docs and does not expose arbitrary source files as downloads. Mermaid fences appear as code in this renderer; no client Mermaid rendering integration is implemented. Compatible repository/Markdown viewers can render them separately. Immutable production doc bundles should be rebuilt/redeployed; development reads current files.
 
 ## 12. Quality gates
 
@@ -289,6 +305,6 @@ This design does not make ATI One a runtime dependency, reintroduce portal sessi
 
 ## Implemented shared-contract boundary
 
-[ADR-0027](../adr/0027-shared-rest-consumer-contracts.md) makes `packages/contracts/src/http` authoritative for implemented M0/M1 route definitions and request/response schemas. The browser consumes inferred operation clients, the BFF exposes an explicit shared-contract subset, and Nest validates wire responses. Consumer Pact verification and frozen consumer expectations supplement schema/type tests; see [Contract Operations](../development/CONTRACTS.md).
+[ADR-0027](../adr/0027-shared-rest-consumer-contracts.md) makes `packages/contracts/src/http` authoritative for implemented lab, compatibility, resource and runner route definitions and request/response schemas. The browser consumes inferred operation clients, the BFF exposes an explicit shared-contract subset, and Nest validates wire responses. Consumer Pact verification and frozen consumer expectations supplement schema/type tests; see [Contract Operations](../development/CONTRACTS.md).
 
 Health, catalogue, and editor/mutation errors are independent. Presentation components receive mapped display state, not domain-specific Lab DTOs or generic operation error strings that falsely imply platform outages.

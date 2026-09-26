@@ -1,12 +1,28 @@
 # Acceptance, Conformance, dan Production Gate Catalogue
 
-**Baseline 0.2. Semua implementation tests di bawah berstatus NOT RUN.** Dokumentasi ini mendefinisikan pengujian; bukan laporan test lulus. Phase P3.5 memerlukan evidence dari build/deployment nyata.
+**Baseline target G01–G39, implementation scope reconciled 25 September 2026.** Sejumlah local unit/integration/browser gates sudah dijalankan; full provider/runtime/production scenarios tidak otomatis lulus. Catalogue ini mendefinisikan acceptance requirements. Rincian hasil harus merujuk revisi dan environment pada evidence, bukan status blanket NOT RUN atau PASS.
 
 ## 1. Gate protocol
 
 Setiap test merekam ID, invariant, build/runtime/profile digest, environment, fixtures, fault/load parameters, expected assertion, observed result, trace/log/ledger evidence reference, timestamp, dan reviewer. Artifact evidence harus immutable/scoped. Unit test, adapter fake test, integration test, live smoke test, dan chaos test dibedakan.
 
 Applicable tests wajib pass sebelum production cutover. N/A hanya untuk capability yang benar-benar tidak dipakai dan disetujui reviewer; direct-chat pilot tidak otomatis mewajibkan plugin runtime, tetapi ledger/auth/SSE/route gates tetap berlaku. Principal source sign-off bukan runtime evidence.
+
+## Local evidence coverage versus full target gate
+
+| Area / related gates          | Covered locally                                                                                                                          | Not established by that coverage                                                                             |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| G01/G02/G09/G26               | Application isolation, same-key admission, metadata persistence/replay and selected authorization failures                               | /v1 streaming/object/tool isolation or automatic dispatch                                                    |
+| G07/G08/G15/G28               | Concurrent reservation, injected rollback, cumulative corrections, quota-group accounting and inbox projection                           | Live bills, Redis financial projection deployment or multi-turn enforcement                                  |
+| G27/G29                       | Secret projection, CAS/audit, registration/lifecycle and manual assignment eligibility                                                   | Secret rotation/materialization, periodic heartbeat and automatic OFFLINE                                    |
+| G04/G05/G12/G35 subset        | Exact stale/future generation rejection, grant/revoke races, restart and quarantined late evidence                                       | GC/process pause recovery, Redis lease renewal/failover, complete late-evidence verification, fleet failover |
+| G36/G37/G39 subset            | Generated-issuer protocol/session tests, CSRF/host/route rules, bundle checks and selected browser flows                                 | Live ATI Keycloak registration, deployed Redis/ingress/replica security                                      |
+| G38 subset                    | Token gate, selected Select keyboard behavior and page/mobile overflow tests                                                             | All component-state visual tests or full accessibility certification                                         |
+| Contract evolution extensions | Atomic management receipts, expiry, caller scope, independent keyset UI, typed proposal dedup, capacity, AST mapper gate, Pact baselines | Universal cross-language SDK or persistent Broker production gate                                            |
+
+The last contract-closure run recorded 30 contract, 19 API unit, 27 tooling, 40 integration, 58 web/BFF and 21 browser cases passing. Those counts are historical to that source digest. [CONTRACT-EXECUTION](../reviews/CONTRACT-EXECUTION.md) identifies logs; [DOCUMENTATION-SYNC](../reviews/DOCUMENTATION-SYNC.md) reports later checks. Do not mark an entire row G01–G39 closed just because a subset was tested.
+
+Local M2 evidence now covers G03 adapter conformance, G10/G11 replay/reset semantics, G16 structured-output rejection, G17 safe not-sent fallback/no-splice ambiguity, G21 cancel/finalization semantics, and G22 database-backed app/connection admission caps plus bounded slow-stream handling. G13/G14/G18–G20/G23–G25/G30–G34 still require M3/P3.5 components or broader operational proof. G28 remains covered by M1 shared connection/quota tests; the runner-distribution dimension of G31 is not claimed closed by the local gateway alone.
 
 ## 2. Catalogue
 
@@ -50,7 +66,7 @@ App owners provide golden datasets/acceptance criteria for fare interpretation, 
 
 ## 5. Property/invariant tests
 
-INV-01/02 verified through app boundary/no-fake-job fixtures; INV-03/11 through G01/G18; INV-04 through G02/G09; INV-05 through G04–G06; INV-06 through G13/G21; INV-07 through G07–G09/G25; INV-08 through G12/G15; INV-09 through G21; INV-10 through G10/G11; INV-12 via gate record.
+INV-01/02 have local app-boundary/no-fake-job fixture coverage; INV-03/11 through G01/G18; INV-04 through G02/G09; INV-05 through G04–G06; INV-06 through G13/G21; INV-07 through G07–G09/G25; INV-08 through G12/G15; INV-09 through G21; INV-10 through G10/G11; INV-12 via gate record.
 
 Randomized schedules/property tests should explore duplicate/reordered commands, crash windows, stale generation, cumulative evidence corrections, expired tokens, and deletion/restore. Fixtures include zero-call failures, missing provider IDs, partial output, and receiver UNKNOWN.
 

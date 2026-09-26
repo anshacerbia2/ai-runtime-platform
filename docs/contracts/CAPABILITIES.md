@@ -4,6 +4,10 @@ Dokumen ini adalah **canonical catalogue** untuk capability AI Runtime Platform.
 
 Capability adalah kebutuhan execution yang diminta application/profile. Capability **bukan** nama vendor, model, runtime, plugin, AI Connection, atau runner.
 
+## Checkpoint implementasi 25 September 2026
+
+Registry, durable admission/accounting, manual runner authority, dan gateway M2 sudah ada. `chat`, `generate`, dan `structured_generate` dapat dieksekusi melalui local gateway dengan OpenRouter/Direct Anthropic adapters, bounded SSE/replay, dan durable result/usage. `agent_execute` tetap CONTRACT_ONLY sampai M3 runtime tersedia. Demo M0 tetap contract-only dan tidak memanggil provider. [Current source](../implementation/CURRENT-STATE.md) dan [HTTP catalogue](../implementation/HTTP-API.md) adalah rujukan ketersediaan operasi.
+
 ## 1. Status vocabulary
 
 | Status                 | Arti                                                                          |
@@ -20,9 +24,9 @@ Status selalu scoped. `chat` dapat verified pada satu profile/provider tetapi te
 
 | Capability            | Primary execution path | Typical input                            | Result                                                 | Streaming                 | Plugin/workspace                          | Target milestone | Current status |
 | --------------------- | ---------------------- | ---------------------------------------- | ------------------------------------------------------ | ------------------------- | ----------------------------------------- | ---------------- | -------------- |
-| `chat`                | Model Gateway          | ordered messages/content                 | text or structured content blocks                      | yes if profile allows     | not required                              | M2               | CONTRACT_ONLY  |
-| `generate`            | Model Gateway          | prompt + artifact refs                   | text/artifacts                                         | optional                  | not required                              | M2               | CONTRACT_ONLY  |
-| `structured_generate` | Model Gateway          | prompt + bounded response schema         | validated structured value or explicit failure/refusal | optional/profile          | not required                              | M2               | CONTRACT_ONLY  |
+| `chat`                | Model Gateway          | ordered messages/content                 | text                                                   | yes if profile allows     | not required                              | M2               | IMPLEMENTED_NONPROD |
+| `generate`            | Model Gateway          | prompt/input                             | text                                                   | optional/profile          | not required                              | M2               | IMPLEMENTED_NONPROD |
+| `structured_generate` | Model Gateway          | prompt + bounded response schema         | validated structured value or explicit failure         | optional/profile          | not required                              | M2               | IMPLEMENTED_NONPROD |
 | `agent_execute`       | Agent Runtime          | task/prompt + optional context/artifacts | text/structured/artifacts/mixed                        | profile/runtime dependent | optional plugin; optional workspace/tools | M3               | CONTRACT_ONLY  |
 
 Empat ID di atas adalah public capability enum baseline v1. M0 hanya memvalidasi kontraknya dan **tidak** menjalankan AI provider/runtime.

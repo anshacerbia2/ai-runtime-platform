@@ -67,6 +67,8 @@ const application = {
   displayName: m.like('Consumer fixture'),
   environment: m.like('local'),
   keycloakClientId: m.like('consumer-app'),
+  gatewayMaxConcurrency: m.integer(100),
+  gatewayRequestsPerMinute: m.integer(600),
   status: 'ENABLED',
   revision: m.integer(1),
 };
@@ -88,6 +90,7 @@ export interface ConsumerCase {
   path: string;
   method: 'GET' | 'POST';
   key?: string;
+  query?: Record<string, string>;
   body?: typeof input;
   status: number;
   expected: object;
@@ -95,6 +98,43 @@ export interface ConsumerCase {
   call(client: Client): Promise<{ status: number; body: unknown }>;
 }
 export const cases: ConsumerCase[] = [
+  {
+    name: 'bounded overview supplies independent resource counts',
+    path: '/api/v1/overview',
+    method: 'GET',
+    status: 200,
+    expected: {
+      observedAt: m.like('2026-09-24T00:00:00.000Z'),
+      consistency: 'independent-observations',
+      counts: {
+        applications: m.integer(2),
+        connections: m.integer(0),
+        credentials: m.integer(0),
+        bindings: m.integer(0),
+        profiles: m.integer(0),
+        aliases: m.integer(0),
+        budgets: m.integer(0),
+        pools: m.integer(0),
+        runners: m.integer(0),
+      },
+    },
+    call: (client) => client.resources.overview(),
+  },
+  {
+    name: 'application collection returns a bounded page and opaque continuation cursor',
+    path: '/api/v1/applications',
+    method: 'GET',
+    query: { limit: '1' },
+    status: 200,
+    expected: {
+      items: m.eachLike({ ...application, status: m.like('ENABLED') }),
+      limit: 1,
+      consistency: 'live-keyset',
+      nextCursor: m.like('opaque-cursor'),
+    },
+    call: (client) =>
+      client.resources.applications.list({ query: { limit: '1' } }),
+  },
   {
     name: 'health fields required by status cards',
     path: '/api/m0/health',

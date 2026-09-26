@@ -1,5 +1,7 @@
 # D06–D08 — Agent, Scribe, dan Profile Publication
 
+**Implementation boundary — 24 September 2026:** Agent and plugin publication flows remain target design. Immutable local profile revisions exist, but plugin approval/materialization and execution dispatch do not. See [I01–I04](10-implemented-contracts.md) and [current state](../implementation/CURRENT-STATE.md).
+
 **Authored flow.** Referensi: [lifecycle](../contracts/EXECUTION-LIFECYCLE.md), [tools](../contracts/TOOLS-PLUGINS.md), [artifacts](../contracts/ARTIFACTS-SESSIONS.md).
 
 ## D06 — Agent happy path

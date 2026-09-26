@@ -28,6 +28,18 @@ export class CatalogController {
     private readonly contractDocument: ContractDocument,
   ) {}
 
+  @ContractRoute(apiContract.lab.catalogue)
+  async catalogue(
+    @CurrentApplication() identity: ApplicationIdentity,
+  ): Promise<ServerInferResponseBody<typeof apiContract.lab.catalogue, 200>> {
+    return {
+      version: CONTRACT_VERSION,
+      profiles: await this.profiles.listOwned(identity.applicationId),
+      examples,
+      schemas: schemaBundle,
+    };
+  }
+
   @ContractRoute(apiContract.lab.profiles)
   async listProfiles(
     @CurrentApplication() identity: ApplicationIdentity,

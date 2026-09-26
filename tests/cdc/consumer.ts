@@ -31,6 +31,7 @@ for (const boundary of [
       .withRequest({
         method: entry.method,
         path: entry.path,
+        ...(entry.query ? { query: entry.query } : {}),
         headers: {
           Accept: 'application/json',
           ...(entry.key
@@ -74,7 +75,11 @@ for (const boundary of [
     };
     for (const entry of cases) {
       // Execute the real BFF forwarding code as the consumer of the API.
-      const request = new Request(base.publicOrigin + entry.path, {
+      const target = new URL(entry.path, base.publicOrigin);
+      for (const [name, value] of Object.entries(entry.query ?? {})) {
+        target.searchParams.set(name, value);
+      }
+      const request = new Request(target, {
         method: entry.method,
         headers: {
           Origin: base.publicOrigin,

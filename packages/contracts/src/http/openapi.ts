@@ -1,8 +1,42 @@
 import { z } from 'zod';
-import { contractRoutes, responseSchema } from './routes.js';
+import { httpBehavior } from './behavior.js';
+import { apiContract, contractRoutes, responseSchema } from './routes.js';
+
+export interface HttpOpenApiOptions {
+  boundary?: 'provider' | 'browser';
+  sessionCookieName?: string;
+}
 
 /** Artifact generation only; clients use direct inference and never wait for codegen. */
-export function httpOpenApi(router: object, title: string, version: string) {
+export function httpOpenApi(
+  router: object,
+  title: string,
+  version: string,
+  options: HttpOpenApiOptions = {},
+) {
+  const browser = options.boundary === 'browser';
+  const security = browser
+    ? [{ BrowserSession: [] }]
+    : [{ PlatformBearer: [] }];
+  const securitySchemes = browser
+    ? {
+        BrowserSession: {
+          type: 'apiKey',
+          in: options.sessionCookieName ? 'cookie' : 'header',
+          name: options.sessionCookieName ?? 'Cookie',
+          description:
+            'Opaque server-owned session. Browsers send it with same-origin credentials; never expose access/refresh tokens. Without a deployment cookie name this scheme describes the complete Cookie header. Local M0 mode injects test principals server-side and is not the deployment authentication model.',
+          'x-cookie-name-template': '__Host-{M1_APP_ID}-session',
+        },
+      }
+    : {
+        PlatformBearer: {
+          type: 'http',
+          scheme: 'bearer',
+          description:
+            'Platform principal credential, never a provider API key. Application/operator/runner kind, scopes and resource authorization are enforced separately by the API.',
+        },
+      };
   const paths: Record<string, Record<string, unknown>> = {};
   for (const route of contractRoutes(router)) {
     const path = route.path.replace(/:([A-Za-z0-9_]+)/g, '{$1}');
@@ -30,20 +64,59 @@ export function httpOpenApi(router: object, title: string, version: string) {
       'body' in route && route.body instanceof z.ZodType
         ? route.body
         : undefined;
+    const metadata = route.metadata as
+      | {
+          responseMode?: 'json-or-sse' | 'sse';
+          sse?: boolean;
+          deprecated?: boolean;
+          replacement?: string;
+        }
+      | undefined;
     const responses = Object.fromEntries(
       Object.keys(route.responses).map((status) => {
         const schema = responseSchema(route, Number(status));
+        const success = Number(status) < 400;
+        const sse = success && metadata?.sse === true;
+        const json = schema && metadata?.responseMode !== 'sse';
         return [
           status,
           {
             description:
               Number(status) < 400 ? 'Successful response' : 'Normalized error',
-            ...(schema
+            headers: {
+              'X-Request-ID': {
+                description:
+                  'Server correlation ID when available; not an idempotency key or authority token.',
+                schema: { type: 'string', maxLength: 200 },
+              },
+              ...([429, 503, 504].includes(Number(status))
+                ? {
+                    'Retry-After': {
+                      description:
+                        'Optional minimum retry delay hint; does not grant replay permission.',
+                      schema: { type: 'string' },
+                    },
+                  }
+                : {}),
+            },
+            ...(json || sse
               ? {
                   content: {
-                    'application/json': {
-                      schema: z.toJSONSchema(schema, { io: 'output' }),
-                    },
+                    ...(json
+                      ? {
+                          'application/json': {
+                            // Describe consumer acceptance, not a producer-only closed projection.
+                            schema: z.toJSONSchema(schema!, { io: 'input' }),
+                          },
+                        }
+                      : {}),
+                    ...(sse
+                      ? {
+                          'text/event-stream': {
+                            schema: { type: 'string' },
+                          },
+                        }
+                      : {}),
                   },
                 }
               : {}),
@@ -55,6 +128,31 @@ export function httpOpenApi(router: object, title: string, version: string) {
     paths[path][route.method.toLowerCase()] = {
       operationId:
         route.method.toLowerCase() + route.path.replace(/[^A-Za-z0-9]/g, '_'),
+      'x-runtime-behavior': httpBehavior(route),
+      'x-consumer-unknown-fields':
+        'ignore-object-properties; validate-known-fields',
+      ...(metadata?.sse ? { 'x-streaming': 'server-sent-events' } : {}),
+      ...(metadata?.deprecated
+        ? {
+            deprecated: true,
+            ...(metadata.replacement
+              ? { 'x-replacement': metadata.replacement }
+              : {}),
+          }
+        : {}),
+      security: route.path === apiContract.live.path ? [] : security,
+      ...(route.path.startsWith('/api/m0/') ? { 'x-local-only': true } : {}),
+      ...([
+        apiContract.controlPlane.snapshot.path,
+        apiContract.controlPlane.audit.path,
+        apiContract.controlPlane.outbox.path,
+      ].some((path) => path === route.path)
+        ? {
+            deprecated: true,
+            'x-replacement-scope':
+              'Use matching /api/v1 resource operations where available. Legacy admission/accounting calls remain supported until their runtime successor is implemented.',
+          }
+        : {}),
       parameters,
       ...(body
         ? {
@@ -71,5 +169,11 @@ export function httpOpenApi(router: object, title: string, version: string) {
       responses,
     };
   }
-  return { openapi: '3.1.0', info: { title, version }, paths };
+  return {
+    openapi: '3.1.0',
+    info: { title, version },
+    security,
+    components: { securitySchemes },
+    paths,
+  };
 }

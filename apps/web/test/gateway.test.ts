@@ -311,3 +311,282 @@ test('BFF rejects upstream JSON lookalikes and cancels their response bodies', a
     );
   }
 });
+
+test('BFF response size violation is upstream 502 rather than a false request 413', async () => {
+  const { runtime, cookie } = await fixture();
+  const response = await forward(
+    new Request('https://console.invalid/api/m1/control-plane', {
+      headers: { Cookie: cookie },
+    }),
+    ['m1', 'control-plane'],
+    runtime,
+    async () => Response.json({ data: 'x'.repeat(5000) }),
+  );
+  assert.equal(response.status, 502);
+  assert.equal(
+    (await response.json()).error.code,
+    'UPSTREAM_RESPONSE_TOO_LARGE',
+  );
+});
+
+test('BFF preserves safe overload hints and correlation while masking upstream secrets', async () => {
+  const { runtime, cookie } = await fixture();
+  const response = await forward(
+    new Request('https://console.invalid/api/m1/control-plane', {
+      headers: { Cookie: cookie },
+    }),
+    ['m1', 'control-plane'],
+    runtime,
+    async () =>
+      Response.json(
+        { error: { message: 'secret-upstream-details' } },
+        {
+          status: 503,
+          headers: {
+            'Retry-After': '5',
+            'X-Request-ID': 'load-1',
+            'Set-Cookie': 'private=1',
+          },
+        },
+      ),
+  );
+  assert.equal(response.status, 503);
+  assert.equal(response.headers.get('retry-after'), '5');
+  assert.equal(response.headers.get('x-request-id'), 'load-1');
+  assert.equal(response.headers.get('set-cookie'), null);
+  assert.doesNotMatch(await response.text(), /secret-upstream/);
+});
+
+test(
+  'BFF deadline stops a non-cooperative upstream and distinguishes gateway timeout',
+  { timeout: 2000 },
+  async () => {
+    const { runtime, cookie } = await fixture();
+    let calls = 0;
+    const response = await forward(
+      new Request('https://console.invalid/api/m1/control-plane', {
+        headers: { Cookie: cookie },
+      }),
+      ['m1', 'control-plane'],
+      { ...runtime, config: { ...runtime.config, requestTimeoutMs: 30 } },
+      () => {
+        calls++;
+        return new Promise<Response>(() => {});
+      },
+    );
+    assert.equal(response.status, 504);
+    assert.equal((await response.json()).error.code, 'REQUEST_TIMEOUT');
+    assert.equal(calls, 1);
+  },
+);
+
+test(
+  'BFF deadline includes session access and prevents dispatch after expiry',
+  { timeout: 2000 },
+  async () => {
+    const { runtime, cookie } = await fixture();
+    runtime.sessions!.access = () => new Promise<string>(() => {});
+    let calls = 0;
+    const response = await forward(
+      new Request('https://console.invalid/api/m1/control-plane', {
+        headers: { Cookie: cookie },
+      }),
+      ['m1', 'control-plane'],
+      { ...runtime, config: { ...runtime.config, requestTimeoutMs: 30 } },
+      async () => {
+        calls++;
+        return Response.json({});
+      },
+    );
+    assert.equal(response.status, 408);
+    assert.equal(calls, 0);
+  },
+);
+
+test('BFF accepts colon resource identifiers declared by the shared contract without allowing traversal', async () => {
+  const { runtime, cookie } = await fixture();
+  let calls = 0;
+  const response = await forward(
+    new Request('https://console.invalid/api/v1/connections/team%3Aone', {
+      method: 'PUT',
+      body: '{}',
+      headers: {
+        Cookie: cookie,
+        Origin: 'https://console.invalid',
+        'Content-Type': 'application/json',
+        'Idempotency-Key': 'colon-key',
+      },
+    }),
+    ['v1', 'connections', 'team:one'],
+    runtime,
+    async (url) => {
+      calls++;
+      assert.equal(
+        new URL(String(url)).pathname,
+        '/api/v1/connections/team:one',
+      );
+      return Response.json({
+        resource: {
+          id: 'team:one',
+          displayName: 'Fixture',
+          provider: 'fixture',
+          authMode: 'API_KEY',
+          environment: 'local',
+          sharingMode: 'DEDICATED',
+          quotaGroupRef: null,
+          gatewayMaxConcurrency: 100,
+          gatewayRequestsPerMinute: 600,
+          status: 'ENABLED',
+          revision: 1,
+        },
+        receipt: {
+          id: '30000000-0000-4000-8000-000000000003',
+          key: 'colon-key',
+          replayed: false,
+          completedAt: '2026-09-24T00:00:00.000Z',
+        },
+      });
+    },
+  );
+  assert.equal(response.status, 200, await response.clone().text());
+  assert.equal(calls, 1);
+  assert.equal((await response.json()).resource.id, 'team:one');
+});
+test('BFF passes gateway SSE through incrementally without whole-response buffering', async () => {
+  const { runtime, cookie } = await fixture();
+  const encoder = new TextEncoder();
+  let controller!: ReadableStreamDefaultController<Uint8Array>;
+  const upstream = new ReadableStream<Uint8Array>({
+    start(value) {
+      controller = value;
+      value.enqueue(
+        encoder.encode(
+          'id: e:0\nevent: execution.started\ndata: {"sequence":0}\n\n',
+        ),
+      );
+    },
+  });
+  const response = await forward(
+    new Request('https://console.invalid/api/v1/chat', {
+      method: 'POST',
+      body: JSON.stringify({
+        profile: 'chat-default@1',
+        input: {
+          messages: [
+            {
+              role: 'user',
+              content: [{ type: 'text', text: 'hello' }],
+            },
+          ],
+        },
+        stream: true,
+      }),
+      headers: {
+        Cookie: cookie,
+        Origin: 'https://console.invalid',
+        Accept: 'text/event-stream',
+        'Content-Type': 'application/json',
+        'Idempotency-Key': 'm2-stream-bff',
+      },
+    }),
+    ['v1', 'chat'],
+    runtime,
+    async (input, init) => {
+      assert.equal(new URL(String(input)).pathname, '/v1/chat');
+      const headers = new Headers(init?.headers);
+      assert.equal(headers.get('Accept'), 'text/event-stream');
+      assert.equal(headers.get('Authorization'), 'Bearer server-access');
+      return new Response(upstream, {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'X-Request-ID': 'm2-stream-request',
+        },
+      });
+    },
+  );
+  assert.equal(response.status, 200);
+  assert.equal(
+    response.headers.get('content-type'),
+    'text/event-stream; charset=utf-8',
+  );
+  assert.equal(response.headers.get('x-request-id'), 'm2-stream-request');
+  const reader = response.body!.getReader();
+  const first = await reader.read();
+  assert.match(new TextDecoder().decode(first.value), /execution\.started/);
+
+  let secondResolved = false;
+  const secondRead = reader.read().then((value) => {
+    secondResolved = true;
+    return value;
+  });
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.equal(secondResolved, false);
+
+  controller.enqueue(
+    encoder.encode(
+      'id: e:1\nevent: model.delta\ndata: {"sequence":1,"text":"hi"}\n\n',
+    ),
+  );
+  controller.close();
+  const second = await secondRead;
+  assert.match(new TextDecoder().decode(second.value), /model\.delta/);
+  assert.equal((await reader.read()).done, true);
+});
+test('BFF maps generic browser execution submission to the public runtime route', async () => {
+  const { runtime, cookie } = await fixture();
+  const response = await forward(
+    new Request('https://console.invalid/api/v1/executions', {
+      method: 'POST',
+      body: JSON.stringify({
+        profile: 'chat-default@1',
+        capability: 'chat',
+        input: {
+          messages: [
+            {
+              role: 'user',
+              content: [{ type: 'text', text: 'hello' }],
+            },
+          ],
+        },
+      }),
+      headers: {
+        Cookie: cookie,
+        Origin: 'https://console.invalid',
+        'Content-Type': 'application/json',
+        'Idempotency-Key': 'm2-generic-execution',
+      },
+    }),
+    ['v1', 'executions'],
+    runtime,
+    async (input, init) => {
+      assert.equal(new URL(String(input)).pathname, '/v1/executions');
+      assert.equal(
+        new Headers(init?.headers).get('Authorization'),
+        'Bearer server-access',
+      );
+      return Response.json({
+        executionId: '00000000-0000-4000-8000-000000000301',
+        status: 'COMPLETED',
+        replayed: false,
+        provider: 'openrouter',
+        model: 'fixture-model',
+        result: { kind: 'text', text: 'hello' },
+        usage: {
+          inputTokens: 1,
+          outputTokens: 1,
+          totalTokens: 2,
+          completeness: 'complete',
+        },
+        requestId: 'provider-1',
+        finishReason: 'stop',
+        links: {
+          self: '/v1/executions/00000000-0000-4000-8000-000000000301',
+          events: '/v1/executions/00000000-0000-4000-8000-000000000301/events',
+        },
+      });
+    },
+  );
+  assert.equal(response.status, 200, await response.clone().text());
+  assert.equal((await response.json()).status, 'COMPLETED');
+});

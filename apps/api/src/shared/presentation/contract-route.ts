@@ -10,10 +10,21 @@ import {
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { map } from 'rxjs';
 import { z } from 'zod';
-import { responseSchema, type AppRoute } from '@ai-runtime/contracts/http';
+import {
+  ContractNoBody,
+  responseSchema,
+  type AppRoute,
+} from '@ai-runtime/contracts/http';
 import { ApplicationError } from '../domain/application-error.js';
 
-class ContractInterceptor implements NestInterceptor {
+export class ResponseContractError extends Error {
+  constructor() {
+    super('Provider response contract violation.');
+    this.name = 'ResponseContractError';
+  }
+}
+
+export class ContractInterceptor implements NestInterceptor {
   constructor(private readonly route: AppRoute) {}
 
   intercept(context: ExecutionContext, next: CallHandler) {
@@ -45,13 +56,24 @@ class ContractInterceptor implements NestInterceptor {
 
     return next.handle().pipe(
       map((value: unknown) => {
+        // A hijacked Fastify reply owns its streaming wire validation/framing.
+        // Request validation above still came from the shared contract.
+        if (response.sent) {
+          return value;
+        }
+        if (this.route.responses[response.statusCode] === ContractNoBody) {
+          if (value !== undefined) {
+            throw new ResponseContractError();
+          }
+          return undefined;
+        }
         const schema = responseSchema(this.route, response.statusCode);
-        // Validate the actual wire representation, including Date serialization.
-        const json: unknown = JSON.parse(JSON.stringify(value));
-        const result = schema?.safeParse(json);
+        // Presenters/repository mappers already return wire DTOs (ISO dates,
+        // decimal strings). Do not serialize and reparse the entire response.
+        const result = schema?.safeParse(value);
         if (!result?.success) {
           // Never leak invalid response fields or validation diagnostics to callers.
-          throw new Error('Provider response contract violation.');
+          throw new ResponseContractError();
         }
         return result.data;
       }),

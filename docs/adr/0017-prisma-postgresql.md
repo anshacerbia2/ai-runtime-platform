@@ -2,9 +2,13 @@
 
 **Tanggal:** 21 September 2026
 
-**Status:** adopted; repository M0 memakai Prisma, bukan query SQL di controller.
+**Status:** adopted; M0/M1 repositories use Prisma and explicit infrastructure-level SQL where required, not SQL in controllers.
 
 **Keputusan terkait:** [ADR-0007](0007-durable-accounting.md), [ADR-0016](0016-nestjs-fastify.md), [ADR-0018](0018-clean-architecture-quality.md).
+
+## Implementation reconciliation — 24 September 2026
+
+Prisma covers M0, M1/control, and the local M2 gateway persistence extension, with migrations 0001–0010. Explicit mapping, atomic management receipts and durable runner authority now have local tests. Production role separation/restore remains open. See [current source state](../implementation/CURRENT-STATE.md), [active HTTP operations](../implementation/HTTP-API.md), and [verification scope](../reviews/CONTRACT-EXECUTION.md). This note updates implementation status only; it does not create new reviewer approval or erase the original decision history.
 
 ## Context
 
@@ -46,7 +50,7 @@ Audit dependency mengukur advisory yang diketahui pada saat command dijalankan, 
 
 ## Verification dan evolution
 
-Uji real DB: persistence/replay/conflict, 20 duplicate requests serentak, cross-app isolation, raw prompt tidak tersimpan, cursor microsecond, migration replay, client restart, serta legacy-row preservation. M1 settlement/concurrency/fencing belum dianggap implemented. Revisit persistence strategy jika query/locking/workload terukur mengharuskan perubahan, dengan ports tetap stabil dan migration rollback/restore plan.
+Uji real DB: persistence/replay/conflict, 20 duplicate requests serentak, cross-app isolation, raw prompt tidak tersimpan, cursor microsecond, migration replay, client restart, serta legacy-row preservation. M1 settlement/concurrency dan manual runner fencing kini memiliki local implementation evidence di ADR-0029; full runtime recovery dan production accounting tetap belum dibuktikan. Revisit persistence strategy jika query/locking/workload terukur mengharuskan perubahan, dengan ports tetap stabil dan migration rollback/restore plan.
 
 [^driver]: [Prisma — ORM 7 setup](https://www.prisma.io/docs), bagian Prisma ORM 7 dan driver adapter.
 

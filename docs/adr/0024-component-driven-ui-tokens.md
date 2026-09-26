@@ -4,9 +4,13 @@
 **Status:** implemented locally; external ATI One visual/integration evidence remains separate
 **Scope:** AI Runtime Platform frontend architecture and visual-system consumption
 
+## Implementation reconciliation — 24 September 2026
+
+Shared CDD controls, token layers and selected keyboard/overflow tests are implemented. The representative component list is a target taxonomy, not an inventory of exported components or a complete WCAG/visual-state certification. See [current source state](../implementation/CURRENT-STATE.md), [active HTTP operations](../implementation/HTTP-API.md), and [verification scope](../reviews/CONTRACT-EXECUTION.md). This note updates implementation status only; it does not create new reviewer approval or erase the original decision history.
+
 ## Context
 
-The original M0 Contract Lab proved product flow with a monolithic `apps/web/src/styles.css`. That prototype stylesheet has now been retired; the production frontend uses layered SCSS and ATI Portal-aligned design tokens.
+The original M0 Contract Lab proved product flow with a monolithic `apps/web/src/styles.css`. That prototype stylesheet has now been retired; the current frontend source uses layered SCSS and ATI Portal-aligned design tokens.
 
 As the UI grows into application registry, connection/model management, runtime operations, tools/plugins, evaluation, usage, and observability, page-specific CSS would create divergent controls and expensive accessibility/design fixes.
 

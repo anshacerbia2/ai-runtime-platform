@@ -1,8 +1,12 @@
 # ADR-0013 — Reliability gate sebelum production migration
 
 **Tanggal:** 20 September 2026  
-**Status:** adopted for documentation baseline 0.2; implementation NOT VERIFIED.  
+**Status:** design adopted for baseline 0.2; current implementation coverage is stated below, not a blanket production verification.\
 **Dasar:** bukti reliability, security, dan accounting sebelum migrasi produksi; terkait [ADR-0005](0005-leases-fencing.md), [ADR-0007](0007-durable-accounting.md), dan [ADR-0011](0011-sandbox-security.md). Review baseline tetap dilacak melalui O11.
+
+## Implementation reconciliation — 24 September 2026
+
+Local verification and consumer compatibility gates are implemented. The catalogue now extends to G39 with explicitly partial local coverage; production P3.5 approval and operational evidence remain open. See [current source state](../implementation/CURRENT-STATE.md), [active HTTP operations](../implementation/HTTP-API.md), and [verification scope](../reviews/CONTRACT-EXECUTION.md). This note updates implementation status only; it does not create new reviewer approval or erase the original decision history.
 
 ## Context
 

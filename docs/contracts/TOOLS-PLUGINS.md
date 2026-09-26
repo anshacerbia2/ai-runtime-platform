@@ -2,6 +2,12 @@
 
 **Baseline 0.2.** Principal mewajibkan idempotency/status query untuk mutating tools. Di sini syarat tersebut diperjelas menjadi receiver-supported semantics, bukan sekadar menambahkan parameter di wrapper. Lihat [ADR-0010](../adr/0010-tool-side-effects.md).
 
+## Implementation boundary
+
+Tool broker, plugin registry/package materialization, workspace, MCP adapter dan receiver-supported tool execution belum diimplementasikan. Interface dan flow di bawah adalah kontrak target. Management receipts dan runner result/evidence messages yang sudah berjalan tidak boleh disebut sebagai implementasi tool invocation atau plugin execution.
+
+[Source state](../implementation/CURRENT-STATE.md) dan [active routes](../implementation/HTTP-API.md) memisahkan fondasi control plane dari pekerjaan P2/P3 ini.
+
 ## 1. Paket dan eksekusi
 
 Plugin adalah paket app-owned yang berisi instructions/skills/templates/scripts/schema dan metadata runtime compatibility. Platform mengizinkan package immutable berdasarkan digest, bukan `pluginDir` arbitrary dari caller. Package registry tidak berarti platform memiliki workflow app.
@@ -80,6 +86,6 @@ Plugin adalah immutable, versioned execution package dengan `plugin_id`, version
 
 Worker materialize plugin ke sandbox setelah digest/policy verification. Plugin tidak boleh mengandalkan checkout path permanen pada runner host. Provider credential tidak diekspos ke plugin kecuali adapter contract secara eksplisit memerlukannya dan policy mengizinkan.
 
-Tool dibagi menjadi: platform-owned tool, packaged plugin tool, dan remote app/service-owned tool. Remote tool dapat memakai MCP atau typed HTTP/RPC. MCP adalah supported integration mechanism, bukan platform requirement untuk setiap app.
+Tool dibagi menjadi: platform-owned tool, packaged plugin tool, dan remote app/service-owned tool. Remote tool dapat memakai MCP atau typed HTTP/RPC. MCP adalah planned integration mechanism, bukan adapter aktif atau requirement untuk setiap app.
 
 Mutating tool tetap mengikuti [ADR-0010](../adr/0010-tool-side-effects.md): stable logical operation key harus bertahan melewati technical retry, dan receiver harus menyediakan deduplication/status semantics.

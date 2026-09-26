@@ -28,7 +28,16 @@ export function ContractLabPage({
   }
 
   return (
-    <div className="contract-workbench">
+    <div
+      className="contract-workbench"
+      data-mutation-state={lab.mutation.status}
+    >
+      {lab.mutation.status === 'unknown' ? (
+        <p className="notice" role="status">
+          Hasil penyimpanan belum diketahui. Periksa History atau ulangi payload
+          dan Idempotency-Key yang sama; jangan buat key baru untuk retry.
+        </p>
+      ) : null}
       {lab.refreshWarning ? (
         <p className="notice" role="status">
           {lab.refreshWarning.message}

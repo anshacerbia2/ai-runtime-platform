@@ -2,6 +2,19 @@
 
 **Design playbooks; commands/vendor consoles intentionally deployment-specific.** Do not execute destructive recovery from this document without authorized incident scope. Each action must log incident ID, actor, affected executions, and evidence. No restart/retry is assumed safe merely because worker disappeared.
 
+## Procedures supported by the current implementation
+
+| Incident                        | Supported local action / observation                                                                                                 | Boundary                                                                 |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------ |
+| Lost management acknowledgement | Replay the same authenticated caller/key/command through the resource API; inspect receipt.replayed and historical resource revision | Seven-day replay window; expired key remains retained; no silent new key |
+| Real revision conflict          | Re-read the resource and decide a new logical command with a new key if appropriate                                                  | Do not reinterpret an unrelated 409 as successful replay                 |
+| Collection failure              | Retry/refresh only that resource page; cursor is bound to its collection/caller                                                      | Overview counts are independent, not a replacement for resource content  |
+| Stale runner report             | Check the operator-issued assignment and durable generation; use supported grant/revoke operations with receipts                     | No automatic reaper/process kill/lease coordinator is implemented        |
+| Late evidence                   | Authenticated known-assignment evidence enters QUARANTINED storage                                                                   | No automatic verifier or direct ledger posting from that intake          |
+| Legacy snapshot capacity error  | Use the matching /api/v1 paginated collection                                                                                        | Never raise caps or remove projection just to hide a large dump          |
+
+This is a description of supported source behavior, not authorization to mutate an incident environment. Do not delete receipts, clear generation barriers, or reset the database. Exact operations are in [HTTP-API](../implementation/HTTP-API.md). RB01–RB10 below remain target operational playbooks for components and integrations that are not all installed.
+
 ## RB01 — Worker orphan / expired lease
 
 **Trigger:** lease lost, renewal denied, orphan age alert. Inspect durable assignment/current generation and coordination epoch, not worker self-report alone. Freeze new steps for affected attempt, commit quarantine/fence before replacement, revoke grants, request sandbox stop, and inspect termination evidence.

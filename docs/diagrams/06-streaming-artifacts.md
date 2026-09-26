@@ -1,5 +1,7 @@
 # D16–D18 — Stream Recovery, Artifacts, dan Sessions
 
+**Implementation boundary — 24 September 2026:** These SSE, object promotion and runtime-session flows are planned. Artifact metadata and web authentication sessions exist but are not these execution features. See [I01–I04](10-implemented-contracts.md) and [current state](../implementation/CURRENT-STATE.md).
+
 **Authored flows.** Canonical references: [EVENTS](../contracts/EVENTS-STREAMING.md), [ARTIFACTS-SESSIONS](../contracts/ARTIFACTS-SESSIONS.md).
 
 ## D16 — SSE reconnect dan explicit resync

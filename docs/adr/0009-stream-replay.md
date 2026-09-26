@@ -1,8 +1,12 @@
 # ADR-0009 — Bounded SSE replay dan durable control events
 
 **Tanggal:** 20 September 2026  
-**Status:** adopted for documentation baseline 0.2; implementation NOT VERIFIED.  
+**Status:** design adopted for baseline 0.2; current implementation coverage is stated below, not a blanket production verification.\
 **Dasar:** pemisahan hot stream dan durable state [ADR-0003](0003-tiered-storage.md), dengan verification gate [ADR-0013](0013-evolution-gates.md). Review baseline tetap dilacak melalui O11.
+
+## Implementation reconciliation — 24 September 2026
+
+No SSE runtime route, codec, Last-Event-ID resume, heartbeat or subscriber backpressure implementation exists. The general Event payload schema is not a typed streaming decoder. See [current source state](../implementation/CURRENT-STATE.md), [active HTTP operations](../implementation/HTTP-API.md), and [verification scope](../reviews/CONTRACT-EXECUTION.md). This note updates implementation status only; it does not create new reviewer approval or erase the original decision history.
 
 ## Context
 
