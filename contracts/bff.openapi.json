@@ -43,7 +43,9 @@
             "conflictStatus": 409
           }
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "x-streaming": "server-sent-events",
         "security": [
           {
@@ -448,7 +450,9 @@
             "conflictStatus": 409
           }
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "x-streaming": "server-sent-events",
         "security": [
           {
@@ -925,7 +929,9 @@
             "conflictStatus": 409
           }
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "security": [
           {
             "BrowserSession": []
@@ -1654,7 +1660,9 @@
           "automaticRetry": "never",
           "ambiguousMutation": "unknown-until-reconciled"
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "security": [
           {
             "BrowserSession": []
@@ -1876,7 +1884,9 @@
           "automaticRetry": "never",
           "ambiguousMutation": "unknown-until-reconciled"
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "security": [
           {
             "BrowserSession": []
@@ -2116,7 +2126,9 @@
           "automaticRetry": "never",
           "ambiguousMutation": "unknown-until-reconciled"
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "x-streaming": "server-sent-events",
         "security": [
           {
@@ -2181,7 +2193,9 @@
           "automaticRetry": "never",
           "ambiguousMutation": "unknown-until-reconciled"
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "security": [
           {
             "BrowserSession": []
@@ -3434,7 +3448,9 @@
             "conflictStatus": 409
           }
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "security": [
           {
             "BrowserSession": []
@@ -4738,7 +4754,9 @@
           "automaticRetry": "never",
           "ambiguousMutation": "unknown-until-reconciled"
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "security": [
           {
             "BrowserSession": []
@@ -6006,7 +6024,9 @@
             "conflictStatus": 409
           }
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "security": [
           {
             "BrowserSession": []
@@ -7355,7 +7375,9 @@
           "automaticRetry": "never",
           "ambiguousMutation": "unknown-until-reconciled"
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "security": [
           {
             "BrowserSession": []
@@ -8599,7 +8621,9 @@
             "conflictStatus": 409
           }
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "security": [
           {
             "BrowserSession": []
@@ -9906,7 +9930,9 @@
           "automaticRetry": "never",
           "ambiguousMutation": "unknown-until-reconciled"
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "security": [
           {
             "BrowserSession": []
@@ -11150,7 +11176,9 @@
             "conflictStatus": 409
           }
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "security": [
           {
             "BrowserSession": []
@@ -12442,7 +12470,9 @@
           "automaticRetry": "never",
           "ambiguousMutation": "unknown-until-reconciled"
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "security": [
           {
             "BrowserSession": []
@@ -13757,7 +13787,9 @@
             "conflictStatus": 409
           }
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "security": [
           {
             "BrowserSession": []
@@ -15194,7 +15226,9 @@
           "automaticRetry": "never",
           "ambiguousMutation": "unknown-until-reconciled"
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "security": [
           {
             "BrowserSession": []
@@ -16433,7 +16467,9 @@
             "conflictStatus": 409
           }
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "security": [
           {
             "BrowserSession": []
@@ -17708,7 +17744,9 @@
           "automaticRetry": "never",
           "ambiguousMutation": "unknown-until-reconciled"
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "security": [
           {
             "BrowserSession": []
@@ -18970,7 +19008,9 @@
             "conflictStatus": 409
           }
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "security": [
           {
             "BrowserSession": []
@@ -20288,7 +20328,9 @@
           "automaticRetry": "never",
           "ambiguousMutation": "unknown-until-reconciled"
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "security": [
           {
             "BrowserSession": []
@@ -21529,7 +21571,9 @@
             "conflictStatus": 409
           }
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "security": [
           {
             "BrowserSession": []
@@ -22810,7 +22854,9 @@
           "automaticRetry": "never",
           "ambiguousMutation": "unknown-until-reconciled"
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "security": [
           {
             "BrowserSession": []
@@ -24077,7 +24123,9 @@
             "conflictStatus": 409
           }
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "security": [
           {
             "BrowserSession": []
@@ -25370,7 +25418,9 @@
           "automaticRetry": "never",
           "ambiguousMutation": "unknown-until-reconciled"
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "security": [
           {
             "BrowserSession": []
@@ -26598,7 +26648,9 @@
           "automaticRetry": "never",
           "ambiguousMutation": "unknown-until-reconciled"
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "security": [
           {
             "BrowserSession": []
@@ -27838,7 +27890,9 @@
           "automaticRetry": "never",
           "ambiguousMutation": "unknown-until-reconciled"
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "security": [
           {
             "BrowserSession": []
@@ -29087,7 +29141,9 @@
           "automaticRetry": "never",
           "ambiguousMutation": "unknown-until-reconciled"
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "security": [
           {
             "BrowserSession": []
@@ -30287,7 +30343,9 @@
           "automaticRetry": "never",
           "ambiguousMutation": "unknown-until-reconciled"
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "security": [
           {
             "BrowserSession": []
@@ -31619,7 +31677,9 @@
           "automaticRetry": "never",
           "ambiguousMutation": "unknown-until-reconciled"
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "deprecated": true,
         "x-replacement": "/api/m0/catalogue",
         "security": [
@@ -32904,7 +32964,9 @@
           "automaticRetry": "never",
           "ambiguousMutation": "unknown-until-reconciled"
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "deprecated": true,
         "x-replacement": "/api/m0/catalogue",
         "security": [
@@ -34099,7 +34161,9 @@
           "automaticRetry": "never",
           "ambiguousMutation": "unknown-until-reconciled"
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "deprecated": true,
         "x-replacement": "/api/m0/catalogue",
         "security": [
@@ -35269,7 +35333,9 @@
           "automaticRetry": "never",
           "ambiguousMutation": "unknown-until-reconciled"
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "security": [
           {
             "BrowserSession": []
@@ -36463,7 +36529,9 @@
             "conflictStatus": 409
           }
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "security": [
           {
             "BrowserSession": []
@@ -38167,7 +38235,9 @@
           "automaticRetry": "never",
           "ambiguousMutation": "unknown-until-reconciled"
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "security": [
           {
             "BrowserSession": []
@@ -39587,7 +39657,9 @@
           "automaticRetry": "never",
           "ambiguousMutation": "unknown-until-reconciled"
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "security": [
           {
             "BrowserSession": []
@@ -40980,7 +41052,9 @@
           "automaticRetry": "never",
           "ambiguousMutation": "unknown-until-reconciled"
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "security": [
           {
             "BrowserSession": []
@@ -42918,7 +42992,9 @@
           "automaticRetry": "never",
           "ambiguousMutation": "unknown-until-reconciled"
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "security": [
           {
             "BrowserSession": []
@@ -45176,7 +45252,9 @@
             "conflictStatus": 409
           }
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "security": [
           {
             "BrowserSession": []
@@ -46484,7 +46562,9 @@
           "automaticRetry": "never",
           "ambiguousMutation": "unknown-until-reconciled"
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "security": [
           {
             "BrowserSession": []
@@ -47913,7 +47993,9 @@
           "automaticRetry": "never",
           "ambiguousMutation": "unknown-until-reconciled"
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "security": [
           {
             "BrowserSession": []
@@ -49361,7 +49443,9 @@
           "automaticRetry": "never",
           "ambiguousMutation": "unknown-until-reconciled"
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "security": [
           {
             "BrowserSession": []
@@ -50657,7 +50741,9 @@
           "automaticRetry": "never",
           "ambiguousMutation": "unknown-until-reconciled"
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "security": [
           {
             "BrowserSession": []
@@ -51892,7 +51978,9 @@
           "automaticRetry": "never",
           "ambiguousMutation": "unknown-until-reconciled"
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "security": [
           {
             "BrowserSession": []
@@ -53096,7 +53184,9 @@
           "automaticRetry": "never",
           "ambiguousMutation": "unknown-until-reconciled"
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "security": [
           {
             "BrowserSession": []

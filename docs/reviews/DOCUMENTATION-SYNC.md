@@ -1,6 +1,6 @@
 # Source-first Documentation Synchronization
 
-**24 September 2026 (Asia/Jakarta).** Scope: README and every Markdown document under docs/. Documentation follows the actual code for implemented behavior; target architecture and historical decisions remain explicitly separated. This is not a new production approval.
+**Historical snapshot — 24 September 2026 (Asia/Jakarta).** Scope: README and every Markdown document under docs/ at that checkpoint. The counts and progress statements below are preserved as historical evidence and are superseded for current status by [CURRENT-STATE](../implementation/CURRENT-STATE.md) and the 26 September closure in [CONTRACT-EXECUTION](CONTRACT-EXECUTION.md). This is not a new production approval.
 
 ## Inventory and method
 

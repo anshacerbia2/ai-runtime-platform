@@ -1,14 +1,14 @@
 # Application API Contract
 
-_*Target application execution contract v1 — baseline 0.2. /v1/* pada spesifikasi ini masih PLANNED; implemented HTTP surfaces dijelaskan terpisah di bawah._* Owner requirement: [ADR-0001](../adr/0001-application-ownership.md), [ADR-0002](../adr/0002-managed-envelope.md). JSON berikut ilustratif tetapi harus valid; nilai profile/artifact adalah identifier contoh, bukan resource yang sudah dibuat.
+_\*Application execution contract v1 — baseline 0.2. M2 mengaktifkan subset gateway `/v1` untuk `chat`, `generate`, `structured_generate`, execution read/cancel, dan SSE events; agent/tool/session/upload portions pada spesifikasi ini tetap target M3._* Owner requirement: [ADR-0001](../adr/0001-application-ownership.md), [ADR-0002](../adr/0002-managed-envelope.md). JSON berikut ilustratif tetapi harus valid; nilai profile/artifact adalah identifier contoh, bukan resource yang sudah dibuat.
 
-## Implemented scope: lab, resources, compatibility, dan runner authority
+## Implemented scope: lab, resources, gateway, compatibility, dan runner authority
 
-Local Contract Lab berjalan di `/api/m0/*`, terpisah dari semua endpoint execution `/v1/*` di bawah. [M0 OpenAPI](../../contracts/m0.openapi.json) menjelaskan endpoint lab aktif; [planned execution OpenAPI](../../contracts/execution-v1.planned.openapi.json) mencakup submission, snapshot, cancel dan stream envelope sebagai draft saja. List, usage, capabilities dan artifacts belum diekspor sebagai operations pada draft ini. [Shared schemas](../../contracts/schemas.json) dan [panduan M0](../development/M0.md) melengkapi batas validation-only.
+Local Contract Lab berjalan di `/api/m0/*` dan tetap validation-only. Gateway M2 aktif pada `/v1/*` untuk direct model execution serta pada mirror browser `/api/v1/*`; [runtime OpenAPI](../../contracts/runtime.openapi.json) dan [BFF OpenAPI](../../contracts/bff.openapi.json) adalah source-generated surface aktif. [Planned execution OpenAPI](../../contracts/execution-v1.planned.openapi.json) tetap mendeskripsikan target yang lebih luas untuk agent/tool/session/upload semantics yang belum aktif. [Shared schemas](../../contracts/schemas.json) dan [panduan M0](../development/M0.md) melengkapi batas Contract Lab.
 
 ### Source saat ini
 
-[HTTP API aktual](../implementation/HTTP-API.md) mendokumentasikan 46 registered operations: /api/m0 lab, /api/v1 resource/assignment, /api/runner/v1 machine protocol, dan /api/m1 compatibility. [Runtime OpenAPI](../../contracts/runtime.openapi.json) dan [BFF OpenAPI](../../contracts/bff.openapi.json) sesuai source; assignment/runner/inbox/registration tidak semuanya diekspos oleh browser.
+[HTTP API aktual](../implementation/HTTP-API.md) mendokumentasikan 53 registered operations: `/api/m0` lab, active gateway `/v1` + BFF mirror `/api/v1`, `/api/v1` resource/assignment, `/api/runner/v1` machine protocol, dan `/api/m1` compatibility. [Runtime OpenAPI](../../contracts/runtime.openapi.json) dan [BFF OpenAPI](../../contracts/bff.openapi.json) sesuai source; assignment/runner/inbox/registration tidak semuanya diekspos oleh browser.
 
 Resource mutations sudah memakai receipt + expectedRevision, collection reads punya keyset pagination dan overview count. M1 admission masih metadata profileRef/inputDigest, bukan schema prompt /v1 di bawah. Cancel M1 memberi 201 untuk durable intent, berbeda dari target 200/202. X-Request-ID tersedia; traceparent, X-Execution-ID dan provider deadline propagation pada bagian target bukan fitur end-to-end yang sudah aktif.
 

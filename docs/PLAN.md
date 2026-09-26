@@ -1,6 +1,6 @@
 # AI Runtime Platform — Implementation Plan
 
-**Arsitektur baseline 0.2; M0 technical slice tersedia dalam 0.3.0-m0.** P0 review closure tetap IN PROGRESS. P1 local implementation scope sudah selesai dengan evidence lokal; external/nonlocal integration dan production readiness tetap pending. Deliverable runtime P2–P7 belum selesai; sebagian fondasi P3 (registrasi, manual assignment/fencing dan quarantine evidence) sudah diimplementasikan melalui ADR-0029. [M0 evidence](milestones/M0.md), [M1 evidence](milestones/M1.md), dan [panduan lokal](development/M0.md).
+**Arsitektur baseline 0.2; M0 technical slice tersedia dalam 0.3.0-m0.** P0 formal reviewer closure tetap IN PROGRESS. P1 dan P2 sekarang LOCAL IMPLEMENTATION COMPLETE dengan evidence lokal; external/nonlocal integration, authorized live provider smoke, dan production readiness tetap pending. Deliverable runtime P3–P7 belum selesai; sebagian fondasi P3 (registrasi, manual assignment/fencing dan quarantine evidence) sudah diimplementasikan melalui ADR-0029. [M0 evidence](milestones/M0.md), [M1 evidence](milestones/M1.md), [current state](implementation/CURRENT-STATE.md), dan [panduan lokal](development/M0.md).
 
 Dokumen ini menjelaskan urutan kerja, dependency, deliverable, dan gate. M0 menambahkan Contract Lab FE/BE/DB sesuai [ADR-0015](adr/0015-testable-milestone-slices.md); ini bukan implementasi gateway/agent/ledger produksi. Deliverable di bawah tetap dibedakan dari demonstrasi lokal. Rujukan keputusan: [ADR](adr/README.md). Gambaran sistem: [Architecture](architecture/ARCHITECTURE.md). Pemetaan keputusan ke spesifikasi/gate: [decision traceability](reviews/RECONCILIATION.md).
 
@@ -8,9 +8,9 @@ Dokumen ini menjelaskan urutan kerja, dependency, deliverable, dan gate. M0 mena
 
 NestJS + Fastify + Prisma + PostgreSQL, React/Next.js App Router + BFF, TypeScript strict, Prettier, ESLint, dan dependency rules. M0 sudah direfactor; M1 dan berikutnya memakai boundary yang sama. Lihat [ADR-0016](adr/0016-nestjs-fastify.md), [ADR-0017](adr/0017-prisma-postgresql.md), [ADR-0018](adr/0018-clean-architecture-quality.md), [ADR-0026](adr/0026-nextjs-bff.md), dan [code structure](architecture/CODE-STRUCTURE.md). Perubahan stack bukan penutupan production readiness gate.
 
-## Checkpoint implementasi 24 September 2026
+## Checkpoint implementasi 26 September 2026
 
-Paket kontrak lokal ADR-0027–0029 telah mencakup HTTP/UI hardening, /api/v1 resource APIs, count overview, receipt atomik, retry per operasi, explicit mappers/AST gate, dan /api/runner/v1 authority messages. Konsol memakai koleksi paginated, bukan legacy snapshot. Migration 0005 dan 0006 menambah receipt/runner authority. [Source status](implementation/CURRENT-STATE.md) dan [test evidence](reviews/CONTRACT-EXECUTION.md) memisahkan implementasi dari deployment.
+M0–M2 local closure sekarang mencakup HTTP/UI hardening, /api/v1 resource APIs, count overview, receipt atomik, retry per operasi, explicit mappers/AST gate, /api/runner/v1 authority messages, serta gateway executable untuk chat/generate/structured_generate dengan OpenRouter + Direct Anthropic adapters, bounded SSE/replay, structured-output validation, database-backed admission capacity/rate limits, safe not-sent fallback, durable provider invocation/result, dan accounting evidence. Migration 0005–0010 sudah applied lokal. [Source status](implementation/CURRENT-STATE.md) dan [test evidence](reviews/CONTRACT-EXECUTION.md) memisahkan implementasi lokal dari deployment/production approval.
 
 Sisa P3 tetap autonomous dispatch/reassignment, Redis lease/epoch recovery, runtime/sandbox, provider/tool effect safety dan streaming. Tidak perlu mengimplementasikan ulang registry/fencing kernel yang sudah ada; perluas kernel tersebut dan buktikan integrasi runtime-nya. P0 governance dan P3.5 sign-off tidak ditutup hanya oleh pembaruan dokumentasi.
 

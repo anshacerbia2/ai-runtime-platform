@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import type { z } from 'zod';
+import { assertProjectionSafeResponseSource } from '../src/http/response-policy.js';
 import {
   examples,
   validateContract,
@@ -186,3 +189,21 @@ for (const [name, schema] of Object.entries({
     assert.equal(validateContract('generate', item).valid, false);
   });
 }
+
+test('HTTP wire schemas remain projection-only and non-mutating', () => {
+  const files = [
+    'routes.ts',
+    'lab.ts',
+    'control-plane.ts',
+    'gateway.ts',
+    'resources.ts',
+    'runner.ts',
+  ];
+  for (const name of files) {
+    const source = readFileSync(
+      resolve('packages/contracts/src/http', name),
+      'utf8',
+    );
+    assert.doesNotThrow(() => assertProjectionSafeResponseSource(source), name);
+  }
+});

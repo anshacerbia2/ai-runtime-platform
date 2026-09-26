@@ -1,6 +1,6 @@
-# I01–I04 — Implementasi HTTP, Receipt, Resources, dan Runner Authority
+# I01–I05 — Implementasi HTTP, Receipt, Resources, Runner Authority, dan M2 Gateway
 
-**As-built source view, 24 September 2026.** Diagram ini menggambarkan jalur yang terdaftar pada source sekarang, bukan live provider runtime atau topology produksi. [Kondisi aktual](../implementation/CURRENT-STATE.md), [operasi HTTP](../implementation/HTTP-API.md), dan [ADR-0029](../adr/0029-replay-resources-runner-authority.md) menjelaskan detail yang disederhanakan oleh gambar.
+**As-built source view, 26 September 2026.** Diagram ini menggambarkan jalur yang terdaftar pada source sekarang, termasuk M2 local model gateway. Authorized live vendor smoke dan topology produksi tetap di luar bukti ini. [Kondisi aktual](../implementation/CURRENT-STATE.md), [operasi HTTP](../implementation/HTTP-API.md), dan [ADR-0029](../adr/0029-replay-resources-runner-authority.md) menjelaskan detail yang disederhanakan oleh gambar.
 
 ## I01 — Boundary proses dan HTTP aktif
 
@@ -9,8 +9,12 @@ flowchart LR
     B[Browser console] --> N[Next.js routes and BFF]
     N -->|Server bearer and allowlisted route| A[NestJS and Fastify API]
     A --> M[Control and lab application services]
-    M --> R[Prisma repositories]
+    A --> G[M2 Gateway service]
+    G --> P[OpenRouter / Direct Anthropic adapters]
+    G --> R[Gateway repository]
+    M --> R2[Control/Lab repositories]
     R --> PG[(PostgreSQL m0 and control)]
+    R2 --> PG
     O[Authorized operator machine client] -->|Resource and assignment operations| A
     W[Authenticated runner protocol client] -->|Registration reports and evidence| A
     N -.->|Nonlocal adapter implemented| IDP[Configured OIDC issuer]
@@ -18,7 +22,7 @@ flowchart LR
     B --> U[Independent lab and query UI state]
 ```
 
-Local mode memakai fixture credentials di server dan tidak menghubungi issuer/Redis. Garis putus-putus adalah kode integrasi nonlocal, bukan bukti bahwa layanan eksternal telah dideploy. Tidak ada Model Gateway, sandbox launcher, atau Redis runner-lease coordinator pada view aktif ini.
+Local mode memakai fixture identity/session credentials di server dan tidak menghubungi issuer/Redis. Garis putus-putus adalah kode integrasi nonlocal, bukan bukti bahwa layanan eksternal telah dideploy. M2 Model Gateway aktif secara lokal; sandbox launcher, autonomous agent runner, dan Redis runner-lease coordinator belum ada.
 
 ## I02 — Management receipt dan lost acknowledgement
 
@@ -101,13 +105,43 @@ sequenceDiagram
 
 A fresh authorized result.proposed stores a proposal and one outbox event but does not finalize an AI result or free capacity. Fencing checks protect platform state only; an already accepted provider/tool effect is not undone. Redis heartbeat/lease recovery, automatic reassignment, process supervision and evidence verification remain target work.
 
+## I05 — M2 gateway, safe fallback, dan durable accounting
+
+```mermaid
+sequenceDiagram
+    participant C as Application/BFF
+    participant G as Gateway service
+    participant DB as PostgreSQL authority
+    participant P1 as Primary provider
+    participant P2 as Policy-approved fallback
+    C->>G: submit chat/generate/structured request + idempotency key
+    G->>DB: durable admission + reservation + claim attempt 1
+    G->>P1: provider request
+    alt primary succeeds
+        P1-->>G: bounded SSE + terminal marker + usage
+    else failure proven not-sent before provider/output evidence
+        G->>DB: close attempt 1; create durable attempt 2
+        G->>P2: fallback request from immutable profile policy
+        P2-->>G: bounded SSE + terminal marker + usage
+    else partial or ambiguous provider outcome
+        G->>DB: mark RECONCILING and retain reservation/evidence
+        G-->>C: explicit unknown/reconciliation outcome
+    end
+    G->>G: validate structured output when requested
+    G->>DB: persist provider invocation/result + usage/ledger settlement
+    G-->>C: result or SSE terminal event
+```
+
+Fallback tidak dipilih bebas oleh caller dan tidak dilakukan setelah partial/unknown output. OpenRouter harus mencapai `[DONE]`; Direct Anthropic harus mencapai `message_stop`. EOF tanpa terminal marker bukan success. Admission capacity/rate limits menggunakan PostgreSQL authority sebelum execution/hold dibuat; rejection tidak meninggalkan reservation. Live provider smoke terotorisasi belum menjadi bukti lokal.
+
 ## Source mapping
 
-| View | Source                                                                                                                                                                                |
-| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| I01  | [BFF](../../apps/web/src/server/api-gateway/forward.ts), [API composition](../../apps/api/src/app.module.ts)                                                                          |
-| I02  | [manageReceipted](../../apps/api/src/modules/control-plane/infrastructure/prisma-m1.repository.ts), [receipt migration](../../prisma/migrations/0005_contract_receipts/migration.sql) |
-| I03  | [Resource reader](../../apps/api/src/modules/control-plane/infrastructure/prisma-resource-reader.ts), [console](../../apps/web/src/features/control-plane/control-plane-page.tsx)     |
-| I04  | [Runner authority](../../apps/api/src/modules/control-plane/infrastructure/prisma-runner-authority.ts), [runner schema](../../packages/contracts/src/http/runner.ts)                  |
+| View | Source                                                                                                                                                                                                                                                       |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| I01  | [BFF](../../apps/web/src/server/api-gateway/forward.ts), [API composition](../../apps/api/src/app.module.ts)                                                                                                                                                 |
+| I02  | [manageReceipted](../../apps/api/src/modules/control-plane/infrastructure/prisma-m1.repository.ts), [receipt migration](../../prisma/migrations/0005_contract_receipts/migration.sql)                                                                        |
+| I03  | [Resource reader](../../apps/api/src/modules/control-plane/infrastructure/prisma-resource-reader.ts), [console](../../apps/web/src/features/control-plane/control-plane-page.tsx)                                                                            |
+| I04  | [Runner authority](../../apps/api/src/modules/control-plane/infrastructure/prisma-runner-authority.ts), [runner schema](../../packages/contracts/src/http/runner.ts)                                                                                         |
+| I05  | [Gateway service](../../apps/api/src/modules/gateway/application/gateway.service.ts), [gateway repository](../../apps/api/src/modules/gateway/infrastructure/prisma-gateway.repository.ts), [gateway contract](../../packages/contracts/src/http/gateway.ts) |
 
 These diagrams are source documentation; checks of Markdown/Mermaid syntax do not establish distributed-system correctness. Runtime/fault evidence stays in [verification records](../reviews/CONTRACT-EXECUTION.md).

@@ -346,7 +346,8 @@ test('public liveness does not require application credentials', async () => {
     headers: { host: config.apiHost },
   });
   assert.equal(response.statusCode, 200);
-  assert.equal(response.json().mode, 'contract-only');
+  assert.equal(response.json().milestone, 'M2');
+  assert.equal(response.json().mode, 'local-runtime');
 });
 
 for (const constraint of ['kind', 'idempotency-key-length'] as const) {

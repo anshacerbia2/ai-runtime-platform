@@ -1,18 +1,18 @@
 # AI Runtime Platform — Architecture
 
-**Baseline arsitektur:** 0.2 · **Jenis:** rancangan target. Bagian target di bawah bukan klaim seluruh platform telah berjalan. M0/M1 dan perluasan kontrak lokal yang sudah tersedia dirinci di [kondisi aktual](../implementation/CURRENT-STATE.md).
+**Baseline arsitektur:** 0.2 · **Jenis:** rancangan target. Bagian target di bawah bukan klaim seluruh platform telah berjalan. M0–M2 local implementation dan perluasan kontrak lokal yang sudah tersedia dirinci di [kondisi aktual](../implementation/CURRENT-STATE.md).
 
 Dokumen ini menjabarkan kebutuhan produk dan keputusan aktif pada [ADR](../adr/README.md). Pemetaan topik, klarifikasi operasional, spesifikasi, dan gate tersedia di [decision traceability](../reviews/RECONCILIATION.md); riwayat review bukan dependency implementasi. Istilah MUST/WAJIB berarti requirement baseline, bukan bukti bahwa requirement sudah terpenuhi.
 
 ## Implementasi dan stack
 
-Backend menggunakan NestJS dengan FastifyAdapter; persistence memakai Prisma/PostgreSQL melalui repository ports. Domain dan use case tidak mengimpor Nest/Fastify/Prisma. Frontend React/Next.js App Router dipisah per feature, dengan BFF tier yang memegang session dan token custody serta meneruskan ke API. [Code structure](CODE-STRUCTURE.md) adalah peta source aktual; [ADR-0016](../adr/0016-nestjs-fastify.md), [ADR-0017](../adr/0017-prisma-postgresql.md), [ADR-0018](../adr/0018-clean-architecture-quality.md), dan [ADR-0026](../adr/0026-nextjs-bff.md) merekam alasan, alternatif, serta trade-off. Implementasi tersedia mencakup M0 validation-only, M1 durable control/accounting, Next.js/BFF, resource APIs, management receipts, dan runner authority kernel. Provider gateway, autonomous workers dan SSE masih target, bukan komponen berjalan.
+Backend menggunakan NestJS dengan FastifyAdapter; persistence memakai Prisma/PostgreSQL melalui repository ports. Domain dan use case tidak mengimpor Nest/Fastify/Prisma. Frontend React/Next.js App Router dipisah per feature, dengan BFF tier yang memegang session dan token custody serta meneruskan ke API. [Code structure](CODE-STRUCTURE.md) adalah peta source aktual; [ADR-0016](../adr/0016-nestjs-fastify.md), [ADR-0017](../adr/0017-prisma-postgresql.md), [ADR-0018](../adr/0018-clean-architecture-quality.md), dan [ADR-0026](../adr/0026-nextjs-bff.md) merekam alasan, alternatif, serta trade-off. Implementasi tersedia mencakup M0 Contract Lab, M1 durable control/accounting, Next.js/BFF, resource APIs, management receipts, runner authority kernel, dan M2 provider gateway dengan bounded SSE/replay. Autonomous agent workers, sandbox/tools/workspace, dan Redis runner lease/recovery tetap target M3.
 
-## View implementasi 24 September 2026
+## View implementasi 26 September 2026
 
-Jalur aktif adalah browser -> Next.js/BFF -> NestJS/Fastify -> PostgreSQL; machine runner dapat memakai registration/protocol/report/evidence, dan operator dapat grant/revoke assignment. Tidak ada process runner yang diluncurkan server oleh endpoint tersebut. Lihat [diagram I01–I04](../diagrams/10-implemented-contracts.md), [route catalogue](../implementation/HTTP-API.md) dan [ADR-0029](../adr/0029-replay-resources-runner-authority.md).
+Jalur aktif adalah browser -> Next.js/BFF -> NestJS/Fastify -> PostgreSQL; M2 gateway dapat menjalankan direct model execution melalui OpenRouter/Direct Anthropic adapters, machine runner dapat memakai registration/protocol/report/evidence, dan operator dapat grant/revoke assignment. Tidak ada autonomous agent process runner yang diluncurkan server oleh endpoint tersebut. Lihat [diagram I01–I05](../diagrams/10-implemented-contracts.md), [route catalogue](../implementation/HTTP-API.md) dan [ADR-0029](../adr/0029-replay-resources-runner-authority.md).
 
-Model status dan schema execution pada bagian target tidak selalu sama dengan vocabulary fisik M1. Perbedaannya dijelaskan pada [lifecycle aktual dan target](../contracts/EXECUTION-LIFECYCLE.md). Penyebutan API v1 execution di bawah berarti /v1/* yang PLANNED, bukan /api/v1 resource API yang sudah aktif.
+Model status dan schema execution pada bagian target tidak selalu sama dengan vocabulary fisik M1/M2. Perbedaannya dijelaskan pada [lifecycle aktual dan target](../contracts/EXECUTION-LIFECYCLE.md). Sebagian API v1 execution sekarang aktif melalui M2 gateway (`chat`, `generate`, `structured_generate`, execution read/cancel, dan SSE events); agent/tool/session portions tetap target M3. `/api/v1` resource API tetap merupakan surface control-plane yang terpisah.
 
 ## 1. Tujuan dan batas produk
 

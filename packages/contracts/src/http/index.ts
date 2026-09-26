@@ -3,6 +3,12 @@ export * from './behavior.js';
 export * from './lab.js';
 export * from './control-plane.js';
 export { initClient, ContractNoBody, initContract } from '@ts-rest/core';
+export {
+  projectProviderResponse,
+  responseEvolutionPolicy,
+  ResponseProjectionError,
+  assertProjectionSafeResponseSource,
+} from './response-policy.js';
 export type {
   AppRoute,
   AppRouter,

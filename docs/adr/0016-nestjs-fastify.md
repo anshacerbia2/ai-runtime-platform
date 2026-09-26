@@ -2,13 +2,13 @@
 
 **Tanggal:** 21 September 2026
 
-**Status:** adopted untuk backend platform; local M0/M1 dan contract extensions terverifikasi pada evidence yang ditautkan di bawah.
+**Status:** adopted untuk backend platform; local M0–M2 dan contract extensions terverifikasi pada evidence yang ditautkan di bawah.
 
 **Menggantikan:** pilihan Fastify standalone pada [ADR-0015](0015-testable-milestone-slices.md), bukan batas contract-only M0.
 
-## Implementation reconciliation — 24 September 2026
+## Implementation reconciliation — 24–26 September 2026
 
-NestJS/Fastify now serves M0, M1, resource operations and runner-authority endpoints. OIDC verification and nonlocal BFF code exist, but live issuer/deployment and streaming performance are not proven. See [current source state](../implementation/CURRENT-STATE.md), [active HTTP operations](../implementation/HTTP-API.md), and [verification scope](../reviews/CONTRACT-EXECUTION.md). This note updates implementation status only; it does not create new reviewer approval or erase the original decision history.
+NestJS/Fastify now serves M0, M1, resource/runner-authority operations, and the M2 gateway/SSE endpoints. OIDC verification and nonlocal BFF code exist, but live issuer/deployment and production streaming/load performance are not proven. See [current source state](../implementation/CURRENT-STATE.md), [active HTTP operations](../implementation/HTTP-API.md), and [verification scope](../reviews/CONTRACT-EXECUTION.md). This note updates implementation status only; it does not create new reviewer approval or erase the original decision history.
 
 ## Context
 
@@ -45,11 +45,11 @@ Nest controller hanya menangani transport dan memanggil use case. Auth guard mem
 
 Gunakan plugin yang kompatibel Fastify; recipe Express, termasuk upload berbasis Multer, tidak dianggap kompatibel otomatis.[^upload] Transport-specific code berada di presentation/bootstrap saja. Nest decorator metadata dikompilasi `tsc`; use case plain TypeScript dapat diuji tanpa Nest.
 
-M0 diuji lewat Nest/Fastify HTTP injection dan real PostgreSQL, browser flows, auth rejection, error envelope, dan data persistence. **SSE load/leak/replay/cancellation belum diuji karena execution streaming belum diimplementasikan.** Sebelum streaming produksi, uji disconnect berulang, listener/timer kembali ke baseline, bounded buffer, slow consumer, memory/RSS, event-loop delay, dan shutdown/timeout; catat concurrency, durasi, percentile, serta kondisi upstream. Batasnya mengikuti [stream contract](../contracts/EVENTS-STREAMING.md) dan [gate](../testing/ACCEPTANCE.md).
+M0–M2 diuji lewat Nest/Fastify HTTP injection, real PostgreSQL, browser flows, auth rejection, error envelope, data persistence, bounded provider SSE parsing/replay, slow-subscriber bounds, disconnect/resume semantics, dan cancellation/finalization behavior. **Production streaming load/leak certification belum dilakukan.** Sebelum streaming produksi, tetap uji disconnect berulang pada deployment nyata, listener/timer kembali ke baseline, bounded buffer, slow consumer, memory/RSS, event-loop delay, shutdown/timeout, dan provider/network faults; catat concurrency, durasi, percentile, serta kondisi upstream. Batasnya mengikuti [stream contract](../contracts/EVENTS-STREAMING.md) dan [gate](../testing/ACCEPTANCE.md).
 
 ## Evolution
 
-Upgrade security/dependency mengulang build, contract, integration, browser, serta transport-specific tests. Dependency audit saat refactor mendorong pemilihan adapter dengan Fastify yang sudah diperbaiki, bukan downgrade demi mempertahankan versi awal. Revisit adapter hanya lewat bukti kebutuhan, bukan perubahan preferensi sesaat. Pilihan stack layak dikembangkan menuju produksi tidak berarti M0 telah production-ready.
+Upgrade security/dependency mengulang build, contract, integration, browser, serta transport-specific tests. Dependency audit saat refactor mendorong pemilihan adapter dengan Fastify yang sudah diperbaiki, bukan downgrade demi mempertahankan versi awal. Revisit adapter hanya lewat bukti kebutuhan, bukan perubahan preferensi sesaat. Pilihan stack dan local M0–M2 closure tidak berarti platform telah production-ready.
 
 ## Referensi resmi
 

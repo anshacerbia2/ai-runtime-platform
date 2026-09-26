@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased — 26 September 2026 — M0–M2 local implementation closure
+
+Closed the local M0–M2 implementation baseline on top of commit `67c5bf5`: M2 model gateway routes for `chat`, `generate`, `structured_generate`, execution read/cancel and SSE events; OpenRouter + Direct Anthropic adapters; terminal-marker enforcement; structured-output validation; policy-approved `not-sent` fallback with a durable second attempt; database-backed application/connection capacity and rate limits; durable provider invocation/result and usage/accounting evidence. Hardened Zod wire contracts so provider responses are projection-only while generated OpenAPI remains explicitly additive-compatible for consumers. Fresh local evidence: `npm run verify` PASS exit 0, migrations through `0010`, contract 31/31, API unit 35/35, tooling 27/27, PostgreSQL integration 47/47, web/BFF 60/60, and browser E2E 21/21. Authorized live vendor smoke, deployed identity/Redis/secret-manager, M3 agent runtime, and production gates remain pending.
+
 ## Unreleased — 24 September 2026 — source-first documentation synchronization
 
 Reviewed all existing repository Markdown against registered routes, physical schema, actual client/UI/BFF behavior and dated verification records. Added current-state and exhaustive HTTP references plus I01–I04 implemented diagrams. Updated architecture, lifecycle, data, configuration, milestones, roadmaps, acceptance scope and ADR implementation notices. Historical adoption/test records remain dated; provider/streaming/sandbox targets are explicitly planned. No application source, migration SQL, generated contract artifact or existing user UI edit is changed by this documentation-only task. Results and complete inventory are in [documentation sync](reviews/DOCUMENTATION-SYNC.md).

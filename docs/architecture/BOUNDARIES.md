@@ -6,7 +6,7 @@
 
 Browser -> Next.js/BFF -> API -> PostgreSQL, application/operator/runner principal separation, receipt-backed management dan manual runner report/evidence authority sudah tersedia. Exact machine/BFF exposure ada pada [active HTTP catalogue](../implementation/HTTP-API.md). Resource API tersedia sebagai backend operations; UI saat ini terutama read tables dan Contract Lab, bukan full approval workflow.
 
-App integration patterns, model gateway, tool broker, sandbox dan stream pada bagian target di bawah belum berarti berjalan. Assignment report hanya proposal; late evidence hanya intake quarantine; tidak ada runner yang mendapat DB write credential melalui protocol. [Current source](../implementation/CURRENT-STATE.md).
+App integration patterns di bawah mencampur implemented dan target scope: M2 model gateway + SSE berjalan lokal untuk direct model capabilities, sedangkan tool broker, sandbox, agent runtime, plugin/workspace/session dan distributed replay tetap target M3/P3.5. Assignment report hanya proposal; late evidence hanya intake quarantine; tidak ada runner yang mendapat DB write credential melalui protocol. [Current source](../implementation/CURRENT-STATE.md).
 
 ## Actor dan authority
 
@@ -44,7 +44,7 @@ Saat ini deployment diasumsikan berada dalam satu organisasi, sehingga Organizat
 
 Repository lain tidak otomatis menjadi dependency runtime hanya karena ada di folder yang sama. Identity integration memakai shared Keycloak realm melalui confidential client milik aplikasi ini; platform tidak membangun IdP baru. ATI One hanya katalog penaut, bukan tier autentikasi atau hosting ([ADR-0025](../adr/0025-external-app-standalone-auth.md)).
 
-Scheduling bisnis tetap di aplikasi/scheduling platform. Retry/backoff/lease reconciliation internal adalah mekanisme eksekusi, bukan penjadwalan bisnis. Notification produk tetap di app/notification platform; target AI Runtime menyediakan status/SSE, tidak menambahkan notification engine; saat ini status metadata tersedia tetapi SSE masih planned. Foundation observability/idempotency package dapat direuse setelah contract review, tidak diasumsikan kompatibel.
+Scheduling bisnis tetap di aplikasi/scheduling platform. Retry/backoff/lease reconciliation internal adalah mekanisme eksekusi, bukan penjadwalan bisnis. Notification produk tetap di app/notification platform; AI Runtime menyediakan status dan M2 execution SSE tetapi tidak menambahkan notification engine. Distributed Redis replay/agent-runtime event recovery masih target. Foundation observability/idempotency package dapat direuse setelah contract review, tidak diasumsikan kompatibel.
 
 ## Dua orchestration yang berbeda
 

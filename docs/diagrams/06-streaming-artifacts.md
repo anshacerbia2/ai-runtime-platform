@@ -1,6 +1,6 @@
 # D16–D18 — Stream Recovery, Artifacts, dan Sessions
 
-**Implementation boundary — 24 September 2026:** These SSE, object promotion and runtime-session flows are planned. Artifact metadata and web authentication sessions exist but are not these execution features. See [I01–I04](10-implemented-contracts.md) and [current state](../implementation/CURRENT-STATE.md).
+**Implementation boundary — 26 September 2026:** D16 SSE semantics are partially implemented by the local M2 gateway with bounded in-process replay, cursor expiry/reset, and live model events; the Redis-backed distributed replay topology drawn below remains target. D17 object promotion and D18 runtime-session flows remain planned. Artifact metadata and web authentication sessions exist but are not those M3 execution features. See [I01–I05](10-implemented-contracts.md) and [current state](../implementation/CURRENT-STATE.md).
 
 **Authored flows.** Canonical references: [EVENTS](../contracts/EVENTS-STREAMING.md), [ARTIFACTS-SESSIONS](../contracts/ARTIFACTS-SESSIONS.md).
 
@@ -28,7 +28,7 @@ sequenceDiagram
     Note over A,DB: Reconnect never dispatches a new inference
 ```
 
-Snapshot service adalah authenticated API backed by SoR; client tidak membaca database langsung. Jika gap terjadi sesudah SSE headers terkirim, reset event/close menggantikan HTTP 410 yang tidak lagi bisa diubah.
+Snapshot service adalah authenticated API backed by SoR; client tidak membaca database langsung. Jika gap terjadi sesudah SSE headers terkirim, reset event/close menggantikan HTTP 410 yang tidak lagi bisa diubah. Implementasi M2 lokal memakai bounded in-process replay store, bukan Redis; diagram ini menunjukkan target distributed replay tier.
 
 ## D17 — Artifact candidate versus official result
 

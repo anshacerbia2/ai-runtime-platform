@@ -1,6 +1,6 @@
 # Shared HTTP Contracts and Consumer Compatibility
 
-The canonical runtime route definitions and Zod schemas live in `packages/contracts/src/http`. Nest handlers, browser operation clients, BFF exposure rules, and generated OpenAPI consume them. Planned `/v1` provider/runtime operations remain separate and are not enabled by this change.
+The canonical runtime route definitions and Zod schemas live in `packages/contracts/src/http`. Nest handlers, browser operation clients, BFF exposure rules, and generated OpenAPI consume them. M0–M2, including the gateway `/v1` execution/SSE surface, are active locally; machine-only runner routes remain explicitly separate from browser exposure.
 
 ## Local checks
 
@@ -32,9 +32,9 @@ Catalogue loading, health checks, and editor/mutation errors have independent li
 
 ## Current coverage and contract sources
 
-[HTTP-API](../implementation/HTTP-API.md) lists 46 active operations and their 38 browser-exposed method/path pairs. routes.ts composes resources.ts and runner.ts; no /v1 execution stream is enabled. OpenAPI now includes provider/browser authentication models, optional response correlation/retry headers, additive response-property acceptance and legacy replacement notes. The generation format is documentation metadata; it does not automatically create an independently verified Python/Go SDK.
+[HTTP-API](../implementation/HTTP-API.md) lists the active operation catalogue and browser exposure. routes.ts composes resources.ts, runner.ts, and gateway.ts; `/v1` execution and SSE event routes are active for M2 while machine-only runner operations remain excluded from the browser contract. OpenAPI includes provider/browser authentication models, optional response correlation/retry headers, additive consumer compatibility, producer projection policy, and legacy replacement notes. The generation format is documentation metadata; it does not automatically create an independently verified Python/Go SDK.
 
-Current Pact consumers contain eleven interactions per hop, adding bounded overview and application-page reads to the original nine. Frozen baseline files retain their original expectations. This is not exhaustive Pact coverage of all 46 operations; remaining management/runner behavior is checked by shared schemas and integration/fault tests. [Expectations](../../tests/cdc/expectations.ts) are consumer-authored, not copied from provider validators.
+Current Pact consumers contain eleven interactions per hop, adding bounded overview and application-page reads to the original nine. Frozen baseline files retain their original expectations. This is not exhaustive Pact coverage of all 53 operations; remaining management/runner behavior is checked by shared schemas and integration/fault tests. [Expectations](../../tests/cdc/expectations.ts) are consumer-authored, not copied from provider validators.
 
 The client RetryBudget and one monotonic timeout are local process policies. BFF adds no retries and cannot promise API/provider transaction cancellation. Run npm run serialization:check as part of verification. Latest completed evidence and documentation-only reruns remain separate in [CONTRACT-EXECUTION](../reviews/CONTRACT-EXECUTION.md) and [DOCUMENTATION-SYNC](../reviews/DOCUMENTATION-SYNC.md).
 
@@ -86,7 +86,7 @@ See [ADR-0028](../adr/0028-http-behavior-and-outcome-semantics.md) and the [HTTP
 
 Mutation lifecycle is idle/pending/success/error/unknown, independent of health and catalogue query state. An acknowledged save is successful even while health refresh is pending or fails. A transport/protocol failure after dispatch can leave the write outcome unknown; reconcile or replay the same key and canonical payload. Automatic retries now follow ADR-0029 per-operation declarations: up to three attempts for eligible keyed writes, one otherwise. Retry-After supplies a bounded delay hint and does not authorize replay.
 
-Known response fields stay validated; unknown response fields are stripped at nested wire-view boundaries. Command schemas remain strict. The provider interceptor validates already-mapped wire DTOs without JSON roundtripping; the BFF still reprojects sanitized response fields. Generated OpenAPI describes published payloads, while external SDK readers must also implement the documented additive-field policy. No Python/Go consumer conformance is asserted.
+Zod wire contracts are projection-only: transforms/defaults/catch/preprocess/coercion are blocked by a fitness test. Command/request schemas remain strict where authority requires closed input. At the provider boundary, validated responses are projected to declared fields so accidental internal properties cannot leak; at the consumer boundary, generated OpenAPI explicitly declares additive unknown-property tolerance so older readers can ignore newly published fields. The provider interceptor validates already-mapped wire DTOs without JSON roundtripping, and the BFF still reprojects sanitized response fields. No Python/Go consumer conformance is asserted.
 
 ## Resource and runner extensions
 

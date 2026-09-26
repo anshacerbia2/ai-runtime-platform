@@ -2,15 +2,15 @@
 
 Shared AI execution platform untuk aplikasi yang membutuhkan direct chat, structured inference, atau agent/tools. **App owns business workflow; platform owns AI execution.**
 
-**M0 Contract Lab · 0.3.0-m0 tetap runnable.** M1 durable foundation sekarang **LOCAL IMPLEMENTATION COMPLETE** untuk P1 test scope: application/operator/runner identity boundary, control-plane mutations, profiles, admission/idempotency, budgets/reservations, usage/ledger, outbox/inbox, audit, artifacts, dan runner registry foundation tersedia serta lulus acceptance lokal. Live Keycloak sign-in, deployed BFF/Redis session evidence, Redis hot runner state, concrete secret manager, provider execution, agent runtime, dan production readiness belum dibuktikan. Arsitektur target tetap baseline 0.2 plus adopted extensions.
+**M0–M2 sekarang LOCAL IMPLEMENTATION COMPLETE.** Contract Lab tetap runnable; M1 durable foundation mencakup identity/control plane/admission/accounting/runner-authority kernel; M2 menyediakan local model gateway untuk `chat`, `generate`, dan `structured_generate` dengan OpenRouter + Direct Anthropic adapters, bounded SSE/replay, structured-output validation, safe fallback, capacity/rate limits, durable result, dan usage/accounting evidence. Authorized live vendor smoke, live ATI Keycloak/deployed Redis/secret-manager, M3 agent runtime, dan production readiness tetap pending. Arsitektur target tetap baseline 0.2 plus adopted extensions.
 
 **Fixed implementation stack:** NestJS + Fastify HTTP adapter + Prisma + PostgreSQL; frontend React/TypeScript + Next.js App Router dengan BFF tier. Struktur dan aturan dependency: [CODE-STRUCTURE](docs/architecture/CODE-STRUCTURE.md). Keputusan stack: [ADR-0016](docs/adr/0016-nestjs-fastify.md)–[ADR-0018](docs/adr/0018-clean-architecture-quality.md) dan [ADR-0026](docs/adr/0026-nextjs-bff.md). Web delivery/auth: [ADR-0025](docs/adr/0025-external-app-standalone-auth.md). Platform-control/fleet decisions: [ADR-0019](docs/adr/0019-application-connections-credentials.md)–[ADR-0022](docs/adr/0022-distributed-runner-fleet.md). Backend stack sudah diterapkan pada M0; migrasi web ke Next.js App Router/BFF sudah diimplementasikan, dengan opaque session cookie, server-side token custody, dan server-rendered docs. Fitur produksi tetap mengikuti gate.
 
 ## Kondisi source saat ini
 
-M0/M1 sudah mencakup hardening HTTP/UI dan perluasan [ADR-0027–0029](docs/adr/README.md): resource APIs /api/v1, independent pagination/count overview, atomic management receipts dengan optimistic concurrency, bounded client retry, machine-only runner authority/fencing, quarantine evidence, serta explicit mappers dan serialization CI gate. Tidak ada autonomous runner dispatch atau live AI execution.
+M0–M2 sudah mencakup hardening HTTP/UI dan perluasan [ADR-0027–0029](docs/adr/README.md): resource APIs `/api/v1`, independent pagination/count overview, atomic management receipts dengan optimistic concurrency, bounded client retry, machine-only runner authority/fencing, quarantine evidence, explicit mappers/serialization CI gate, serta executable model gateway dengan durable provider invocation/result dan accounting. Autonomous runner dispatch/agent runtime belum ada; authorized live OpenRouter/Anthropic smoke dan production deployment belum dibuktikan.
 
-Mulai dari [kondisi implementasi aktual](docs/implementation/CURRENT-STATE.md), [46 operasi HTTP aktif](docs/implementation/HTTP-API.md), dan [diagram implementasi](docs/diagrams/10-implemented-contracts.md). Rancangan target, fitur PLANNED, dan hasil tes historis tetap dibedakan. Source dan migration adalah rujukan perilaku saat ini; status verifikasi terbaru ada di [sinkronisasi dokumentasi](docs/reviews/DOCUMENTATION-SYNC.md).
+Mulai dari [kondisi implementasi aktual](docs/implementation/CURRENT-STATE.md), [katalog operasi HTTP aktif](docs/implementation/HTTP-API.md), dan [diagram implementasi](docs/diagrams/10-implemented-contracts.md). Rancangan target, fitur PLANNED, dan hasil tes historis tetap dibedakan. Source dan migration adalah rujukan perilaku saat ini; status verifikasi terbaru ada di [contract execution evidence](docs/reviews/CONTRACT-EXECUTION.md), sementara [documentation sync](docs/reviews/DOCUMENTATION-SYNC.md) tetap menjadi snapshot audit 24 September.
 
 ## Coba lokal
 
@@ -59,9 +59,9 @@ Application decides the next business step
 
 Direct chat tidak membutuhkan business job atau plugin. Public capability baseline adalah `chat`, `generate`, `structured_generate`, dan `agent_execute`; lihat [Capability Catalogue](docs/contracts/CAPABILITIES.md). Execution ID dan authenticated app identity tetap tersedia. Model, provider, agent runtime, credential binding, dan app-owned harness adalah konsep terpisah.
 
-## Baseline choices untuk execution plane yang direncanakan
+## Execution-plane choices
 
-OpenRouter-first dengan pembuktian Direct Anthropic adapter pada Phase 2; primary route ditentukan profile. Claude adalah runtime awal. Managed Execution Envelope menormalkan lifecycle, bukan menjanjikan semua agent identik. Tiered storage memisahkan durable PostgreSQL state/accounting, Redis heartbeat/replay, dan object artifacts.
+M2 sudah mengimplementasikan OpenRouter + Direct Anthropic adapters secara lokal; primary/fallback route ditentukan immutable profile policy. Claude adalah runtime awal. Managed Execution Envelope menormalkan lifecycle, bukan menjanjikan semua agent identik. Tiered storage memisahkan durable PostgreSQL state/accounting, Redis heartbeat/replay, dan object artifacts.
 
 Completion tidak menunggu settlement. Reservasi durable dibuat sebelum dispatch; penolakan tidak mengurangi saldo. Lease renewal tidak membangkitkan key yang hilang. Late usage dapat direkonsiliasi tanpa memberi worker lama authority kembali. Stateful tool retry memerlukan receiver-supported operation key/status semantics.
 
@@ -69,4 +69,4 @@ Completion tidak menunggu settlement. Reservasi durable dibuat sebelum dispatch;
 
 [ADR](docs/adr/README.md) menjadi rujukan keputusan arsitektur yang aktif. Kontrak dan spesifikasi merinci pelaksanaannya; [decision traceability](docs/reviews/RECONCILIATION.md) memetakan keputusan ke dokumen dan gate. Riwayat review tersimpan dalam Git, bukan prasyarat membaca desain saat ini. [Open decisions](docs/decisions/OPEN-QUESTIONS.md) mencatat requirement deployment/data/credential/SLO dan review yang belum selesai.
 
-Document checks dilaporkan di [VALIDATION](docs/reviews/VALIDATION.md). P1 gate G01/G02/G07/G08/G09/G15/G26–G29 sekarang mempunyai evidence lokal di [M1](docs/milestones/M1.md); gate produksi/nonlocal dan fase berikutnya tetap belum lulus. Rendering diagram bukan bukti distributed-system correctness. Riwayat perubahan: [CHANGELOG](docs/CHANGELOG.md).
+Document checks dilaporkan di [VALIDATION](docs/reviews/VALIDATION.md). M0–M2 local closure sekarang mempunyai fresh `verify` + 21/21 browser E2E evidence; P1 gate dan M2 gateway gates yang applicable tercatat di [M1](docs/milestones/M1.md), [Acceptance](docs/testing/ACCEPTANCE.md), dan [Contract execution evidence](docs/reviews/CONTRACT-EXECUTION.md). Production/nonlocal gates dan M3 tetap belum lulus. Rendering diagram bukan bukti distributed-system correctness. Riwayat perubahan: [CHANGELOG](docs/CHANGELOG.md).

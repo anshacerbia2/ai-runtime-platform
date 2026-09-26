@@ -12,6 +12,8 @@ import { map } from 'rxjs';
 import { z } from 'zod';
 import {
   ContractNoBody,
+  projectProviderResponse,
+  ResponseProjectionError,
   responseSchema,
   type AppRoute,
 } from '@ai-runtime/contracts/http';
@@ -70,12 +72,19 @@ export class ContractInterceptor implements NestInterceptor {
         const schema = responseSchema(this.route, response.statusCode);
         // Presenters/repository mappers already return wire DTOs (ISO dates,
         // decimal strings). Do not serialize and reparse the entire response.
-        const result = schema?.safeParse(value);
-        if (!result?.success) {
-          // Never leak invalid response fields or validation diagnostics to callers.
+        if (!schema) {
           throw new ResponseContractError();
         }
-        return result.data;
+        try {
+          // Explicit producer policy: emit only fields declared by the wire schema.
+          return projectProviderResponse(schema, value);
+        } catch (error) {
+          if (error instanceof ResponseProjectionError) {
+            // Never leak invalid response fields or validation diagnostics to callers.
+            throw new ResponseContractError();
+          }
+          throw error;
+        }
       }),
     );
   }

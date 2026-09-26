@@ -27,15 +27,15 @@ flowchart TD
 
 ## 2. Matriks Komparasi Kemampuan (Maturity Matrix)
 
-| Dimensi Arsitektur     | Level 0: Primitive | Level 1: Naked .env | Level 2: Centralized Gate | Level 3: Schema-First Contract (Repo ini) | Level 4: Ephemeral Secrets    | Level 5: Dynamic Control Plane |
-| :--------------------- | :----------------- | :------------------ | :------------------------ | :---------------------------------------- | :---------------------------- | :----------------------------- |
-| **Media Konfigurasi**  | Inline Code        | File `.env` lokal   | Single Gateway Module                | Typed Schema (Zod/TypeBox)     | KMS / Secret Manager / IAM    | Push-stream (gRPC/xDS)         |
-| **Penyimpanan Secret** | Plain text di VCS  | Plain text di disk  | Plain text di disk / OS env          | Environment / File adapter     | Ephemeral RAM / SPIFFE Token  | Dynamic In-Memory Store        |
-| **Waktu Validasi**     | Compile time       | Runtime (on-demand) | Process Startup (Fail-fast)          | Process Startup & Build CI     | Process Startup & Token Lease | Continuous Validation          |
-| **Siklus Perubahan**   | Rebuild + Deploy   | Process Restart     | Process Restart                      | Process Restart                | Dynamic Lease Renewal         | Zero-Downtime Hot-Reload       |
-| **Proteksi Leaks**     | Nol (Bocor di Git) | Sangat Rendah       | Sedang (Modular gate)                | Sedang (Tersanitasi)           | Tinggi (RAM-only tmpfs)       | Sangat Tinggi (No disk/env)    |
-| **Canary Rollout**     | Tidak ada          | Tidak ada           | Tidak ada                            | Tidak ada                      | Bertahap per cluster          | Canary per request/pod (%)     |
-| **Target Skala**       | Toy Project        | Startup Awal        | Mid/Enterprise Monorepo              | Multi-team Service Fleet       | Cloud-Native Enterprise       | Planetary / Hyperscale         |
+| Dimensi Arsitektur     | Level 0: Primitive | Level 1: Naked .env | Level 2: Centralized Gate   | Level 3: Schema-First Contract (Repo ini) | Level 4: Ephemeral Secrets    | Level 5: Dynamic Control Plane |
+| :--------------------- | :----------------- | :------------------ | :-------------------------- | :---------------------------------------- | :---------------------------- | :----------------------------- |
+| **Media Konfigurasi**  | Inline Code        | File `.env` lokal   | Single Gateway Module       | Typed Schema (Zod/TypeBox)                | KMS / Secret Manager / IAM    | Push-stream (gRPC/xDS)         |
+| **Penyimpanan Secret** | Plain text di VCS  | Plain text di disk  | Plain text di disk / OS env | Environment / File adapter                | Ephemeral RAM / SPIFFE Token  | Dynamic In-Memory Store        |
+| **Waktu Validasi**     | Compile time       | Runtime (on-demand) | Process Startup (Fail-fast) | Process Startup & Build CI                | Process Startup & Token Lease | Continuous Validation          |
+| **Siklus Perubahan**   | Rebuild + Deploy   | Process Restart     | Process Restart             | Process Restart                           | Dynamic Lease Renewal         | Zero-Downtime Hot-Reload       |
+| **Proteksi Leaks**     | Nol (Bocor di Git) | Sangat Rendah       | Sedang (Modular gate)       | Sedang (Tersanitasi)                      | Tinggi (RAM-only tmpfs)       | Sangat Tinggi (No disk/env)    |
+| **Canary Rollout**     | Tidak ada          | Tidak ada           | Tidak ada                   | Tidak ada                                 | Bertahap per cluster          | Canary per request/pod (%)     |
+| **Target Skala**       | Toy Project        | Startup Awal        | Mid/Enterprise Monorepo     | Multi-team Service Fleet                  | Cloud-Native Enterprise       | Planetary / Hyperscale         |
 
 ---
 

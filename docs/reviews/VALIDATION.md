@@ -117,7 +117,7 @@ Automated environment-boundary tests verify required values fail closed, boolean
 
 ## 11. Frontend CDD/design-system implementation — 22 September 2026
 
-The M0/M1 console now implements the frontend architecture in ADR-0024: semantic design tokens, leaf primitives, reusable components, explicit Sidebar/TopBar/PageRegion/PageHeader compositions, feature-owned orchestration, and a resource-based M1 Control Plane admin console.
+At the 22 September frontend checkpoint, the M0/M1 console implemented the frontend architecture in ADR-0024: semantic design tokens, leaf primitives, reusable components, explicit Sidebar/TopBar/PageRegion/PageHeader compositions, feature-owned orchestration, and a resource-based M1 Control Plane admin console. The 26 September closure additionally exposes M2 status in the Delivery Plan and public/local progress copy without changing the Control Plane's M1-specific scope.
 
 Local frontend evidence includes:
 
@@ -175,7 +175,7 @@ The real two-client Redis integration suite is provided as `npm run test:web:red
 
 ## 14. Shared REST contract and consumer-driven verification
 
-The implemented M0/M1 HTTP routes now derive from `packages/contracts/src/http`. Nest routing/response validation, inferred browser operations, and explicit BFF exposure use the same contracts. OpenAPI artifacts are generated from those definitions. Client wire DTOs and manual M0/M1 endpoint strings were removed from feature clients.
+At the shared-contract checkpoint, implemented M0/M1 HTTP routes derived from `packages/contracts/src/http`. The same contract authority now also includes the active M2 gateway and SSE routes. Nest routing/response projection, inferred browser operations, explicit BFF exposure, and generated OpenAPI continue to consume that shared source; client wire DTOs and manual implemented endpoint strings remain mechanically rejected.
 
 Local evidence for this change:
 
@@ -200,7 +200,7 @@ An isolated serialization microbenchmark and its limitations are in the audit; i
 
 ## Final contract-evolution closure — 24 September 2026
 
-The final local implementation passes the complete verify command, applied migration status and 21 browser scenarios with exit code zero. Detailed counts, source digest, replay/fencing evidence, failure-injection scope and remaining production gates are in [Contract execution evidence](CONTRACT-EXECUTION.md). The [request closure matrix](REQUEST-CLOSURE.md) distinguishes implemented API work from the unimplemented P2/P3 provider/streaming runtime. Earlier log counts remain historical.
+At the 24 September contract-evolution checkpoint, the local implementation passed the complete verify command, applied migration status and 21 browser scenarios with exit code zero. That checkpoint still treated P2/P3 provider/runtime work as future scope; the 26 September M0–M2 closure below supersedes that progress status while preserving the earlier evidence as historical.
 
 ## Documentation synchronization — 24 September 2026
 
@@ -209,3 +209,13 @@ All 80 existing Markdown documents were reconciled to current source and four as
 Current verification is not represented by old closure counts: the first full verify had one integration failure (503 during a receipt test), then isolated recheck and full verify rerun passed without source changes by this task. Browser verification against an existing local dev server produced 20 PASS and one History reload timeout; a fresh server attempt was blocked by the workspace's active Next dev server. Neither failure was hidden, fixed in code, or counted as PASS.
 
 Two frontend files changed outside this docs-only task and were read back without overwrite. Source stayed stable during the final rerun checks. See [Documentation sync](DOCUMENTATION-SYNC.md) for the complete document inventory, logs and precise status, and [current implementation](../implementation/CURRENT-STATE.md) for as-built behavior. Historical gate records above retain their original scope and dates.
+
+## 16. M0–M2 local implementation closure — 26 September 2026
+
+This section is the current local implementation checkpoint and supersedes older progress statements above without rewriting their historical evidence. The active source exposes **53 API operations and 45 browser-exposed method/path pairs**. M0 Contract Lab remains validation-only; M1 durable control/accounting and runner-authority foundations are locally complete; M2 provides executable `chat`, `generate`, and `structured_generate` gateway flows with OpenRouter and Direct Anthropic adapters, bounded SSE/replay, terminal-marker enforcement, structured-output validation, safe `not-sent` fallback with a durable second attempt, database-backed admission capacity/rate limits, durable provider invocation/result evidence, and usage/ledger settlement.
+
+The Zod HTTP contract layer is now explicitly projection-only on provider responses: transforms/defaults/catch/preprocess/coercion are forbidden by a fitness test, undeclared provider object fields are projected out, and generated OpenAPI declares additive unknown-property tolerance for consumers. Global `/health/live` reports M2/local-runtime progress, while `/api/m0/health` remains intentionally contract-only because it describes the Contract Lab slice rather than the whole platform.
+
+Fresh closure evidence on the working tree above HEAD `67c5bf5`: `npm run verify` PASS exit 0; migrations through `0010_m2_invocation_route` are up to date; contract tests **31/31**, API unit **35/35**, tooling/configuration **27/27**, PostgreSQL integration/fault tests **47/47**, web/BFF tests **60/60**, and browser E2E **21/21**. Generated OpenAPI matches source and documentation link checks pass. The intentional negative Pact proof still prints a provider verification failure when `saved_checks` is removed; that rejection is expected and the overall CDC gate passes.
+
+Not closed by this local milestone: authorized live OpenRouter/Anthropic vendor smoke, live ATI Keycloak registration, deployed Redis/session infrastructure, concrete secret-manager deployment, autonomous M3 agent runner/placement/sandbox/tools/workspace/session behavior, multi-machine recovery, production Broker rollout, calibrated load/chaos/SLO evidence, and production approval.

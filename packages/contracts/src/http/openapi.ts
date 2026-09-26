@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { httpBehavior } from './behavior.js';
 import { apiContract, contractRoutes, responseSchema } from './routes.js';
+import { responseEvolutionPolicy } from './response-policy.js';
 
 export interface HttpOpenApiOptions {
   boundary?: 'provider' | 'browser';
@@ -129,8 +130,11 @@ export function httpOpenApi(
       operationId:
         route.method.toLowerCase() + route.path.replace(/[^A-Za-z0-9]/g, '_'),
       'x-runtime-behavior': httpBehavior(route),
+      'x-provider-unknown-fields':
+        responseEvolutionPolicy.providerUnknownFields,
       'x-consumer-unknown-fields':
-        'ignore-object-properties; validate-known-fields',
+        responseEvolutionPolicy.consumerUnknownFields,
+      'x-response-mutation': responseEvolutionPolicy.responseMutation,
       ...(metadata?.sse ? { 'x-streaming': 'server-sent-events' } : {}),
       ...(metadata?.deprecated
         ? {

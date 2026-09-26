@@ -19,7 +19,7 @@ export class HealthController {
   @PublicRoute()
   @ContractRoute(apiContract.live)
   live(): ServerInferResponseBody<typeof apiContract.live, 200> {
-    return { status: 'ok', milestone: 'M0', mode: 'contract-only' };
+    return { status: 'ok', milestone: 'M2', mode: 'local-runtime' };
   }
 
   @ContractRoute(apiContract.lab.health)

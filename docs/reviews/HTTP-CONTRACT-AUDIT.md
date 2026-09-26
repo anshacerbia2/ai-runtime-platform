@@ -31,7 +31,7 @@ Response strictness was not universal: most HTTP object schemas already stripped
 
 Idempotency fingerprinting already exists: M0 ZodContractPolicy hashes canonical kind/payload and PrismaValidationRepository rejects mismatches; the M1 admission repository also compares request digests. A min-length header schema is not the complete idempotency implementation. Existing database integration tests, rather than the header declaration alone, are the relevant evidence.
 
-The audited client implements unary M0/M1 administration, not the planned AI execution stream. Buffering bounded unary JSON is intentional. The runtime still needs actual incremental SSE delivery and its replay/backpressure/failure gates. Existing streaming documents are design, not runtime proof.
+At this 24 September audit checkpoint, the audited client implemented unary M0/M1 administration and the AI execution stream was still future work. That progress statement is superseded: M2 now has incremental SSE delivery, bounded replay/backpressure behavior, and failure gates covered by current tests. The production/load certification caveats in this audit remain applicable; use [CURRENT-STATE](../implementation/CURRENT-STATE.md) for present behavior.
 
 OpenAPI is language-neutral as a wire artifact, but there is no independently verified Python/Go SDK here. Zod custom behavior is not automatically equivalent to JSON Schema. ADR-0028 defines the remaining portability acceptance work instead of claiming migration to an IDL was completed.
 

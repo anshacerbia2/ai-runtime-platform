@@ -22,12 +22,12 @@ Status selalu scoped. `chat` dapat verified pada satu profile/provider tetapi te
 
 ## 2. Canonical v1 capability IDs
 
-| Capability            | Primary execution path | Typical input                            | Result                                                 | Streaming                 | Plugin/workspace                          | Target milestone | Current status |
-| --------------------- | ---------------------- | ---------------------------------------- | ------------------------------------------------------ | ------------------------- | ----------------------------------------- | ---------------- | -------------- |
-| `chat`                | Model Gateway          | ordered messages/content                 | text                                                   | yes if profile allows     | not required                              | M2               | IMPLEMENTED_NONPROD |
-| `generate`            | Model Gateway          | prompt/input                             | text                                                   | optional/profile          | not required                              | M2               | IMPLEMENTED_NONPROD |
-| `structured_generate` | Model Gateway          | prompt + bounded response schema         | validated structured value or explicit failure         | optional/profile          | not required                              | M2               | IMPLEMENTED_NONPROD |
-| `agent_execute`       | Agent Runtime          | task/prompt + optional context/artifacts | text/structured/artifacts/mixed                        | profile/runtime dependent | optional plugin; optional workspace/tools | M3               | CONTRACT_ONLY  |
+| Capability            | Primary execution path | Typical input                            | Result                                         | Streaming                 | Plugin/workspace                          | Target milestone | Current status      |
+| --------------------- | ---------------------- | ---------------------------------------- | ---------------------------------------------- | ------------------------- | ----------------------------------------- | ---------------- | ------------------- |
+| `chat`                | Model Gateway          | ordered messages/content                 | text                                           | yes if profile allows     | not required                              | M2               | IMPLEMENTED_NONPROD |
+| `generate`            | Model Gateway          | prompt/input                             | text                                           | optional/profile          | not required                              | M2               | IMPLEMENTED_NONPROD |
+| `structured_generate` | Model Gateway          | prompt + bounded response schema         | validated structured value or explicit failure | optional/profile          | not required                              | M2               | IMPLEMENTED_NONPROD |
+| `agent_execute`       | Agent Runtime          | task/prompt + optional context/artifacts | text/structured/artifacts/mixed                | profile/runtime dependent | optional plugin; optional workspace/tools | M3               | CONTRACT_ONLY       |
 
 Empat ID di atas adalah public capability enum baseline v1. M0 hanya memvalidasi kontraknya dan **tidak** menjalankan AI provider/runtime.
 

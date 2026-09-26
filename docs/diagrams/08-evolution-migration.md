@@ -2,7 +2,7 @@
 
 **Implementation boundary — 24 September 2026:** Dependency arrows express delivery requirements, not that every preceding production gate has already passed. P1 local tests and manual runner authority do not close P3/P3.5. See [I01–I04](10-implemented-contracts.md) and [current state](../implementation/CURRENT-STATE.md).
 
-**Authored plan visualization.** M0 is runnable and M1 durable foundation plus receipt/resource/runner-authority extensions are implemented locally. Full gateway/agent execution milestones remain PLANNED and P3.5 production approval is BLOCKED. Canonical source: [PLAN](../PLAN.md), [ROADMAP](../ROADMAP.md).
+**Authored plan visualization.** M0–M2 are implemented locally: Contract Lab, durable M1 foundation/receipt/resource/runner-authority kernel, and M2 direct/aggregator gateway. M3 agent execution remains PLANNED and P3.5 production approval is BLOCKED. Canonical source: [PLAN](../PLAN.md), [ROADMAP](../ROADMAP.md).
 
 ## D22 — Dependency and readiness flow
 

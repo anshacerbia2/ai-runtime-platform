@@ -17,8 +17,8 @@ const phases = [
   [
     'M2',
     'Model Gateway',
-    'OpenRouter-first gateway plus a direct provider adapter proof.',
-    'planned',
+    'OpenRouter + Direct Anthropic, bounded SSE/replay, safe fallback, and durable accounting.',
+    'complete',
   ],
   [
     'M3',
@@ -104,8 +104,8 @@ export function PhaseGuide() {
           ))}
         </div>
         <div className="reference-note">
-          M0 and M1 are locally implemented. Live ATI One/Keycloak,
-          secret-manager deployment, Redis runner hot state, and
+          M0-M2 are locally implemented. Authorized live provider smoke, live
+          ATI Keycloak, deployed Redis/secret-manager, M3 agent runtime, and
           production-readiness evidence remain external gates.
         </div>
       </Panel>

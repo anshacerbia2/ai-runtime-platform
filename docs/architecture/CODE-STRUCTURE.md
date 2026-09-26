@@ -1,6 +1,6 @@
 # Code Structure — NestJS, Fastify, Prisma, dan Clean Architecture
 
-**Implementasi:** M0/M1 console with Next.js App Router and BFF. Rancangan produksi tetap lebih luas daripada fitur yang sudah tersedia. Rujukan keputusan: [ADR-0016](../adr/0016-nestjs-fastify.md), [ADR-0017](../adr/0017-prisma-postgresql.md), [ADR-0018](../adr/0018-clean-architecture-quality.md), [ADR-0026](../adr/0026-nextjs-bff.md).
+**Implementasi:** M0–M2 local platform with Next.js App Router/BFF, durable control plane/accounting, and executable model gateway. M3 agent runtime and production deployment remain outside the current implemented scope. Rujukan keputusan: [ADR-0016](../adr/0016-nestjs-fastify.md), [ADR-0017](../adr/0017-prisma-postgresql.md), [ADR-0018](../adr/0018-clean-architecture-quality.md), [ADR-0026](../adr/0026-nextjs-bff.md).
 
 ## Struktur repository
 

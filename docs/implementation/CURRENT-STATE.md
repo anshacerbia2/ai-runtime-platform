@@ -1,6 +1,6 @@
 # Kondisi Implementasi Aktual
 
-**Diperiksa 25 September 2026 (Asia/Jakarta), pada working tree lokal di atas HEAD ccb86c9.** Halaman ini menjelaskan perilaku yang sudah ada, bukan seluruh target produk. Source yang dibaca, riwayat pengujian, dan batas sinkronisasi tercatat di [audit dokumentasi](../reviews/DOCUMENTATION-SYNC.md). Perubahan lokal belum berarti commit, deployment, atau persetujuan produksi.
+**Diperiksa 26 September 2026 (Asia/Jakarta), pada working tree lokal di atas HEAD 67c5bf5.** Halaman ini menjelaskan perilaku yang sudah ada, bukan seluruh target produk. M0–M2 telah ditutup secara local implementation dengan fresh verify dan browser E2E pada working tree ini; source yang dibaca, riwayat pengujian, dan batas sinkronisasi tercatat di [contract execution evidence](../reviews/CONTRACT-EXECUTION.md). Perubahan lokal setelah HEAD belum berarti commit, deployment, atau persetujuan produksi.
 
 ## Cara membaca dokumentasi
 
@@ -8,15 +8,15 @@ Untuk menjawab “apa yang berjalan sekarang”, gunakan source, migration, kont
 
 ## Ringkasan capability
 
-| Area             | Sudah ada di source                                                                             | Batas yang belum terimplementasi / belum dibuktikan                                                           |
-| ---------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| Contract Lab     | Validasi shape/profile, hasil tersimpan, replay, history, schema explorer                       | Tidak memanggil model, tidak membuat execution atau ledger dari validasi M0                                   |
-| Web/BFF          | Next.js App Router, entry, session/token custody server-side, OIDC flow, Markdown tersanitasi   | Integrasi live ATI Keycloak dan deployed Redis/ingress belum dibuktikan lokal                                 |
-| Registry         | Application, connection, credential metadata/binding, profile revision/alias, budget, pool/node | Secret-manager resolver/rotation dan plugin registry belum tersedia                                           |
-| Resource API     | Koleksi independen, cursor, DB projection, overview count, response per resource                | Bukan full management editor UI, full-detail API untuk semua resource, atau snapshot konsisten lintas-koleksi |
-| Receipt/retry    | Mutation management dan receipt atomik, replay sebelum revision check, retry client terkontrol  | Tidak menjamin exactly-once provider/tool effect; tidak ada cleanup receipt otomatis                          |
-| Accounting       | Admission/reservation, cumulative observations, ledger/adjustment, outbox/inbox                 | Tidak ada live provider billing, pricing oracle, atau enforcement multi-turn agent                            |
-| Runner authority | Registrasi, grant/revoke manual, exact fencing, typed start/proposal, quarantine evidence       | Tidak ada autonomous dispatcher, process/sandbox supervisor, Redis runner lease, atau failover coordinator    |
+| Area             | Sudah ada di source                                                                                                                                             | Batas yang belum terimplementasi / belum dibuktikan                                                            |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Contract Lab     | Validasi shape/profile, hasil tersimpan, replay, history, schema explorer                                                                                       | Tidak memanggil model, tidak membuat execution atau ledger dari validasi M0                                    |
+| Web/BFF          | Next.js App Router, entry, session/token custody server-side, OIDC flow, Markdown tersanitasi                                                                   | Integrasi live ATI Keycloak dan deployed Redis/ingress belum dibuktikan lokal                                  |
+| Registry         | Application, connection, credential metadata/binding, profile revision/alias, budget, pool/node                                                                 | Secret-manager resolver/rotation dan plugin registry belum tersedia                                            |
+| Resource API     | Koleksi independen, cursor, DB projection, overview count, response per resource                                                                                | Bukan full management editor UI, full-detail API untuk semua resource, atau snapshot konsisten lintas-koleksi  |
+| Receipt/retry    | Mutation management dan receipt atomik, replay sebelum revision check, retry client terkontrol                                                                  | Tidak menjamin exactly-once provider/tool effect; tidak ada cleanup receipt otomatis                           |
+| Accounting       | Admission/reservation, cumulative observations, ledger/adjustment, outbox/inbox                                                                                 | Tidak ada live provider billing, pricing oracle, atau enforcement multi-turn agent                             |
+| Runner authority | Registrasi, grant/revoke manual, exact fencing, typed start/proposal, quarantine evidence                                                                       | Tidak ada autonomous dispatcher, process/sandbox supervisor, Redis runner lease, atau failover coordinator     |
 | AI runtime       | Gateway `chat`/`generate`/`structured_generate`, OpenRouter + Direct Anthropic adapters, SSE/replay, durable provider invocation/result/usage, bounded fallback | Live vendor smoke belum tersedia di workstation; `agent_execute`, tools/plugins/workspace tetap belum berjalan |
 
 `chat`, `generate`, dan `structured_generate` sudah memiliki jalur gateway lokal yang executable; `agent_execute` tetap **CONTRACT_ONLY** sampai M3 runtime tersedia. State runner STARTED atau proposal outcome completed tidak mengubah status `agent_execute` itu. Lihat [catalogue](../contracts/CAPABILITIES.md).
@@ -93,6 +93,6 @@ Uang/unit presisi tinggi disimpan sebagai BigInt dan dipresentasikan sebagai dec
 
 ## Batas bukti
 
-Penutupan implementasi sebelum sinkronisasi ini mencatat verify, migrations, dan 21 E2E PASS; rinciannya [CONTRACT-EXECUTION](../reviews/CONTRACT-EXECUTION.md). Hasil historis itu terikat source digest yang dicatat. Pemeriksaan dokumentasi menemukan perubahan lokal pada use-workspace.ts dan use-resource-query.ts setelah snapshot pengujian sebelumnya; dua file itu dibaca ulang dan tidak ditimpa oleh tugas dokumentasi ini. Hasil fresh checks dan perlindungan source dicatat terpisah di [DOCUMENTATION-SYNC](../reviews/DOCUMENTATION-SYNC.md).
+Fresh closure 26 September 2026 mencatat `npm run verify` PASS exit 0, migration status up to date through 0010, dan browser E2E 21/21 PASS pada working tree di atas HEAD 67c5bf5. Contract tests 31/31, API unit 35/35, tooling/configuration 27/27, PostgreSQL integration 47/47, dan web/BFF 60/60 lulus pada run tersebut. Generated OpenAPI juga match source. Rincian historis dan closure terbaru dicatat di [CONTRACT-EXECUTION](../reviews/CONTRACT-EXECUTION.md).
 
 Belum dibuktikan: live OpenRouter/Anthropic smoke pada workstation ini (credential environment tidak tersedia), deployed Keycloak/Redis, runner multi-machine operational recovery, sandbox/egress agent runtime, polyglot SDK conformance, persistent Broker production rollout, production load/chaos/SLO, pricing/retention approval. SSE gateway/replay lokal sudah diimplementasikan dan diuji; ini belum sama dengan deployment/load proof produksi. Pernyataan marketing di entry page atau schema PLANNED tidak menjadi bukti runtime.

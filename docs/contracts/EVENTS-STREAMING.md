@@ -4,16 +4,16 @@
 
 ## Implementasi saat ini dan batas desain
 
-Belum ada HTTP SSE/token stream route, codec, subscriber queue, Last-Event-ID recovery atau live model delta pipeline. Semua flow replay/retention di bawah adalah target. [Event schema](../../packages/contracts/src/schemas/events.ts) mengenali envelope/type tetapi payload masih record-of-unknown, bukan discriminated payload per event. Keberadaan schema ini tidak membuktikan semantik delta sudah divalidasi.
+M2 sekarang memiliki HTTP SSE execution-event route, bounded provider SSE codec, per-execution replay store, subscriber queue bounds, cursor/Last-Event-ID-style resume semantics, reset/expiry behavior, dan model delta pipeline lokal. OpenRouter `[DONE]` dan Anthropic `message_stop` diperlakukan sebagai terminal markers; EOF tanpa marker menjadi truncated/unknown. Bagian agent/runtime-specific replay, Redis-backed distributed replay, dan cross-node recovery di bawah tetap target M3/P3.5. [Gateway contract](../../packages/contracts/src/http/gateway.ts) dan [current state](../implementation/CURRENT-STATE.md) adalah source implementasi aktif.
 
 Yang aktif adalah [runner v1 messages](../../packages/contracts/src/http/runner.ts) untuk started, result.proposed, dan evidence melalui bounded unary JSON, serta durable outbox entries seperti execution.admitted, budget.updated, execution.cancel-requested dan runner.result-proposed. Ini tidak sama dengan seluruh katalog event target. [Current API](../implementation/HTTP-API.md) mencatat route yang sebenarnya.
 
 ## 1. Dua kelas event
 
-| Class                 | Contoh                                                                                      | Penyimpanan/jaminan                                                          |
-| --------------------- | ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| Durable control/audit | accepted, attempt assigned, started, cancel requested, orphaned, terminal, usage adjustment | PostgreSQL transaction + outbox; at-least-once delivery, idempotent consumer |
-| Live presentation     | model.delta, tool log delta, progress fragment                                              | Redis replay buffer; bounded retention/bytes, tidak menjadi ledger           |
+| Class                 | Contoh                                                                                      | Penyimpanan/jaminan                                                                                      |
+| --------------------- | ------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Durable control/audit | accepted, attempt assigned, started, cancel requested, orphaned, terminal, usage adjustment | PostgreSQL transaction + outbox; at-least-once delivery, idempotent consumer                             |
+| Live presentation     | model.delta, usage.updated, execution terminal/reset events                                 | M2 local: bounded in-process replay store; Redis/distributed replay remains target, tidak menjadi ledger |
 
 Tool invocation intent/outcome yang berpengaruh pada retry/safety WAJIB durable. Bukan berarti setiap baris stdout/log tool durable. Sensitive raw output disaring sebelum log/event publik; stream data mengikuti authorization execution.
 

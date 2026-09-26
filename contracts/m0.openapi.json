@@ -33,7 +33,9 @@
           "automaticRetry": "never",
           "ambiguousMutation": "unknown-until-reconciled"
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "security": [],
         "parameters": [],
         "responses": {
@@ -60,11 +62,11 @@
                     },
                     "milestone": {
                       "type": "string",
-                      "const": "M0"
+                      "const": "M2"
                     },
                     "mode": {
                       "type": "string",
-                      "const": "contract-only"
+                      "const": "local-runtime"
                     }
                   },
                   "required": [
@@ -1199,7 +1201,9 @@
           "automaticRetry": "never",
           "ambiguousMutation": "unknown-until-reconciled"
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "security": [
           {
             "PlatformBearer": []
@@ -2399,7 +2403,9 @@
           "automaticRetry": "never",
           "ambiguousMutation": "unknown-until-reconciled"
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "security": [
           {
             "PlatformBearer": []
@@ -3731,7 +3737,9 @@
           "automaticRetry": "never",
           "ambiguousMutation": "unknown-until-reconciled"
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "deprecated": true,
         "x-replacement": "/api/m0/catalogue",
         "security": [
@@ -5016,7 +5024,9 @@
           "automaticRetry": "never",
           "ambiguousMutation": "unknown-until-reconciled"
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "deprecated": true,
         "x-replacement": "/api/m0/catalogue",
         "security": [
@@ -6211,7 +6221,9 @@
           "automaticRetry": "never",
           "ambiguousMutation": "unknown-until-reconciled"
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "deprecated": true,
         "x-replacement": "/api/m0/catalogue",
         "security": [
@@ -7381,7 +7393,9 @@
           "automaticRetry": "never",
           "ambiguousMutation": "unknown-until-reconciled"
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "security": [
           {
             "PlatformBearer": []
@@ -8575,7 +8589,9 @@
             "conflictStatus": 409
           }
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "security": [
           {
             "PlatformBearer": []
@@ -10279,7 +10295,9 @@
           "automaticRetry": "never",
           "ambiguousMutation": "unknown-until-reconciled"
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "security": [
           {
             "PlatformBearer": []
@@ -11699,7 +11717,9 @@
           "automaticRetry": "never",
           "ambiguousMutation": "unknown-until-reconciled"
         },
-        "x-consumer-unknown-fields": "ignore-object-properties; validate-known-fields",
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
         "security": [
           {
             "PlatformBearer": []

@@ -1,16 +1,16 @@
 # Documentation Index
 
-**Baseline 0.2 + extensions through ADR-0029.** Entry point: [README](../README.md). M0/M1 plus resource/receipt/runner-authority extensions are implemented locally; live AI execution remains planned. [ADR](adr/README.md) retains decisions and their historical context.
+**Baseline 0.2 + extensions through ADR-0029.** Entry point: [README](../README.md). M0–M2 are locally implemented: Contract Lab, durable control plane/accounting, resource/receipt/runner-authority foundations, and executable direct/aggregator model gateway. M3 agent runtime and production/nonlocal evidence remain planned or blocked. [ADR](adr/README.md) retains decisions and their historical context.
 
 ## Start with the implemented system
 
-| Document                                                     | Purpose                                                                     |
-| ------------------------------------------------------------ | --------------------------------------------------------------------------- |
-| [Current implementation](implementation/CURRENT-STATE.md)    | What source actually implements, and what remains planned                   |
-| [Active HTTP operations](implementation/HTTP-API.md)         | All 46 registered operations, auth, exposure, statuses and replay semantics |
-| [Implemented diagrams](diagrams/10-implemented-contracts.md) | Browser/API, receipt transaction, resource reads and runner fencing         |
-| [Source structure](architecture/CODE-STRUCTURE.md)           | Concrete module and file responsibilities                                   |
-| [Documentation sync evidence](reviews/DOCUMENTATION-SYNC.md) | Full document inventory, corrections and validation scope                   |
+| Document                                                     | Purpose                                                                                |
+| ------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
+| [Current implementation](implementation/CURRENT-STATE.md)    | What source actually implements, and what remains planned                              |
+| [Active HTTP operations](implementation/HTTP-API.md)         | All 53 registered operations and 45 browser pairs, auth, statuses and replay semantics |
+| [Implemented diagrams](diagrams/10-implemented-contracts.md) | Browser/API, receipts, resource reads, runner fencing, and M2 gateway                  |
+| [Source structure](architecture/CODE-STRUCTURE.md)           | Concrete module and file responsibilities                                              |
+| [Documentation sync evidence](reviews/DOCUMENTATION-SYNC.md) | Full document inventory, corrections and validation scope                              |
 
 ## Authority and traceability
 

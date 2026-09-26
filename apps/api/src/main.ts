@@ -9,5 +9,5 @@ application.enableShutdownHooks();
 await application.listen(config.apiPort, config.apiHost);
 
 console.log(
-  `M0 NestJS/Fastify API listening on http://${config.apiHost}:${config.apiPort}`,
+  `AI Runtime Platform API (M0-M2 local complete) listening on http://${config.apiHost}:${config.apiPort}`,
 );

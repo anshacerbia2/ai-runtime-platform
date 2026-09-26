@@ -1,6 +1,6 @@
 # Diagram Catalogue
 
-**Target baseline 0.2 and current implementation views.** D01–D23 retain the target design; I01–I04 show the implemented HTTP/control-plane subset as of 24 September 2026. The architecture overview and fleet view are also target diagrams, not installed topology. Canonical contracts and implementation notes define details omitted by a drawing.
+**Target baseline 0.2 and current implementation views.** D01–D23 retain the wider target design; I01–I05 show the implemented M0–M2 HTTP/control-plane/gateway subset as of 26 September 2026. The architecture overview and fleet view are also target diagrams, not installed topology. Canonical contracts and implementation notes define details omitted by a drawing.
 
 | Diagram | View and flow                                      | Source                                                           |
 | ------- | -------------------------------------------------- | ---------------------------------------------------------------- |
@@ -30,14 +30,15 @@
 
 ## Implemented views
 
-| Diagram | Current source flow                                  | Document                                             |
-| ------- | ---------------------------------------------------- | ---------------------------------------------------- |
-| I01     | Browser/BFF/API/PostgreSQL and machine boundaries    | [Implemented contracts](10-implemented-contracts.md) |
-| I02     | Atomic management receipt and acknowledgement replay | [Implemented contracts](10-implemented-contracts.md) |
-| I03     | Independent bounded resource queries                 | [Implemented contracts](10-implemented-contracts.md) |
-| I04     | Durable runner fencing and quarantined late evidence | [Implemented contracts](10-implemented-contracts.md) |
+| Diagram | Current source flow                                    | Document                                             |
+| ------- | ------------------------------------------------------ | ---------------------------------------------------- |
+| I01     | Browser/BFF/API/PostgreSQL and machine boundaries      | [Implemented contracts](10-implemented-contracts.md) |
+| I02     | Atomic management receipt and acknowledgement replay   | [Implemented contracts](10-implemented-contracts.md) |
+| I03     | Independent bounded resource queries                   | [Implemented contracts](10-implemented-contracts.md) |
+| I04     | Durable runner fencing and quarantined late evidence   | [Implemented contracts](10-implemented-contracts.md) |
+| I05     | M2 gateway, safe fallback, SSE, and durable accounting | [Implemented contracts](10-implemented-contracts.md) |
 
-Start with I01–I04 for what exists today, then D01–D23 for the wider planned execution platform. [Current state](../implementation/CURRENT-STATE.md) separates the two.
+Start with I01–I05 for what exists today, then D01–D23 for the wider planned execution platform. [Current state](../implementation/CURRENT-STATE.md) separates the two.
 
 ## Reading paths
 

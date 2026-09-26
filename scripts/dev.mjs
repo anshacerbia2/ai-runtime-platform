@@ -78,7 +78,7 @@ async function waitForApi(host, port, child) {
         signal: AbortSignal.timeout(config.dev.apiProbeTimeoutMs),
       });
       const body = await response.json();
-      if (response.ok && body.milestone === 'M0' && body.status === 'ok') {
+      if (response.ok && body.milestone === 'M2' && body.status === 'ok') {
         return;
       }
     } catch {
@@ -105,7 +105,7 @@ try {
   await waitForApi(config.apiHost, config.apiPort, api);
   startChild([join(root, 'scripts/web.mjs'), 'dev']);
   console.log(
-    `M0 UI: http://${config.webHost}:${config.webPort} | Nest/Fastify API: ${config.apiHost}:${config.apiPort} | no live providers`,
+    `AI Runtime Platform M0-M2 local: http://${config.webHost}:${config.webPort} | Nest/Fastify API: ${config.apiHost}:${config.apiPort} | provider gateway implemented; authorized live vendor smoke not implied`,
   );
   console.log(
     'Frontend: Next.js App Router + BFF. Backend/shared-contract changes: restart npm run dev.',

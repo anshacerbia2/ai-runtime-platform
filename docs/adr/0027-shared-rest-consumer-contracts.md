@@ -4,11 +4,11 @@
 
 ## Implementation reconciliation — 24 September 2026
 
-Shared contracts now compose resources and runner authority as well as M0/M1. Current Pact coverage is eleven interactions per boundary; frozen baselines keep the original nine. It is not exhaustive CDC for every operation. See [current source state](../implementation/CURRENT-STATE.md), [active HTTP operations](../implementation/HTTP-API.md), and [verification scope](../reviews/CONTRACT-EXECUTION.md). This note updates implementation status only; it does not create new reviewer approval or erase the original decision history.
+Shared contracts now compose M0/M1, resource and runner authority, plus the active M2 gateway/SSE surface. Current Pact coverage is eleven interactions per boundary; frozen baselines keep the original nine. It is not exhaustive CDC for every operation. See [current source state](../implementation/CURRENT-STATE.md), [active HTTP operations](../implementation/HTTP-API.md), and [verification scope](../reviews/CONTRACT-EXECUTION.md). This note updates implementation status only; it does not create new reviewer approval or erase the original decision history.
 
 ## Decision
 
-The implemented M0/M1 REST surface has one source of truth in `packages/contracts/src/http`: method, path, parameters, query, request headers/body, success responses, and normalized error responses. Zod supplies runtime validation and inferred TypeScript input/output types. Clients use direct inference, not periodically regenerated DTOs.
+The implemented M0–M2 HTTP surface has one source of truth in `packages/contracts/src/http`: method, path, parameters, query, request headers/body, success responses, streaming metadata, and normalized error responses. Zod supplies runtime validation and inferred TypeScript input/output types. Clients use direct inference, not periodically regenerated DTOs.
 
 The framework adapter uses `@ts-rest/core` with pinned version `3.53.0-rc.1`. This release supports the existing Zod 4 schemas. The stable 3.52 adapter line requires Zod 3, and the published Nest adapter peers do not include this repository's Nest 12. We retain a small, tested Nest HTTP decorator/interceptor binding instead of forcing incompatible peers, downgrading schemas, or replacing the domain framework. The release-candidate dependency is an explicit upgrade risk; reevaluate it when compatible stable releases are available.
 

@@ -5,7 +5,7 @@ import { SignInSchematic } from '../../features/auth/sign-in-schematic';
 export const dynamic = 'force-dynamic';
 
 const capabilities = [
-  'Direct chat, structured inference, and agent execution',
+  'Direct chat and structured inference now; agent runtime is the next milestone',
   'Application-scoped routing, policy, and budget',
   'Durable state with auditable accounting',
 ];
@@ -60,7 +60,8 @@ export default async function EntryPage({
                 Open local console
               </Link>
               <p className="signin-note">
-                Local development · no production identity or provider calls.
+                Local M0-M2 · provider gateway implemented; no production
+                identity or authorized live vendor smoke.
               </p>
             </>
           ) : (

@@ -72,8 +72,8 @@ export const apiContract = c.router(
       responses: {
         200: z.object({
           status: z.literal('ok'),
-          milestone: z.literal('M0'),
-          mode: z.literal('contract-only'),
+          milestone: z.literal('M2'),
+          mode: z.literal('local-runtime'),
         }),
       },
     },

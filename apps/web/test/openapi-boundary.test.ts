@@ -46,6 +46,10 @@ test('exported response readers permit additive properties while retaining requi
   assert.notEqual(schema.additionalProperties, false);
   assert.ok(op.responses['200'].headers['X-Request-ID']);
   assert.ok(op.responses['503'].headers['Retry-After']);
+  const raw = doc.paths['/api/m0/health'].get as Record<string, unknown>;
+  assert.equal(raw['x-provider-unknown-fields'], 'project-declared-fields');
+  assert.equal(raw['x-consumer-unknown-fields'], 'ignore-additive-properties');
+  assert.equal(raw['x-response-mutation'], 'forbidden');
 });
 
 test('retired snapshot advertises migration without falsely deprecating the live admission API', () => {

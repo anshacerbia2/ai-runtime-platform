@@ -77,14 +77,14 @@ Runtime harus mengungkap tool/approval/session support dan batas enforcement. Su
 
 Legenda: LOCAL berarti adapter/path tersedia dan lulus local conformance/integration tests; CONDITIONAL berarti support hanya setelah profile/runtime specific proof; DEFERRED bukan fitur MVP. LOCAL bukan production deployment approval.
 
-| Jalur                    | Chat/structured                        | Tools/workspace                                                           | Resume                                | Detailed usage                                  | Status   |
-| ------------------------ | -------------------------------------- | ------------------------------------------------------------------------- | ------------------------------------- | ----------------------------------------------- | -------- |
-| OpenRouter gateway       | LOCAL; chat/generate/structured + SSE  | No autonomous sandbox/tools in M2                                         | Event replay by execution             | Provider-reported usage normalized              | P2 local |
-| Direct Anthropic gateway | LOCAL dual-adapter proof               | No autonomous sandbox/tools in M2                                         | Event replay by execution             | Provider-specific cumulative usage mapping      | P2 local |
-| Claude runtime           | Agent workload                         | CONDITIONAL approved sandbox/tools                                        | CONDITIONAL same runtime/version      | Observed summary atau invocation sesuai adapter | P3       |
-| Codex runtime            | Agent workload                         | CONDITIONAL                                                               | CONDITIONAL                           | Must map/test                                   | P5       |
-| Gemini runtime           | Agent workload                         | CONDITIONAL                                                               | CONDITIONAL                           | Must map/test                                   | P6       |
-| Embedding/rerank/audio   | DEFERRED                               | Tidak dipaksakan menjadi chat                                             | Not assumed                           | Capability-specific units                       | P7       |
+| Jalur                    | Chat/structured                       | Tools/workspace                    | Resume                           | Detailed usage                                  | Status   |
+| ------------------------ | ------------------------------------- | ---------------------------------- | -------------------------------- | ----------------------------------------------- | -------- |
+| OpenRouter gateway       | LOCAL; chat/generate/structured + SSE | No autonomous sandbox/tools in M2  | Event replay by execution        | Provider-reported usage normalized              | P2 local |
+| Direct Anthropic gateway | LOCAL dual-adapter proof              | No autonomous sandbox/tools in M2  | Event replay by execution        | Provider-specific cumulative usage mapping      | P2 local |
+| Claude runtime           | Agent workload                        | CONDITIONAL approved sandbox/tools | CONDITIONAL same runtime/version | Observed summary atau invocation sesuai adapter | P3       |
+| Codex runtime            | Agent workload                        | CONDITIONAL                        | CONDITIONAL                      | Must map/test                                   | P5       |
+| Gemini runtime           | Agent workload                        | CONDITIONAL                        | CONDITIONAL                      | Must map/test                                   | P6       |
+| Embedding/rerank/audio   | DEFERRED                              | Tidak dipaksakan menjadi chat      | Not assumed                      | Capability-specific units                       | P7       |
 
 ## 7. Routing dan fallback
 
