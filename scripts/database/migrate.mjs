@@ -3,9 +3,12 @@ import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import pg from 'pg';
-import { loadEnvironment, projectRoot } from '../../config/environment.mjs';
+import {
+  loadDatabaseEnvironment,
+  projectRoot,
+} from '../../config/environment.mjs';
 
-const config = loadEnvironment();
+const config = loadDatabaseEnvironment();
 const prismaCli = resolve(projectRoot, 'node_modules/prisma/build/index.js');
 
 function prisma(args, capture = false) {

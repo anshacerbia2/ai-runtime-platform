@@ -100,6 +100,7 @@ export const runtimeEnvironmentSchema = z.object({
   M0_RUNTIME_MODE: z.enum(['m0-local', 'm1-oidc'], {
     message: 'M0_RUNTIME_MODE must be m0-local or m1-oidc.',
   }),
+  DEPLOYMENT_ROLE: z.enum(['api-local', 'api-production']).optional(),
   M0_API_HOST: reqStr('M0_API_HOST'),
   M0_API_PORT: intEnv('M0_API_PORT'),
   M0_WEB_HOST: reqStr('M0_WEB_HOST'),
@@ -139,6 +140,7 @@ export const runtimeEnvironmentSchema = z.object({
   M0_TEST_APP_TOKEN: reqStr('M0_TEST_APP_TOKEN'),
   M2_OPENROUTER_API_KEY: optStr(),
   M2_ANTHROPIC_API_KEY: optStr(),
+  OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: optStr(),
   PLAYWRIGHT_BROWSER_NAME: reqStr('PLAYWRIGHT_BROWSER_NAME'),
   PLAYWRIGHT_CHANNEL: reqStr('PLAYWRIGHT_CHANNEL'),
   PLAYWRIGHT_TEST_TIMEOUT_MS: intEnv('PLAYWRIGHT_TEST_TIMEOUT_MS'),
@@ -159,16 +161,100 @@ export const runtimeEnvironmentSchema = z.object({
   M1_OIDC_RUNNER_CLIENT_ID: optStr(),
 });
 
-export function loadEnvironment() {
-  loadDotEnv();
-  const raw = parseWithSchema(runtimeEnvironmentSchema, process.env);
+const apiEnvironmentSchema = runtimeEnvironmentSchema.pick({
+  M0_RUNTIME_MODE: true,
+  DEPLOYMENT_ROLE: true,
+  M0_API_HOST: true,
+  M0_API_PORT: true,
+  M0_ALLOWED_HOSTS: true,
+  M0_ALLOWED_ORIGINS: true,
+  M0_API_BODY_LIMIT_BYTES: true,
+  M0_API_REQUEST_TIMEOUT_MS: true,
+  M0_DB_HOST: true,
+  M0_DB_PORT: true,
+  M0_DB_NAME: true,
+  M0_DB_USER: true,
+  M0_DB_PASSWORD: true,
+  M0_DB_POOL_MAX: true,
+  M0_DB_CONNECTION_TIMEOUT_MS: true,
+  M0_DB_IDLE_TIMEOUT_MS: true,
+  M0_DB_STATEMENT_TIMEOUT_MS: true,
+  M0_DB_APPLICATION_NAME: true,
+  M0_SEED_TX_MAX_WAIT_MS: true,
+  M0_SEED_TX_TIMEOUT_MS: true,
+  M0_APP_ID: true,
+  M0_APP_NAME: true,
+  M0_APP_TOKEN: true,
+  M0_TEST_APP_ID: true,
+  M0_TEST_APP_NAME: true,
+  M0_TEST_APP_TOKEN: true,
+  M2_OPENROUTER_API_KEY: true,
+  M2_ANTHROPIC_API_KEY: true,
+  OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: true,
+  M1_LOCAL_OPERATOR_TOKEN: true,
+  M1_LOCAL_RUNNER_TOKEN: true,
+  M1_PUBLIC_ORIGIN: true,
+  M1_APP_ID: true,
+  M1_OIDC_CLIENT_ID: true,
+  M1_OIDC_CALLBACK_URI: true,
+  M1_OIDC_LOGOUT_URI: true,
+  M1_OIDC_ISSUER: true,
+  M1_OIDC_AUDIENCE: true,
+  M1_OIDC_JWKS_URI: true,
+  M1_OIDC_RUNNER_CLIENT_ID: true,
+});
+
+const devEnvironmentSchema = apiEnvironmentSchema.extend({
+  M0_WEB_HOST: runtimeEnvironmentSchema.shape.M0_WEB_HOST,
+  M0_WEB_PORT: runtimeEnvironmentSchema.shape.M0_WEB_PORT,
+  M0_MANAGE_POSTGRES: runtimeEnvironmentSchema.shape.M0_MANAGE_POSTGRES,
+  PG_BIN: runtimeEnvironmentSchema.shape.PG_BIN,
+  M0_POSTGRES_DATA_DIR: runtimeEnvironmentSchema.shape.M0_POSTGRES_DATA_DIR,
+  M0_POSTGRES_LOG_FILE: runtimeEnvironmentSchema.shape.M0_POSTGRES_LOG_FILE,
+  M0_DEV_API_READY_TIMEOUT_MS:
+    runtimeEnvironmentSchema.shape.M0_DEV_API_READY_TIMEOUT_MS,
+  M0_DEV_API_PROBE_TIMEOUT_MS:
+    runtimeEnvironmentSchema.shape.M0_DEV_API_PROBE_TIMEOUT_MS,
+  M0_DEV_API_POLL_INTERVAL_MS:
+    runtimeEnvironmentSchema.shape.M0_DEV_API_POLL_INTERVAL_MS,
+  M0_DEV_CHILD_STOP_TIMEOUT_MS:
+    runtimeEnvironmentSchema.shape.M0_DEV_CHILD_STOP_TIMEOUT_MS,
+  M0_POSTGRES_START_TIMEOUT_SECONDS:
+    runtimeEnvironmentSchema.shape.M0_POSTGRES_START_TIMEOUT_SECONDS,
+});
+
+const e2eEnvironmentSchema = runtimeEnvironmentSchema.pick({
+  M0_WEB_HOST: true,
+  M0_WEB_PORT: true,
+  PLAYWRIGHT_BROWSER_NAME: true,
+  PLAYWRIGHT_CHANNEL: true,
+  PLAYWRIGHT_TEST_TIMEOUT_MS: true,
+  PLAYWRIGHT_WEB_SERVER_TIMEOUT_MS: true,
+  PLAYWRIGHT_VIEWPORT_WIDTH: true,
+  PLAYWRIGHT_VIEWPORT_HEIGHT: true,
+  PLAYWRIGHT_REUSE_EXISTING_SERVER: true,
+});
+
+const databaseEnvironmentSchema = runtimeEnvironmentSchema.pick({
+  M0_DB_HOST: true,
+  M0_DB_PORT: true,
+  M0_DB_NAME: true,
+  M0_DB_USER: true,
+  M0_DB_PASSWORD: true,
+  M0_DB_CONNECTION_TIMEOUT_MS: true,
+});
+
+function buildApiEnvironment(raw) {
+  const deploymentRole = raw.DEPLOYMENT_ROLE ?? 'api-local';
+  if (raw.M0_RUNTIME_MODE !== 'm0-local' && !raw.DEPLOYMENT_ROLE) {
+    throw new Error('DEPLOYMENT_ROLE must be explicit outside m0-local mode.');
+  }
 
   const config = {
     runtimeMode: raw.M0_RUNTIME_MODE,
+    deploymentRole,
     apiHost: raw.M0_API_HOST,
     apiPort: raw.M0_API_PORT,
-    webHost: raw.M0_WEB_HOST,
-    webPort: raw.M0_WEB_PORT,
     allowedHosts: raw.M0_ALLOWED_HOSTS,
     allowedOrigins: raw.M0_ALLOWED_ORIGINS,
     apiBodyLimitBytes: raw.M0_API_BODY_LIMIT_BYTES,
@@ -179,10 +265,6 @@ export function loadEnvironment() {
       name: raw.M0_DB_NAME,
       user: raw.M0_DB_USER,
       password: raw.M0_DB_PASSWORD,
-      managePostgres: raw.M0_MANAGE_POSTGRES,
-      pgBin: raw.PG_BIN,
-      dataDir: raw.M0_POSTGRES_DATA_DIR,
-      logFile: raw.M0_POSTGRES_LOG_FILE,
       poolMax: raw.M0_DB_POOL_MAX,
       connectionTimeoutMs: raw.M0_DB_CONNECTION_TIMEOUT_MS,
       idleTimeoutMs: raw.M0_DB_IDLE_TIMEOUT_MS,
@@ -191,13 +273,6 @@ export function loadEnvironment() {
     },
     seedTxMaxWaitMs: raw.M0_SEED_TX_MAX_WAIT_MS,
     seedTxTimeoutMs: raw.M0_SEED_TX_TIMEOUT_MS,
-    dev: {
-      apiReadyTimeoutMs: raw.M0_DEV_API_READY_TIMEOUT_MS,
-      apiProbeTimeoutMs: raw.M0_DEV_API_PROBE_TIMEOUT_MS,
-      apiPollIntervalMs: raw.M0_DEV_API_POLL_INTERVAL_MS,
-      childStopTimeoutMs: raw.M0_DEV_CHILD_STOP_TIMEOUT_MS,
-      postgresStartTimeoutSeconds: raw.M0_POSTGRES_START_TIMEOUT_SECONDS,
-    },
     applications: [
       {
         id: raw.M0_APP_ID,
@@ -214,15 +289,9 @@ export function loadEnvironment() {
       openrouterApiKey: raw.M2_OPENROUTER_API_KEY,
       anthropicApiKey: raw.M2_ANTHROPIC_API_KEY,
     },
-    playwright: {
-      browserName: raw.PLAYWRIGHT_BROWSER_NAME,
-      channel: raw.PLAYWRIGHT_CHANNEL,
-      timeoutMs: raw.PLAYWRIGHT_TEST_TIMEOUT_MS,
-      webServerTimeoutMs: raw.PLAYWRIGHT_WEB_SERVER_TIMEOUT_MS,
-      viewportWidth: raw.PLAYWRIGHT_VIEWPORT_WIDTH,
-      viewportHeight: raw.PLAYWRIGHT_VIEWPORT_HEIGHT,
-      reuseExistingServer: raw.PLAYWRIGHT_REUSE_EXISTING_SERVER,
-    },
+    telemetry: Object.freeze({
+      tracesEndpoint: raw.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+    }),
   };
 
   const localOperatorToken = raw.M1_LOCAL_OPERATOR_TOKEN;
@@ -272,7 +341,6 @@ export function loadEnvironment() {
 
   if (config.runtimeMode === 'm0-local') {
     assertLoopback(config.apiHost, 'M0_API_HOST');
-    assertLoopback(config.webHost, 'M0_WEB_HOST');
     assertLoopback(config.database.host, 'M0_DB_HOST');
     if (config.database.name !== 'ai_runtime_m0') {
       throw new Error('M0_DB_NAME must be ai_runtime_m0.');
@@ -289,12 +357,6 @@ export function loadEnvironment() {
     }
   }
 
-  if (config.database.managePostgres && config.database.pgBin === 'UNUSED') {
-    throw new Error(
-      'PG_BIN must point to PostgreSQL binaries when M0_MANAGE_POSTGRES=true.',
-    );
-  }
-
   return Object.freeze({
     ...config,
     localOperatorToken: hosting ? undefined : localOperatorToken,
@@ -303,6 +365,78 @@ export function loadEnvironment() {
     oidc,
     databaseUrl: databaseUrl(config.database),
   });
+}
+
+export function loadApiEnvironment() {
+  loadDotEnv();
+  return buildApiEnvironment(
+    parseWithSchema(apiEnvironmentSchema, process.env),
+  );
+}
+
+export function loadDevEnvironment() {
+  loadDotEnv();
+  const raw = parseWithSchema(devEnvironmentSchema, process.env);
+  const api = buildApiEnvironment(raw);
+  if (raw.M0_RUNTIME_MODE === 'm0-local') {
+    assertLoopback(raw.M0_WEB_HOST, 'M0_WEB_HOST');
+  }
+  if (raw.M0_MANAGE_POSTGRES && raw.PG_BIN === 'UNUSED') {
+    throw new Error(
+      'PG_BIN must point to PostgreSQL binaries when M0_MANAGE_POSTGRES=true.',
+    );
+  }
+  return Object.freeze({
+    ...api,
+    webHost: raw.M0_WEB_HOST,
+    webPort: raw.M0_WEB_PORT,
+    database: Object.freeze({
+      ...api.database,
+      managePostgres: raw.M0_MANAGE_POSTGRES,
+      pgBin: raw.PG_BIN,
+      dataDir: raw.M0_POSTGRES_DATA_DIR,
+      logFile: raw.M0_POSTGRES_LOG_FILE,
+    }),
+    dev: Object.freeze({
+      apiReadyTimeoutMs: raw.M0_DEV_API_READY_TIMEOUT_MS,
+      apiProbeTimeoutMs: raw.M0_DEV_API_PROBE_TIMEOUT_MS,
+      apiPollIntervalMs: raw.M0_DEV_API_POLL_INTERVAL_MS,
+      childStopTimeoutMs: raw.M0_DEV_CHILD_STOP_TIMEOUT_MS,
+      postgresStartTimeoutSeconds: raw.M0_POSTGRES_START_TIMEOUT_SECONDS,
+    }),
+  });
+}
+
+export function loadE2EEnvironment() {
+  loadDotEnv();
+  const raw = parseWithSchema(e2eEnvironmentSchema, process.env);
+  return Object.freeze({
+    webHost: raw.M0_WEB_HOST,
+    webPort: raw.M0_WEB_PORT,
+    playwright: Object.freeze({
+      browserName: raw.PLAYWRIGHT_BROWSER_NAME,
+      channel: raw.PLAYWRIGHT_CHANNEL,
+      timeoutMs: raw.PLAYWRIGHT_TEST_TIMEOUT_MS,
+      webServerTimeoutMs: raw.PLAYWRIGHT_WEB_SERVER_TIMEOUT_MS,
+      viewportWidth: raw.PLAYWRIGHT_VIEWPORT_WIDTH,
+      viewportHeight: raw.PLAYWRIGHT_VIEWPORT_HEIGHT,
+      reuseExistingServer: raw.PLAYWRIGHT_REUSE_EXISTING_SERVER,
+    }),
+  });
+}
+
+export function loadDatabaseEnvironment() {
+  loadDotEnv();
+  const raw = parseWithSchema(databaseEnvironmentSchema, process.env);
+  const database = Object.freeze({
+    host: raw.M0_DB_HOST,
+    port: raw.M0_DB_PORT,
+    name: raw.M0_DB_NAME,
+    user: raw.M0_DB_USER,
+    password: raw.M0_DB_PASSWORD,
+    connectionTimeoutMs: raw.M0_DB_CONNECTION_TIMEOUT_MS,
+  });
+  return Object.freeze({ database, databaseUrl: databaseUrl(database) });
 }
 
 export const projectRoot = root;
@@ -321,6 +455,7 @@ const webCommonSchema = z.object({
   M0_API_BODY_LIMIT_BYTES: intEnv('M0_API_BODY_LIMIT_BYTES'),
   WEB_RESPONSE_LIMIT_BYTES: intEnv('WEB_RESPONSE_LIMIT_BYTES'),
   WEB_DOCS_ROOT: reqStr('WEB_DOCS_ROOT'),
+  OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: optStr(),
 });
 
 const webLocalSchema = z.object({
@@ -377,6 +512,9 @@ export function loadWebEnvironment() {
     bodyLimitBytes,
     responseLimitBytes,
     docsRoot,
+    telemetry: Object.freeze({
+      tracesEndpoint: commonRaw.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+    }),
   };
 
   if (local) {

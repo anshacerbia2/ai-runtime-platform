@@ -8,6 +8,7 @@ import {
 import type { FastifyInstance } from 'fastify';
 import { AppModule } from './app.module.js';
 import { registerLocalRequestPolicy } from './infrastructure/http/local-request-policy.js';
+import { registerHttpTelemetry } from './infrastructure/telemetry/http-telemetry.js';
 import type { RuntimeConfig } from './infrastructure/config/environment-config.js';
 
 export async function createApplication(
@@ -29,6 +30,7 @@ export async function createApplication(
         }
       : false,
   });
+  registerHttpTelemetry(adapter.getInstance() as FastifyInstance, config);
   registerLocalRequestPolicy(adapter.getInstance() as FastifyInstance, config);
   const application = await NestFactory.create<NestFastifyApplication>(
     AppModule.register(config),

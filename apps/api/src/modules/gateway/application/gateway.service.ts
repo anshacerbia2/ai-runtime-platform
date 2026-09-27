@@ -21,6 +21,10 @@ import { ProviderError } from './provider-adapter.port.js';
 import type { ReplayStore } from './replay-store.port.js';
 import type { RequestFingerprint } from './request-fingerprint.port.js';
 import type { StructuredOutputValidator } from './structured-output.port.js';
+import {
+  noopGatewayTelemetry,
+  type GatewayTelemetry,
+} from './gateway-telemetry.port.js';
 
 export interface GatewayCommand {
   profile: string;
@@ -56,6 +60,7 @@ export class GatewayService {
     private readonly replay: ReplayStore,
     private readonly fingerprint: RequestFingerprint,
     private readonly structured: StructuredOutputValidator,
+    private readonly telemetry: GatewayTelemetry = noopGatewayTelemetry,
   ) {}
 
   async execute(
@@ -94,17 +99,27 @@ export class GatewayService {
       input: command.fingerprintInput,
       constraints: command.constraints ?? null,
     });
-    const admission = await this.control.admit(
-      principal,
-      command.profile,
-      inputDigest,
-      idempotencyKey,
+    const admissionTrace = await this.telemetry.admission(
+      {
+        capability: command.capability,
+        streaming: command.stream,
+      },
+      async () => {
+        const admission = await this.control.admit(
+          principal,
+          command.profile,
+          inputDigest,
+          idempotencyKey,
+        );
+        return this.repository.claim(
+          applicationId,
+          admission.execution.id,
+          inputDigest,
+        );
+      },
     );
-    const claimed = await this.repository.claim(
-      applicationId,
-      admission.execution.id,
-      inputDigest,
-    );
+    const claimed = admissionTrace.value;
+    const admissionLink = admissionTrace.link;
     if (claimed.state === 'terminal') {
       if (claimed.errorCode) {
         throw storedFailure(claimed.errorCode, claimed.execution.executionId);
@@ -184,6 +199,7 @@ export class GatewayService {
     let bytes = 0;
     let providerStarted = false;
     let providerCompleted = false;
+    let fallback = false;
 
     const publish = async (
       type: GatewayStreamEvent['type'],
@@ -234,37 +250,49 @@ export class GatewayService {
           timeoutMs,
         };
         try {
-          for await (const event of selected.stream(request, signal)) {
-            if (event.type === 'started') {
-              providerStarted = true;
-              requestId = event.requestId ?? requestId;
-            } else if (event.type === 'delta') {
-              const chunkBytes = new TextEncoder().encode(
-                event.text,
-              ).byteLength;
-              bytes += chunkBytes;
-              if (bytes > 2_097_152) {
-                throw new ApplicationError(
-                  'RESOURCE_EXHAUSTED',
-                  'Provider output exceeds the bounded result envelope.',
-                  claim.executionId,
-                );
+          await this.telemetry.provider(
+            {
+              executionId: claim.executionId,
+              capability: command.capability,
+              provider: claim.provider,
+              model: claim.model,
+              fallback,
+            },
+            admissionLink,
+            async () => {
+              for await (const event of selected.stream(request, signal)) {
+                if (event.type === 'started') {
+                  providerStarted = true;
+                  requestId = event.requestId ?? requestId;
+                } else if (event.type === 'delta') {
+                  const chunkBytes = new TextEncoder().encode(
+                    event.text,
+                  ).byteLength;
+                  bytes += chunkBytes;
+                  if (bytes > 2_097_152) {
+                    throw new ApplicationError(
+                      'RESOURCE_EXHAUSTED',
+                      'Provider output exceeds the bounded result envelope.',
+                      claim.executionId,
+                    );
+                  }
+                  text += event.text;
+                  await publish('model.delta', { text: event.text });
+                } else if (event.type === 'usage') {
+                  inputTokens = event.inputTokens ?? inputTokens;
+                  outputTokens = event.outputTokens ?? outputTokens;
+                  await publish('usage.updated', {
+                    input_tokens: inputTokens,
+                    output_tokens: outputTokens,
+                  });
+                } else {
+                  providerCompleted = true;
+                  requestId = event.requestId ?? requestId;
+                  finishReason = event.finishReason;
+                }
               }
-              text += event.text;
-              await publish('model.delta', { text: event.text });
-            } else if (event.type === 'usage') {
-              inputTokens = event.inputTokens ?? inputTokens;
-              outputTokens = event.outputTokens ?? outputTokens;
-              await publish('usage.updated', {
-                input_tokens: inputTokens,
-                output_tokens: outputTokens,
-              });
-            } else {
-              providerCompleted = true;
-              requestId = event.requestId ?? requestId;
-              finishReason = event.finishReason;
-            }
-          }
+            },
+          );
           break;
         } catch (cause) {
           const safeFallback =
@@ -281,6 +309,7 @@ export class GatewayService {
             throw cause;
           }
           claim = await this.repository.beginFallback(claim, cause.code);
+          fallback = true;
           this.active.set(claim.executionId, { controller, claim });
           adapter = this.providers.find((item) => item.id === claim.provider);
           if (!adapter || this.circuitOpen(claim.provider, claim.model)) {

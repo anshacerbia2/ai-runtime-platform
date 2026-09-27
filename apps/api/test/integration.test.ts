@@ -350,6 +350,29 @@ test('public liveness does not require application credentials', async () => {
   assert.equal(response.json().mode, 'local-runtime');
 });
 
+test('api-production composition keeps core liveness and does not register Contract Lab routes', async () => {
+  const production = await createApplication({
+    ...config,
+    deploymentRole: 'api-production',
+  });
+  try {
+    const live = await production.inject({
+      url: '/health/live',
+      headers: { host: config.apiHost },
+    });
+    assert.equal(live.statusCode, 200);
+    assert.equal(live.json().milestone, 'M2');
+
+    const lab = await production.inject({
+      url: '/api/m0/health',
+      headers,
+    });
+    assert.equal(lab.statusCode, 404);
+  } finally {
+    await production.close();
+  }
+});
+
 for (const constraint of ['kind', 'idempotency-key-length'] as const) {
   test(`legacy PostgreSQL CHECK remains enforced: ${constraint}`, async () => {
     const idempotencyKey =

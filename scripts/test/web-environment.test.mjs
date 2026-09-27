@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  loadEnvironment,
+  loadApiEnvironment,
   loadWebEnvironment,
 } from '../../config/environment.mjs';
 import { hostingContract } from '../../config/hosting.mjs';
@@ -46,12 +46,13 @@ test('standalone origin/callback/cookie policy retires proxy authority and denie
   );
 });
 test('API configuration does not require confidential web secrets; BFF fails closed without them', () => {
-  loadEnvironment();
+  loadApiEnvironment();
   const env = process.env;
   const prior = { ...env };
   try {
     Object.assign(env, {
       M0_RUNTIME_MODE: 'm1-oidc',
+      DEPLOYMENT_ROLE: 'api-production',
       M1_PUBLIC_ORIGIN: 'https://runtime.invalid',
       M1_APP_ID: 'runtime',
       M1_OIDC_CLIENT_ID: 'runtime-app',
@@ -64,7 +65,7 @@ test('API configuration does not require confidential web secrets; BFF fails clo
       M1_OIDC_CLIENT_SECRET: '',
       M1_SESSION_SECRET: '',
     });
-    const api = loadEnvironment();
+    const api = loadApiEnvironment();
     assert.equal(api.oidc.operatorClientId, 'runtime-app');
     assert.equal('clientSecret' in api.hosting, false);
     assert.throws(() => loadWebEnvironment(), /M1_SESSION_SECRET/);

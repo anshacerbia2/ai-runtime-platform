@@ -1,6 +1,6 @@
 # Configuration — Single Environment Gate
 
-M0/M1, resource APIs dan BFF mempunyai satu configuration authority: **environment variables**. Local development biasanya memuatnya dari root `.env`; CI memasok variable yang sama melalui job environment. Semua consumer memakai `config/environment.mjs`. Untuk landasan teoritis, taksonomi tingkat maturitas, dan roadmap evolusi konfigurasi dari primitif hingga beyond FAANG, lihat [docs/architecture/ENV-MATURITY-MODEL.md](../architecture/ENV-MATURITY-MODEL.md).
+M0–M2 mempunyai satu configuration authority: **environment variables**, tetapi bukan satu schema monolitik per process. Local development biasanya memuat nilai dari root `.env`; CI/deployment memasok environment masing-masing. Semua consumer memakai `config/environment.mjs` melalui projection least-privilege: API, web, dev tooling, E2E, database tooling, Pact, dan session tests hanya memvalidasi subset yang mereka perlukan. Untuk landasan teoritis, taksonomi tingkat maturitas, dan roadmap evolusi konfigurasi dari primitif hingga beyond FAANG, lihat [docs/architecture/ENV-MATURITY-MODEL.md](../architecture/ENV-MATURITY-MODEL.md).
 
 Runtime/tooling tidak membaca `.local/config.json`, tidak mencari PostgreSQL binary otomatis, dan tidak mempunyai silent fallback untuk variable wajib. Missing, blank, atau invalid variable membuat startup/tool command gagal sebelum melakukan pekerjaan.
 
@@ -16,15 +16,17 @@ npm run setup
 
 ## Core HTTP
 
-| Variable                     | Meaning                                                                                |
-| ---------------------------- | -------------------------------------------------------------------------------------- |
-| `M0_RUNTIME_MODE`            | `m0-local` for local lab/tests; `m1-oidc` for nonlocal platform-owned OIDC/BFF hosting |
-| `M0_API_HOST`, `M0_API_PORT` | API bind address                                                                       |
-| `M0_WEB_HOST`, `M0_WEB_PORT` | Web tier (Next.js) bind address                                                        |
-| `M0_ALLOWED_HOSTS`           | Explicit comma-separated host allow-list                                               |
-| `M0_ALLOWED_ORIGINS`         | Explicit comma-separated origin allow-list                                             |
-| `M0_API_BODY_LIMIT_BYTES`    | Fastify body cap                                                                       |
-| `M0_API_REQUEST_TIMEOUT_MS`  | Fastify timeout and BFF local wait bound, not provider/execution cancellation          |
+| Variable                             | Meaning                                                                                                |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------ |
+| `M0_RUNTIME_MODE`                    | `m0-local` for local lab/tests; `m1-oidc` for nonlocal platform-owned OIDC/BFF hosting                 |
+| `DEPLOYMENT_ROLE`                    | API composition: `api-local` or `api-production`; explicit outside local mode                          |
+| `M0_API_HOST`, `M0_API_PORT`         | API bind address                                                                                       |
+| `M0_WEB_HOST`, `M0_WEB_PORT`         | Web tier (Next.js) bind address                                                                        |
+| `M0_ALLOWED_HOSTS`                   | Explicit comma-separated host allow-list                                                               |
+| `M0_ALLOWED_ORIGINS`                 | Explicit comma-separated origin allow-list                                                             |
+| `M0_API_BODY_LIMIT_BYTES`            | Fastify body cap                                                                                       |
+| `M0_API_REQUEST_TIMEOUT_MS`          | Fastify timeout and BFF local wait bound, not provider/execution cancellation                          |
+| `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | Optional exact HTTP(S) OTLP trace endpoint; empty keeps W3C propagation active without exporting spans |
 
 ## PostgreSQL and Prisma
 
@@ -123,11 +125,11 @@ Optional M1_OIDC_RUNNER_CLIENT_ID maps nonlocal runner identity in the API proje
 5. Static protocol/domain constants are code/contracts, not environment configuration.
 6. Secrets remain Git-ignored and must never be logged or returned to the browser.
 
-Production M1+ may replace local secret material with Keycloak/Vault/workload identity, but the rule remains: one validated configuration boundary per deployable, fail closed on missing required configuration.
+`DEPLOYMENT_ROLE` controls API composition, not authorization. Local development defaults to `api-local`; nonlocal/OIDC startup requires an explicit role. `api-production` registers `CoreHealthModule`, control plane, gateway, and identity but does not register `ContractLabModule`, so `/api/m0/*` is absent rather than runtime-disabled. Production M1+ may replace local secret material with Keycloak/Vault/workload identity, but the rule remains: one validated configuration boundary per deployable, fail closed on missing required configuration.
 
 ## Implemented Next.js/BFF projection
 
-`loadWebEnvironment()` reads the web deployment projection from this same module. It does not require PostgreSQL credentials. The API's `loadEnvironment()` does not require the confidential client secret, session encryption key, or session Redis credentials. Keep process environments least-privileged in deployment.
+`loadWebEnvironment()` does not require PostgreSQL credentials. `loadApiEnvironment()` does not require `PLAYWRIGHT_*`, web viewport/test settings, PostgreSQL bootstrap binaries, or confidential BFF session secrets. `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` is optional in API/Web projections; when omitted, W3C context propagation remains active but no exporter/background delivery is configured. The baseline passes an explicit empty exporter-header map and does not read arbitrary OTLP auth headers from application code; collector authentication/secret delivery remains a production integration decision. `loadE2EEnvironment()` owns browser/test settings; `loadDevEnvironment()` owns local process/PostgreSQL bootstrap settings; `loadDatabaseEnvironment()` owns the minimal Prisma/migration connection projection. Keep actual process environments least-privileged in deployment.
 
 | Variable                              | Required in                     | Meaning                                                                                        |
 | ------------------------------------- | ------------------------------- | ---------------------------------------------------------------------------------------------- |

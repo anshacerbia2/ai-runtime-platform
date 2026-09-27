@@ -5,6 +5,7 @@ import {
   type ProviderRequest,
 } from '../application/provider-adapter.port.js';
 import { readSse } from './provider-sse.js';
+import { injectActiveTraceHeaders } from '../../../infrastructure/telemetry/telemetry.js';
 
 const defaultEndpoint = 'https://api.anthropic.com/v1/messages';
 
@@ -44,16 +45,18 @@ export class AnthropicAdapter implements ProviderAdapter {
         role: message.role,
         content: message.text,
       }));
+    const headers = new Headers({
+      'x-api-key': this.apiKey,
+      'anthropic-version': '2023-06-01',
+      'Content-Type': 'application/json',
+      Accept: 'text/event-stream',
+    });
+    injectActiveTraceHeaders(headers);
     let response: Response;
     try {
       response = await this.transport(this.endpoint, {
         method: 'POST',
-        headers: {
-          'x-api-key': this.apiKey,
-          'anthropic-version': '2023-06-01',
-          'Content-Type': 'application/json',
-          Accept: 'text/event-stream',
-        },
+        headers,
         body: JSON.stringify({
           model: request.model,
           max_tokens: request.maxOutputTokens,

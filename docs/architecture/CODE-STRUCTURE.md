@@ -7,7 +7,7 @@
 ```text
 .env.example                   # exhaustive local/CI config contract; no secrets
 config/
-  environment.mjs             # single validated environment read boundary
+  environment.mjs             # single read boundary with API/Web/Dev/E2E/DB projections
   environment.d.mts           # typed shape for TypeScript consumers
 apps/
   api/src/
@@ -143,4 +143,4 @@ CI workflow menjalankan gate yang sama pada database disposable ketika perubahan
 
 ## Operating limits yang belum menjadi implementasi produksi
 
-M1 kini mengimplementasikan OIDC/JWKS verifier boundary, application-scoped budgets/admission/accounting, and durable runner registry plus manual assignment/fencing/evidence intake secara lokal. Live ATI Keycloak/ATI One flow, Redis runner hot state/placement, distributed executions, SSE replay, sandbox, dan live provider adapters tetap deployment/fase berikutnya. M0 local mode tetap mengikat loopback. Pilihan stack tetap tidak menghapus gate keamanan, data policy, credential rotation, patching, deployment/restore, load testing, atau per-app acceptance.
+M1 mengimplementasikan OIDC/JWKS verifier boundary, application-scoped budgets/admission/accounting, dan durable runner registry plus manual assignment/fencing/evidence intake secara lokal. M2 juga sudah memiliki local provider gateway + bounded SSE/replay. Live ATI Keycloak deployment, distributed replay/multi-replica execution, Redis runner hot state/placement, sandbox/agent runtime, dan authorized live-provider smoke tetap deployment/fase berikutnya. M0 local mode tetap mengikat loopback. Pilihan stack tetap tidak menghapus gate keamanan, data policy, credential rotation, patching, deployment/restore, load testing, atau per-app acceptance.

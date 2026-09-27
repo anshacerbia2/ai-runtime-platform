@@ -2,17 +2,21 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { resolve, relative } from 'node:path';
-import { loadEnvironment } from '../../config/environment.mjs';
+import {
+  loadApiEnvironment,
+  loadDevEnvironment,
+  loadE2EEnvironment,
+} from '../../config/environment.mjs';
 
 const root = resolve(import.meta.dirname, '../..');
 
 test('required environment values fail closed instead of falling back', () => {
-  loadEnvironment();
+  loadApiEnvironment();
   const prior = process.env.M0_API_PORT;
   process.env.M0_API_PORT = '';
   try {
     assert.throws(
-      () => loadEnvironment(),
+      () => loadApiEnvironment(),
       /Missing required environment variable: M0_API_PORT/,
     );
   } finally {
@@ -24,11 +28,70 @@ test('boolean environment values require explicit true or false', () => {
   const prior = process.env.M0_MANAGE_POSTGRES;
   process.env.M0_MANAGE_POSTGRES = 'yes';
   try {
-    assert.throws(() => loadEnvironment(), /must be exactly true or false/);
+    assert.throws(() => loadDevEnvironment(), /must be exactly true or false/);
   } finally {
     process.env.M0_MANAGE_POSTGRES = prior;
   }
 });
+
+test('nonlocal API requires an explicit deployment role', () => {
+  const priorMode = process.env.M0_RUNTIME_MODE;
+  const priorRole = process.env.DEPLOYMENT_ROLE;
+  try {
+    process.env.M0_RUNTIME_MODE = 'm1-oidc';
+    delete process.env.DEPLOYMENT_ROLE;
+    assert.throws(
+      () => loadApiEnvironment(),
+      /DEPLOYMENT_ROLE must be explicit outside m0-local mode/,
+    );
+  } finally {
+    if (priorMode === undefined) {
+      delete process.env.M0_RUNTIME_MODE;
+    } else {
+      process.env.M0_RUNTIME_MODE = priorMode;
+    }
+    if (priorRole === undefined) {
+      delete process.env.DEPLOYMENT_ROLE;
+    } else {
+      process.env.DEPLOYMENT_ROLE = priorRole;
+    }
+  }
+});
+
+test('API and dev startup do not depend on Playwright configuration', () => {
+  const keys = [
+    'PLAYWRIGHT_BROWSER_NAME',
+    'PLAYWRIGHT_CHANNEL',
+    'PLAYWRIGHT_TEST_TIMEOUT_MS',
+    'PLAYWRIGHT_WEB_SERVER_TIMEOUT_MS',
+    'PLAYWRIGHT_VIEWPORT_WIDTH',
+    'PLAYWRIGHT_VIEWPORT_HEIGHT',
+    'PLAYWRIGHT_REUSE_EXISTING_SERVER',
+  ];
+  const prior = new Map(keys.map((key) => [key, process.env[key]]));
+  try {
+    for (const key of keys) {
+      delete process.env[key];
+    }
+    const api = loadApiEnvironment();
+    const dev = loadDevEnvironment();
+    assert.equal('playwright' in api, false);
+    assert.equal('playwright' in dev, false);
+    assert.throws(
+      () => loadE2EEnvironment(),
+      /Missing required environment variable: PLAYWRIGHT_BROWSER_NAME/,
+    );
+  } finally {
+    for (const [key, value] of prior) {
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
+    }
+  }
+});
+
 test('source code has one environment read boundary and no legacy local config', () => {
   const violations = [];
   const roots = ['apps', 'scripts'];
@@ -54,6 +117,11 @@ test('source code has one environment read boundary and no legacy local config',
         }
         if (/process\.env\.[A-Z_]/.test(text)) {
           violations.push(`${relative(root, path)} reads process.env directly`);
+        }
+        if (/\bloadEnvironment\s*\(/.test(text)) {
+          violations.push(
+            `${relative(root, path)} uses retired monolithic environment loader`,
+          );
         }
       }
     }

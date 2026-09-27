@@ -3,6 +3,12 @@ import test from 'node:test';
 import { AnthropicAdapter } from '../../src/modules/gateway/infrastructure/anthropic.adapter.js';
 import { OpenRouterAdapter } from '../../src/modules/gateway/infrastructure/openrouter.adapter.js';
 import { ProviderError } from '../../src/modules/gateway/application/provider-adapter.port.js';
+import {
+  apiTracer,
+  context,
+  initializeApiTelemetry,
+  trace,
+} from '../../src/infrastructure/telemetry/telemetry.js';
 
 const request = {
   capability: 'chat' as const,
@@ -65,6 +71,48 @@ test('OpenRouter adapter maps bounded SSE text and usage', async () => {
     { type: 'done', requestId: 'or-1', finishReason: 'stop' },
   ]);
 });
+test('provider adapter propagates active W3C trace context without exposing credential material', async () => {
+  initializeApiTelemetry();
+  const parent = apiTracer().startSpan('test.provider-parent');
+  const active = trace.setSpan(context.active(), parent);
+  let traceparent: string | null = null;
+  let authorization: string | null = null;
+
+  const adapter = new OpenRouterAdapter(
+    'secret',
+    async (_url, init) => {
+      const headers = new Headers(init?.headers);
+      traceparent = headers.get('traceparent');
+      authorization = headers.get('authorization');
+      return sseResponse(
+        'data: {"id":"or-trace","choices":[{"delta":{"content":"ok"},"finish_reason":"stop"}]}\n\n' +
+          'data: [DONE]\n\n',
+      );
+    },
+    'http://provider.test/openrouter',
+  );
+
+  try {
+    await context.with(active, async () => {
+      for await (const _event of adapter.stream(
+        request,
+        new AbortController().signal,
+      )) {
+        // Drain provider stream.
+      }
+    });
+  } finally {
+    parent.end();
+  }
+
+  assert.ok(traceparent);
+  const propagated = traceparent as unknown as string;
+  const parts = propagated.split('-');
+  assert.equal(parts[1], parent.spanContext().traceId);
+  assert.equal(parts[2], parent.spanContext().spanId);
+  assert.equal(authorization, 'Bearer secret');
+});
+
 test('OpenRouter refuses a credential reference owned by another binding', async () => {
   const adapter = new OpenRouterAdapter('secret', async () => {
     throw new Error('transport must not be called');

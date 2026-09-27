@@ -20,7 +20,7 @@ The browser entry at `/` is intentionally no longer Contract Lab. Direct bookmar
 ## Nonlocal deployment
 
 1. Provision an environment-specific confidential Keycloak client and a protected Redis session store. Do not reuse a production client secret for local development.
-2. Configure the root environment contract for each process. The web process calls `loadWebEnvironment()`; the API uses `loadEnvironment()`. These are projections of the same env gate, not separate configuration stores.
+2. Configure the environment contract for each process. The web process calls `loadWebEnvironment()`; the API calls `loadApiEnvironment()`. Development orchestration and Playwright use separate `loadDevEnvironment()` and `loadE2EEnvironment()` projections. They share one validated boundary module, not one monolithic required-variable set. Nonlocal API deployment must set `DEPLOYMENT_ROLE`; `api-production` excludes Contract Lab routes entirely.
 3. Build, then run the web and API as separately supervised Node processes. Only the web origin is browser-facing. Keep the API reachable from the BFF over a trusted private network or authenticated TLS path.
 
 ```powershell

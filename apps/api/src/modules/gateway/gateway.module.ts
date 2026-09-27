@@ -30,6 +30,10 @@ import {
   type StructuredOutputValidator,
 } from './application/structured-output.port.js';
 import type { ProviderAdapter } from './application/provider-adapter.port.js';
+import {
+  GATEWAY_TELEMETRY,
+  type GatewayTelemetry,
+} from './application/gateway-telemetry.port.js';
 import { GatewayService } from './application/gateway.service.js';
 import { PrismaGatewayRepository } from './infrastructure/prisma-gateway.repository.js';
 import { ControlPlaneGatewayAdapter } from './infrastructure/control-plane-gateway.adapter.js';
@@ -38,6 +42,7 @@ import { Sha256RequestFingerprint } from './infrastructure/sha256-request-finger
 import { BoundedStructuredOutputValidator } from './infrastructure/structured-output.validator.js';
 import { OpenRouterAdapter } from './infrastructure/openrouter.adapter.js';
 import { AnthropicAdapter } from './infrastructure/anthropic.adapter.js';
+import { OpenTelemetryGatewayTelemetry } from './infrastructure/opentelemetry-gateway.telemetry.js';
 import { GatewayController } from './presentation/http/gateway.controller.js';
 
 const OPENROUTER = Symbol('OpenRouterProvider');
@@ -61,6 +66,7 @@ const ANTHROPIC = Symbol('AnthropicProvider');
     { provide: REPLAY_STORE, useClass: InMemoryReplayStore },
     { provide: REQUEST_FINGERPRINT, useClass: Sha256RequestFingerprint },
     { provide: STRUCTURED_OUTPUT, useClass: BoundedStructuredOutputValidator },
+    { provide: GATEWAY_TELEMETRY, useClass: OpenTelemetryGatewayTelemetry },
     {
       provide: OPENROUTER,
       inject: [RUNTIME_CONFIG],
@@ -91,6 +97,7 @@ const ANTHROPIC = Symbol('AnthropicProvider');
         REPLAY_STORE,
         REQUEST_FINGERPRINT,
         STRUCTURED_OUTPUT,
+        GATEWAY_TELEMETRY,
       ],
       useFactory: (
         control: GatewayControl,
@@ -100,6 +107,7 @@ const ANTHROPIC = Symbol('AnthropicProvider');
         replay: ReplayStore,
         fingerprint: RequestFingerprint,
         structured: StructuredOutputValidator,
+        telemetry: GatewayTelemetry,
       ) =>
         new GatewayService(
           control,
@@ -108,6 +116,7 @@ const ANTHROPIC = Symbol('AnthropicProvider');
           replay,
           fingerprint,
           structured,
+          telemetry,
         ),
     },
   ],

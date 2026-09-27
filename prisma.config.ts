@@ -1,7 +1,7 @@
 import { defineConfig } from 'prisma/config';
-import { loadEnvironment } from './config/environment.mjs';
+import { loadDatabaseEnvironment } from './config/environment.mjs';
 
-const config = loadEnvironment();
+const config = loadDatabaseEnvironment();
 const datasourceUrl = new URL(config.databaseUrl);
 datasourceUrl.searchParams.set('schema', 'm0');
 

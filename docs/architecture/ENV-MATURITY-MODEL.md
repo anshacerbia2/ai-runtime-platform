@@ -88,7 +88,7 @@ export async function handlePayment(req: Request, res: Response) {
 
 ## 5. Level 2: Centralized Gate & Boundary Fitness Functions (Disciplined Mid-Tier)
 
-> **Status Repositori Ini:** Implementasi sistem saat ini berada di Level 2 yang sangat matang dan disiplin.
+> **Status historis:** Level 2 adalah tahap sebelum adopsi Zod. Repositori saat ini berada pada Level 3 yang diperkeras dengan projection per consumer/deployable; Level 4 secret delivery belum diimplementasikan.
 
 Pendekatan ini mengisolasi pemuatan environment ke dalam satu modul pintu gerbang (_single authority gate_), memvalidasi tipe data secara imperatif saat _startup_, dan memaksakan aturan arsitektur melalui pengujian otomatis.
 
@@ -113,7 +113,7 @@ Pendekatan ini mengisolasi pemuatan environment ke dalam satu modul pintu gerban
 1. **Single Entry Point:** File `config/environment.mjs` menjadi satu-satunya otoritas pembacaan variabel.
 2. **Fail-Fast Startup:** Fungsi `required()`, `integer()`, dan `boolean()` melempar exception saat aplikasi _boot_, menolak proses berjalan jika ada variabel yang salah format.
 3. **Architectural Fitness Function:** File `scripts/test/environment-boundary.test.mjs` memeriksa seluruh _codebase_ menggunakan regex `/process\.env\.[A-Z_]/` untuk memastikan tidak ada pemanggilan `process.env` liar di luar modul konfigurasi.
-4. **Least Privilege Projections:** Pemisahan antara `loadEnvironment()` (untuk API backend dan database) serta `loadWebEnvironment()` (khusus web frontend/BFF tanpa kredensial database).
+4. **Least Privilege Projections:** `loadApiEnvironment()`, `loadWebEnvironment()`, `loadDevEnvironment()`, `loadE2EEnvironment()`, dan `loadDatabaseEnvironment()` memvalidasi hanya konfigurasi yang dibutuhkan consumer masing-masing. API startup tidak membaca atau memerlukan `PLAYWRIGHT_*`; web tidak menerima kredensial database.
 
 ### Limitasi Level 2
 
@@ -254,7 +254,7 @@ sequenceDiagram
 
 Platform `ai-runtime-platform` telah ditingkatkan secara formal ke **Level 3: Schema-First Contracts & Decoupled Adapters**:
 
-- **Declarative Zod Gateway:** Seluruh konfigurasi di `config/environment.mjs` didefinisikan menggunakan Zod schema (`runtimeEnvironmentSchema`, `webCommonSchema`, `webLocalSchema`, `webOidcSchema`, `pactEnvironmentSchema`, `sessionTestSchema`).
+- **Declarative Zod Gateway:** Seluruh konfigurasi di `config/environment.mjs` didefinisikan menggunakan Zod schema dan projection khusus API, web, development, E2E, database tooling, Pact, dan session tests.
 - **Eliminasi Ad-hoc Imperative Parsing:** Fungsi-fungsi manual `integer()`, `boolean()`, `list()`, dan `required()` telah digantikan oleh Zod refinement & coercion pipeline.
 - **Architectural Fitness Intact:** Proteksi pengujian boundary di `scripts/test/environment-boundary.test.mjs` tetap 100% lulus, menjaga pemisahan boundary dan fail-fast checks.
 
@@ -275,11 +275,12 @@ Memaksakan implementasi Level 4 (Vault/KMS) atau Level 5 (Dynamic xDS Control Pl
   - Schema terdeklarasi formal & type-safe.
             │
             ▼
-[Tahap 2: Staging & Hybrid Cloud (M2)]
-  Persiapan ke Level 4:
-  - Pisahkan non-sensitive configuration dari secrets.
-  - Abstraksikan pemuatan config menggunakan Port & Adapter interface.
-  - Di lokal tetap baca .env; di CI/Staging baca dari K8s Secret / OIDC.
+[Tahap 2: P0 production hygiene — IN PROGRESS]
+  - Projection per consumer/deployable selesai: API/Web/Dev/E2E/Database tidak saling mewajibkan variable yang tidak relevan.
+  Persiapan ke Level 4 berikutnya:
+  - Pisahkan non-sensitive configuration dari secrets secara fisik di deployment.
+  - Tambahkan secret/workload-identity adapter bila environment produksi sudah dipilih.
+  - Di lokal tetap boleh memakai root .env sebagai developer convenience; process produksi menerima subset least-privilege.
             │
             ▼
 [Tahap 3: Planetary Scale & Multi-Region Production]

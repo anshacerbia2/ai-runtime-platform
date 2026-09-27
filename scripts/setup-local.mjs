@@ -3,9 +3,9 @@ import { resolve, dirname, join, isAbsolute } from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import net from 'node:net';
 import pg from 'pg';
-import { loadEnvironment, projectRoot } from '../config/environment.mjs';
+import { loadDevEnvironment, projectRoot } from '../config/environment.mjs';
 
-const config = loadEnvironment();
+const config = loadDevEnvironment();
 const ext = process.platform === 'win32' ? '.exe' : '';
 const log = (message) => console.log(`[M0 setup] ${message}`);
 const projectPath = (value) =>

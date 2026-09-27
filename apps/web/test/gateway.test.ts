@@ -80,6 +80,48 @@ test('G37 BFF forwards only the server token, preserves API status, and never fo
   assert.equal((await response.text()).includes('server-access'), false);
 });
 
+test('BFF propagates W3C trace context to the API without forwarding browser credentials', async () => {
+  const { runtime, cookie } = await fixture();
+  const incoming = '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01';
+  let upstreamTraceparent: string | null = null;
+
+  const response = await forward(
+    new Request('https://console.invalid/api/m1/control-plane', {
+      headers: {
+        Cookie: cookie,
+        traceparent: incoming,
+      },
+    }),
+    ['m1', 'control-plane'],
+    runtime,
+    async (_input, init) => {
+      const headers = new Headers(init?.headers);
+      upstreamTraceparent = headers.get('traceparent');
+      assert.equal(headers.get('Cookie'), null);
+      return Response.json({
+        applications: [],
+        connections: [],
+        credentials: [],
+        bindings: [],
+        aliases: [],
+        profiles: [],
+        budgets: [],
+        pools: [],
+        runners: [],
+      });
+    },
+  );
+
+  assert.equal(response.status, 200);
+  assert.ok(upstreamTraceparent);
+  const propagated = upstreamTraceparent as unknown as string;
+  const parts = propagated.split('-');
+  assert.equal(parts[0], '00');
+  assert.equal(parts[1], '4bf92f3577b34da6a3ce929d0e0e4736');
+  assert.notEqual(parts[2], '00f067aa0ba902b7');
+  assert.equal(parts[3], '01');
+});
+
 test('G37 origin, fetch-site and host checks reject CSRF and rebinding', async () => {
   const { runtime, cookie } = await fixture();
   for (const extra of [

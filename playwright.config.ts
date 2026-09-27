@@ -1,7 +1,7 @@
 import { defineConfig } from '@playwright/test';
-import { loadEnvironment } from './config/environment.mjs';
+import { loadE2EEnvironment } from './config/environment.mjs';
 
-const config = loadEnvironment();
+const config = loadE2EEnvironment();
 const baseURL = `http://${config.webHost}:${config.webPort}`;
 
 export default defineConfig({

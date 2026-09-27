@@ -1,8 +1,8 @@
-import { loadEnvironment } from '../../../../../config/environment.mjs';
-import type { RuntimeEnvironment } from '../../../../../config/environment.mjs';
+import { loadApiEnvironment } from '../../../../../config/environment.mjs';
+import type { ApiEnvironment } from '../../../../../config/environment.mjs';
 
-export type RuntimeConfig = RuntimeEnvironment;
+export type RuntimeConfig = ApiEnvironment;
 
 export function loadConfig(): RuntimeConfig {
-  return loadEnvironment();
+  return loadApiEnvironment();
 }

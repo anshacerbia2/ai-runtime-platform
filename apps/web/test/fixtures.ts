@@ -78,6 +78,7 @@ export function fixtureConfig(): WebEnvironment {
     bodyLimitBytes: 1024,
     responseLimitBytes: 4096,
     docsRoot: 'docs',
+    telemetry: {},
     hosting: {
       publicOrigin: 'https://console.invalid',
       appId: 'unit',

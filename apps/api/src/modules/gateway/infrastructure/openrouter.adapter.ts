@@ -5,6 +5,7 @@ import {
   type ProviderRequest,
 } from '../application/provider-adapter.port.js';
 import { readSse } from './provider-sse.js';
+import { injectActiveTraceHeaders } from '../../../infrastructure/telemetry/telemetry.js';
 
 const defaultEndpoint = 'https://openrouter.ai/api/v1/chat/completions';
 
@@ -34,15 +35,17 @@ export class OpenRouterAdapter implements ProviderAdapter {
         'not-sent',
       );
     }
+    const headers = new Headers({
+      Authorization: 'Bearer ' + this.apiKey,
+      'Content-Type': 'application/json',
+      Accept: 'text/event-stream',
+    });
+    injectActiveTraceHeaders(headers);
     let response: Response;
     try {
       response = await this.transport(this.endpoint, {
         method: 'POST',
-        headers: {
-          Authorization: 'Bearer ' + this.apiKey,
-          'Content-Type': 'application/json',
-          Accept: 'text/event-stream',
-        },
+        headers,
         body: JSON.stringify({
           model: request.model,
           messages: request.messages.map((message) => ({

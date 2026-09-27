@@ -5,6 +5,7 @@ import type { RuntimeConfig } from './infrastructure/config/environment-config.j
 import { IdentityModule } from './modules/identity/identity.module.js';
 import { LocalAuthGuard } from './modules/identity/presentation/http/local-auth.guard.js';
 import { ContractLabModule } from './modules/contract-lab/contract-lab.module.js';
+import { CoreHealthModule } from './modules/core-health/core-health.module.js';
 import { ControlPlaneModule } from './modules/control-plane/control-plane.module.js';
 import { GatewayModule } from './modules/gateway/gateway.module.js';
 import { HttpExceptionFilter } from './shared/presentation/http-exception.filter.js';
@@ -17,7 +18,10 @@ export class AppModule {
       imports: [
         RuntimeConfigModule.register(config),
         IdentityModule,
-        ContractLabModule,
+        CoreHealthModule,
+        ...(config.deploymentRole === 'api-production'
+          ? []
+          : [ContractLabModule]),
         ControlPlaneModule,
         GatewayModule,
       ],

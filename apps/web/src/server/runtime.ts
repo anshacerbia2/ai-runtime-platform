@@ -6,6 +6,7 @@ import {
 import { createIdentityClient, type IdentityClient } from './auth/oidc';
 import { createSessionStore } from './session/redis-store';
 import { SessionManager } from './session/manager';
+import { initializeWebTelemetry } from './telemetry/telemetry';
 
 export interface WebRuntime {
   config: WebEnvironment;
@@ -25,6 +26,7 @@ export async function webRuntime(): Promise<WebRuntime> {
   if (!globalRuntime.runtimeBff) {
     globalRuntime.runtimeBff = (async () => {
       const config = webConfig();
+      initializeWebTelemetry(config.telemetry.tracesEndpoint);
       if (config.local) {
         return { config };
       }

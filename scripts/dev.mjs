@@ -3,11 +3,11 @@ import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 import net from 'node:net';
-import { loadEnvironment } from '../config/environment.mjs';
+import { loadDevEnvironment } from '../config/environment.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const tsc = join(root, 'node_modules/typescript/bin/tsc');
-const config = loadEnvironment();
+const config = loadDevEnvironment();
 const children = [];
 let stopping = false;
 

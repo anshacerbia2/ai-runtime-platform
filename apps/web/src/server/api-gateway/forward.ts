@@ -24,6 +24,10 @@ import {
   ResponseReadError,
 } from '../../shared/api/bounded-response';
 import { retryAfterMs } from '../../shared/api/http-error';
+import {
+  initializeWebTelemetry,
+  traceApiForward,
+} from '../telemetry/telemetry';
 
 const exposedRoutes = contractRoutes(browserContract);
 const localRoutes = new Set(
@@ -45,6 +49,7 @@ export async function forward(
   transport: typeof fetch = fetch,
 ): Promise<Response> {
   const { config } = runtime;
+  initializeWebTelemetry(config.telemetry.tracesEndpoint);
   const scope = requestScope(
     Math.min(config.requestTimeoutMs, unaryHttpPolicy.timeoutMs),
     request.signal,
@@ -142,20 +147,27 @@ export async function forward(
     scope.check();
     dispatched = true;
     const response = await scope.wait(
-      transport(url, {
-        method: request.method,
+      traceApiForward(
+        request.headers,
         headers,
-        body: body as BodyInit | undefined,
-        cache: 'no-store',
-        redirect: 'error',
-        signal: scope.signal,
-      }).then((result) => {
-        if (scope.signal.aborted) {
-          discardBody(result);
-          scope.check();
-        }
-        return result;
-      }),
+        request.method,
+        endpoint.path,
+        () =>
+          transport(url, {
+            method: request.method,
+            headers,
+            body: body as BodyInit | undefined,
+            cache: 'no-store',
+            redirect: 'error',
+            signal: scope.signal,
+          }).then((result) => {
+            if (scope.signal.aborted) {
+              discardBody(result);
+              scope.check();
+            }
+            return result;
+          }),
+      ),
     );
     const requestId = response.headers.get('x-request-id');
     if (requestId && requestId.length <= 200) {

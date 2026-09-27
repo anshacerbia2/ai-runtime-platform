@@ -10,6 +10,7 @@ export interface RuntimeEnvironment {
     runnerClientId?: string;
   };
   readonly runtimeMode: string;
+  readonly deploymentRole: 'api-local' | 'api-production';
   readonly apiHost: string;
   readonly apiPort: number;
   readonly webHost: string;
@@ -42,6 +43,9 @@ export interface RuntimeEnvironment {
     readonly openrouterEndpoint?: string;
     readonly anthropicEndpoint?: string;
   };
+  readonly telemetry: {
+    readonly tracesEndpoint?: string;
+  };
   readonly seedTxMaxWaitMs: number;
   readonly seedTxTimeoutMs: number;
   readonly dev: {
@@ -67,7 +71,45 @@ export interface RuntimeEnvironment {
   };
 }
 
-export function loadEnvironment(): RuntimeEnvironment;
+export type ApiEnvironment = Omit<
+  RuntimeEnvironment,
+  'webHost' | 'webPort' | 'dev' | 'playwright' | 'database'
+> & {
+  readonly database: Omit<
+    RuntimeEnvironment['database'],
+    'managePostgres' | 'pgBin' | 'dataDir' | 'logFile'
+  >;
+};
+
+export type DevEnvironment = Omit<ApiEnvironment, 'database'> & {
+  readonly webHost: string;
+  readonly webPort: number;
+  readonly database: RuntimeEnvironment['database'];
+  readonly dev: RuntimeEnvironment['dev'];
+};
+
+export interface E2EEnvironment {
+  readonly webHost: string;
+  readonly webPort: number;
+  readonly playwright: RuntimeEnvironment['playwright'];
+}
+
+export interface DatabaseEnvironment {
+  readonly database: {
+    readonly host: string;
+    readonly port: number;
+    readonly name: string;
+    readonly user: string;
+    readonly password: string;
+    readonly connectionTimeoutMs: number;
+  };
+  readonly databaseUrl: string;
+}
+
+export function loadApiEnvironment(): ApiEnvironment;
+export function loadDevEnvironment(): DevEnvironment;
+export function loadE2EEnvironment(): E2EEnvironment;
+export function loadDatabaseEnvironment(): DatabaseEnvironment;
 export const projectRoot: string;
 
 export interface WebEnvironment {
@@ -82,6 +124,9 @@ export interface WebEnvironment {
   readonly bodyLimitBytes: number;
   readonly responseLimitBytes: number;
   readonly docsRoot: string;
+  readonly telemetry: {
+    readonly tracesEndpoint?: string;
+  };
   readonly applicationToken?: string;
   readonly operatorToken?: string;
   readonly hosting?: import('./hosting.mjs').HostingConfig;
