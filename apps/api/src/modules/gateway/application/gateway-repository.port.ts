@@ -39,6 +39,7 @@ export type ClaimResult =
       errorCode: string | null;
     };
 export interface GatewayRepository {
+  cancelRequested(applicationId: string, executionId: string): Promise<boolean>;
   claim(
     applicationId: string,
     executionId: string,

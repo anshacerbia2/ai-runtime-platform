@@ -187,6 +187,32 @@ export class GatewayService {
 
     const controller = new AbortController();
     this.active.set(claim.executionId, { controller, claim });
+    let checkingCancel = false;
+    const checkCancel = async () => {
+      if (checkingCancel || controller.signal.aborted) {
+        return;
+      }
+      checkingCancel = true;
+      try {
+        if (
+          await this.repository.cancelRequested(
+            claim.applicationId,
+            claim.executionId,
+          )
+        ) {
+          controller.abort(
+            new DOMException('Execution cancelled.', 'AbortError'),
+          );
+        }
+      } catch {
+        // A transient read failure does not turn an accepted provider effect
+        // into a definite cancellation; the next poll or deadline still applies.
+      } finally {
+        checkingCancel = false;
+      }
+    };
+    const cancelPoll = setInterval(() => void checkCancel(), 1000);
+    void checkCancel();
     const timeout = AbortSignal.timeout(timeoutMs);
     const signal = AbortSignal.any([controller.signal, timeout]);
     let sequence = 0;
@@ -271,6 +297,9 @@ export class GatewayService {
             },
             admissionLink,
             async () => {
+              if (signal.aborted) {
+                throw signal.reason;
+              }
               for await (const event of selected.stream(request, signal)) {
                 if (event.type === 'started') {
                   providerStarted = true;
@@ -423,6 +452,7 @@ export class GatewayService {
       }
       throw publicFailure(cause, code, claim.executionId);
     } finally {
+      clearInterval(cancelPoll);
       this.active.delete(claim.executionId);
     }
   }

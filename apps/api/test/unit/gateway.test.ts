@@ -102,6 +102,11 @@ class FakeRepository implements GatewayRepository {
   failed: Array<{ ambiguous: boolean; cancelled: boolean }> = [];
   completed = 0;
   current = execution('RUNNING');
+  cancelIntent = false;
+
+  async cancelRequested() {
+    return this.cancelIntent;
+  }
 
   async claim() {
     return this.claimResult;
@@ -379,6 +384,39 @@ test('caller cancellation produces one terminal transition owner', async () => {
   await gateway.cancel(principal, executionId, 'user requested stop');
   await assert.rejects(running);
 
+  assert.equal(control.cancelCalls, 1);
+  assert.deepEqual(repository.failed, [{ ambiguous: true, cancelled: true }]);
+});
+
+test('cancel accepted by another API instance aborts the provider owner', async () => {
+  let started!: () => void;
+  const ready = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  const provider: ProviderAdapter = {
+    id: 'openrouter',
+    async *stream(_request, signal) {
+      yield { type: 'started', requestId: 'req-cross-instance-cancel' };
+      started();
+      await new Promise<never>((_resolve, reject) => {
+        signal.addEventListener('abort', () => reject(signal.reason), {
+          once: true,
+        });
+      });
+    },
+  };
+  const repository = new FakeRepository();
+  const control = new FakeControl();
+  control.cancel = async () => {
+    control.cancelCalls++;
+    repository.cancelIntent = true;
+  };
+  const owner = service(provider, repository, control).gateway;
+  const otherInstance = service(provider, repository, control).gateway;
+  const running = owner.execute(principal, command, 'cross-instance-cancel');
+  await ready;
+  await otherInstance.cancel(principal, executionId, 'stop on another pod');
+  await assert.rejects(running);
   assert.equal(control.cancelCalls, 1);
   assert.deepEqual(repository.failed, [{ ambiguous: true, cancelled: true }]);
 });

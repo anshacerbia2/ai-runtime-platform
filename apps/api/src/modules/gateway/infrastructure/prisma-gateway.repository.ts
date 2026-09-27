@@ -27,6 +27,14 @@ const provider = (value: string): ProviderId => {
 export class PrismaGatewayRepository implements GatewayRepository {
   constructor(private readonly db: DatabaseService) {}
 
+  async cancelRequested(applicationId: string, executionId: string) {
+    const execution = await this.db.execution.findFirst({
+      where: { id: executionId, applicationId },
+      select: { cancelRequestedAt: true },
+    });
+    return Boolean(execution?.cancelRequestedAt);
+  }
+
   async claim(
     applicationId: string,
     executionId: string,
