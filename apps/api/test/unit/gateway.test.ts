@@ -14,6 +14,7 @@ import type {
   GatewayRepository,
 } from '../../src/modules/gateway/application/gateway-repository.port.js';
 import { InMemoryReplayStore } from '../../src/modules/gateway/infrastructure/in-memory-replay.store.js';
+import type { ReplayStore } from '../../src/modules/gateway/application/replay-store.port.js';
 import { Sha256RequestFingerprint } from '../../src/modules/gateway/infrastructure/sha256-request-fingerprint.js';
 import { BoundedStructuredOutputValidator } from '../../src/modules/gateway/infrastructure/structured-output.validator.js';
 import { OpenRouterAdapter } from '../../src/modules/gateway/infrastructure/openrouter.adapter.js';
@@ -38,6 +39,7 @@ const principal: Principal = {
 
 const claim: GatewayClaim = {
   executionId,
+  connectionId: 'connection-primary',
   attemptId,
   invocationId,
   applicationId: 'm2-test-app',
@@ -110,6 +112,7 @@ class FakeRepository implements GatewayRepository {
     }
     return {
       ...current,
+      connectionId: current.fallback.connectionId,
       provider: current.fallback.provider,
       credentialRef: current.fallback.credentialRef,
       model: current.fallback.model,
@@ -154,13 +157,14 @@ function service(
   provider: ProviderAdapter,
   repository = new FakeRepository(),
   control = new FakeControl(),
+  replay: ReplayStore = new InMemoryReplayStore(),
 ) {
   return {
     gateway: new GatewayService(
       control,
       repository,
       [provider],
-      new InMemoryReplayStore(),
+      replay,
       new Sha256RequestFingerprint(),
       new BoundedStructuredOutputValidator(),
     ),
@@ -201,6 +205,112 @@ test('gateway completes one durable provider invocation and records usage', asyn
       'execution.completed',
     ],
   );
+});
+
+test('a terminal replay outage cannot rewrite a committed result as failure', async () => {
+  const memory = new InMemoryReplayStore();
+  const replay: ReplayStore = {
+    append(event) {
+      if (event.type === 'execution.completed') {
+        throw new Error('Redis unavailable after completion');
+      }
+      memory.append(event);
+    },
+    read: (id, after) => memory.read(id, after),
+    watch: (id, after, live) => memory.watch(id, after, live),
+    clear: (id) => memory.clear(id),
+  };
+  const provider: ProviderAdapter = {
+    id: 'openrouter',
+    async *stream() {
+      yield { type: 'started', requestId: 'req-1' };
+      yield { type: 'done', requestId: 'req-1', finishReason: 'stop' };
+    },
+  };
+  const { gateway, repository } = service(
+    provider,
+    new FakeRepository(),
+    new FakeControl(),
+    replay,
+  );
+  const result = await gateway.execute(
+    principal,
+    command,
+    'terminal-replay-loss',
+  );
+  assert.equal(result.status, 'COMPLETED');
+  assert.equal(repository.completed, 1);
+  assert.deepEqual(repository.failed, []);
+});
+
+test('replay outage before dispatch fails the execution without calling a provider', async () => {
+  let providerCalls = 0;
+  const memory = new InMemoryReplayStore();
+  const replay: ReplayStore = {
+    append(event) {
+      if (event.type === 'execution.started') {
+        throw new Error('Redis unavailable before dispatch');
+      }
+      memory.append(event);
+    },
+    read: (id, after) => memory.read(id, after),
+    watch: (id, after, live) => memory.watch(id, after, live),
+    clear: (id) => memory.clear(id),
+  };
+  const provider: ProviderAdapter = {
+    id: 'openrouter',
+    async *stream() {
+      providerCalls++;
+      yield { type: 'done', requestId: null, finishReason: null };
+    },
+  };
+  const { gateway, repository } = service(
+    provider,
+    new FakeRepository(),
+    new FakeControl(),
+    replay,
+  );
+  await assert.rejects(
+    gateway.execute(principal, command, 'pre-dispatch-replay-loss'),
+  );
+  assert.equal(providerCalls, 0);
+  assert.deepEqual(repository.failed, [{ ambiguous: false, cancelled: false }]);
+});
+
+test('a circuit opened by one connection does not block another connection using the same model', async () => {
+  let calls = 0;
+  const provider: ProviderAdapter = {
+    id: 'openrouter',
+    async *stream() {
+      calls++;
+      if (calls <= 3) {
+        yield { type: 'started', requestId: `req-${calls}` };
+        throw new ProviderError('openrouter', 'CONNECTION_LOST', 'unknown');
+      }
+      yield { type: 'done', requestId: 'req-healthy', finishReason: 'stop' };
+    },
+  };
+  const repository = new FakeRepository();
+  const { gateway } = service(provider, repository);
+  for (let i = 0; i < 3; i++) {
+    await assert.rejects(
+      gateway.execute(principal, command, `circuit-failure-${i}`),
+    );
+  }
+  await assert.rejects(gateway.execute(principal, command, 'circuit-open'));
+  assert.equal(calls, 3);
+
+  repository.claimResult = {
+    state: 'claimed',
+    claim: { ...claim, connectionId: 'connection-healthy' },
+  };
+  const result = await gateway.execute(
+    principal,
+    command,
+    'healthy-connection',
+  );
+  assert.equal(result.status, 'COMPLETED');
+  assert.equal(calls, 4);
 });
 
 test('same-key terminal replay never calls the provider twice', async () => {

@@ -39,6 +39,7 @@ export interface RuntimeEnvironment {
   readonly gateway: {
     readonly openrouterApiKey?: string;
     readonly anthropicApiKey?: string;
+    readonly replayRedisUrl?: string;
     /** Programmatic test override; environment loader intentionally uses official endpoints. */
     readonly openrouterEndpoint?: string;
     readonly anthropicEndpoint?: string;

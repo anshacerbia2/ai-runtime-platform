@@ -14,8 +14,12 @@ export interface ReplayWatch {
 }
 
 export interface ReplayStore {
-  append(event: GatewayStreamEvent): void;
-  read(executionId: string, after?: string): ReplayPage;
-  watch(executionId: string, after?: string, live?: boolean): ReplayWatch;
-  clear(executionId: string): void;
+  append(event: GatewayStreamEvent): void | Promise<void>;
+  read(executionId: string, after?: string): ReplayPage | Promise<ReplayPage>;
+  watch(
+    executionId: string,
+    after?: string,
+    live?: boolean,
+  ): ReplayWatch | Promise<ReplayWatch>;
+  clear(executionId: string): void | Promise<void>;
 }

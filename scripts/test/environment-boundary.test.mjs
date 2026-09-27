@@ -58,6 +58,57 @@ test('nonlocal API requires an explicit deployment role', () => {
   }
 });
 
+test('gateway replay Redis endpoint uses a Redis URL and stays in the API projection', () => {
+  const prior = process.env.M2_REPLAY_REDIS_URL;
+  try {
+    process.env.M2_REPLAY_REDIS_URL = 'https://example.invalid/replay';
+    assert.throws(
+      () => loadApiEnvironment(),
+      /M2_REPLAY_REDIS_URL must use the Redis protocol/,
+    );
+    process.env.M2_REPLAY_REDIS_URL = 'redis://127.0.0.1:6379';
+    assert.equal(
+      loadApiEnvironment().gateway.replayRedisUrl,
+      'redis://127.0.0.1:6379',
+    );
+  } finally {
+    if (prior === undefined) {
+      delete process.env.M2_REPLAY_REDIS_URL;
+    } else {
+      process.env.M2_REPLAY_REDIS_URL = prior;
+    }
+  }
+});
+
+test('nonlocal API cannot silently use process-local replay', () => {
+  const prior = {
+    mode: process.env.M0_RUNTIME_MODE,
+    role: process.env.DEPLOYMENT_ROLE,
+    replay: process.env.M2_REPLAY_REDIS_URL,
+  };
+  try {
+    process.env.M0_RUNTIME_MODE = 'm1-oidc';
+    process.env.DEPLOYMENT_ROLE = 'api-production';
+    delete process.env.M2_REPLAY_REDIS_URL;
+    assert.throws(
+      () => loadApiEnvironment(),
+      /M2_REPLAY_REDIS_URL is required outside m0-local mode/,
+    );
+  } finally {
+    for (const [key, value] of [
+      ['M0_RUNTIME_MODE', prior.mode],
+      ['DEPLOYMENT_ROLE', prior.role],
+      ['M2_REPLAY_REDIS_URL', prior.replay],
+    ]) {
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
+    }
+  }
+});
+
 test('API and dev startup do not depend on Playwright configuration', () => {
   const keys = [
     'PLAYWRIGHT_BROWSER_NAME',

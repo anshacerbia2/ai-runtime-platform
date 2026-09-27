@@ -38,6 +38,7 @@ import { GatewayService } from './application/gateway.service.js';
 import { PrismaGatewayRepository } from './infrastructure/prisma-gateway.repository.js';
 import { ControlPlaneGatewayAdapter } from './infrastructure/control-plane-gateway.adapter.js';
 import { InMemoryReplayStore } from './infrastructure/in-memory-replay.store.js';
+import { RedisReplayStore } from './infrastructure/redis-replay.store.js';
 import { Sha256RequestFingerprint } from './infrastructure/sha256-request-fingerprint.js';
 import { BoundedStructuredOutputValidator } from './infrastructure/structured-output.validator.js';
 import { OpenRouterAdapter } from './infrastructure/openrouter.adapter.js';
@@ -63,7 +64,14 @@ const ANTHROPIC = Symbol('AnthropicProvider');
       useFactory: (control: M1ControlPlaneService, repo: M1Repository) =>
         new ControlPlaneGatewayAdapter(control, repo),
     },
-    { provide: REPLAY_STORE, useClass: InMemoryReplayStore },
+    {
+      provide: REPLAY_STORE,
+      inject: [RUNTIME_CONFIG],
+      useFactory: (config: RuntimeConfig) =>
+        config.gateway.replayRedisUrl
+          ? RedisReplayStore.connect(config.gateway.replayRedisUrl)
+          : new InMemoryReplayStore(),
+    },
     { provide: REQUEST_FINGERPRINT, useClass: Sha256RequestFingerprint },
     { provide: STRUCTURED_OUTPUT, useClass: BoundedStructuredOutputValidator },
     { provide: GATEWAY_TELEMETRY, useClass: OpenTelemetryGatewayTelemetry },

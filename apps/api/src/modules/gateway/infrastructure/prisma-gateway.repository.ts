@@ -312,6 +312,7 @@ export class PrismaGatewayRepository implements GatewayRepository {
           state: 'claimed',
           claim: {
             executionId,
+            connectionId: connection.id,
             attemptId: attempt.id,
             invocationId,
             applicationId,
@@ -496,6 +497,7 @@ export class PrismaGatewayRepository implements GatewayRepository {
           ...claim,
           attemptId,
           invocationId,
+          connectionId: fallback.connectionId,
           provider: fallback.provider,
           credentialRef: fallback.credentialRef,
           model: fallback.model,

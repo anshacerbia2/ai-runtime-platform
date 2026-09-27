@@ -16,6 +16,7 @@ export interface GatewayRoute {
 
 export interface GatewayClaim {
   executionId: string;
+  connectionId: string;
   attemptId: string;
   invocationId: string;
   applicationId: string;

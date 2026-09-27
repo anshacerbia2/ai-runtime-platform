@@ -140,6 +140,7 @@ export const runtimeEnvironmentSchema = z.object({
   M0_TEST_APP_TOKEN: reqStr('M0_TEST_APP_TOKEN'),
   M2_OPENROUTER_API_KEY: optStr(),
   M2_ANTHROPIC_API_KEY: optStr(),
+  M2_REPLAY_REDIS_URL: optStr(),
   OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: optStr(),
   PLAYWRIGHT_BROWSER_NAME: reqStr('PLAYWRIGHT_BROWSER_NAME'),
   PLAYWRIGHT_CHANNEL: reqStr('PLAYWRIGHT_CHANNEL'),
@@ -190,6 +191,7 @@ const apiEnvironmentSchema = runtimeEnvironmentSchema.pick({
   M0_TEST_APP_TOKEN: true,
   M2_OPENROUTER_API_KEY: true,
   M2_ANTHROPIC_API_KEY: true,
+  M2_REPLAY_REDIS_URL: true,
   OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: true,
   M1_LOCAL_OPERATOR_TOKEN: true,
   M1_LOCAL_RUNNER_TOKEN: true,
@@ -249,6 +251,14 @@ function buildApiEnvironment(raw) {
   if (raw.M0_RUNTIME_MODE !== 'm0-local' && !raw.DEPLOYMENT_ROLE) {
     throw new Error('DEPLOYMENT_ROLE must be explicit outside m0-local mode.');
   }
+  if (raw.M2_REPLAY_REDIS_URL) {
+    const replayEndpoint = new URL(raw.M2_REPLAY_REDIS_URL);
+    if (!['redis:', 'rediss:'].includes(replayEndpoint.protocol)) {
+      throw new Error('M2_REPLAY_REDIS_URL must use the Redis protocol.');
+    }
+  } else if (raw.M0_RUNTIME_MODE !== 'm0-local') {
+    throw new Error('M2_REPLAY_REDIS_URL is required outside m0-local mode.');
+  }
 
   const config = {
     runtimeMode: raw.M0_RUNTIME_MODE,
@@ -288,6 +298,7 @@ function buildApiEnvironment(raw) {
     gateway: {
       openrouterApiKey: raw.M2_OPENROUTER_API_KEY,
       anthropicApiKey: raw.M2_ANTHROPIC_API_KEY,
+      replayRedisUrl: raw.M2_REPLAY_REDIS_URL,
     },
     telemetry: Object.freeze({
       tracesEndpoint: raw.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,

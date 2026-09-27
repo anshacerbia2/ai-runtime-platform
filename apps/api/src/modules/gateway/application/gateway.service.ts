@@ -176,7 +176,7 @@ export class GatewayService {
         claim.executionId,
       );
     }
-    if (this.circuitOpen(claim.provider, claim.model)) {
+    if (this.circuitOpen(claim.connectionId, claim.provider, claim.model)) {
       await this.repository.fail(claim, 'DEPENDENCY_UNAVAILABLE', false, false);
       throw new ApplicationError(
         'DEPENDENCY_UNAVAILABLE',
@@ -215,7 +215,18 @@ export class GatewayService {
         payload,
       };
       sequence++;
-      this.replay.append(event);
+      try {
+        await this.replay.append(event);
+      } catch (error) {
+        if (
+          type !== 'execution.completed' &&
+          type !== 'execution.failed' &&
+          type !== 'execution.cancelled'
+        ) {
+          throw error;
+        }
+        // A hot replay outage cannot undo a terminal PostgreSQL transition.
+      }
       if (sinkAttached && sink) {
         try {
           await sink(event);
@@ -312,7 +323,10 @@ export class GatewayService {
           fallback = true;
           this.active.set(claim.executionId, { controller, claim });
           adapter = this.providers.find((item) => item.id === claim.provider);
-          if (!adapter || this.circuitOpen(claim.provider, claim.model)) {
+          if (
+            !adapter ||
+            this.circuitOpen(claim.connectionId, claim.provider, claim.model)
+          ) {
             throw new ApplicationError(
               'DEPENDENCY_UNAVAILABLE',
               'Policy-approved fallback route is unavailable.',
@@ -353,7 +367,7 @@ export class GatewayService {
       } catch {
         // Result completion is independent from financial reconciliation.
       }
-      this.resetCircuit(claim.provider, claim.model);
+      this.resetCircuit(claim.connectionId, claim.provider, claim.model);
       await publish('execution.completed', {
         provider: claim.provider,
         model: claim.model,
@@ -391,7 +405,11 @@ export class GatewayService {
         // Unknown/incomplete usage remains held for reconciliation.
       }
       if (ambiguous && !cancelled) {
-        this.recordCircuitFailure(claim.provider, claim.model);
+        this.recordCircuitFailure(
+          claim.connectionId,
+          claim.provider,
+          claim.model,
+        );
       }
       await publish(cancelled ? 'execution.cancelled' : 'execution.failed', {
         code,
@@ -462,15 +480,27 @@ export class GatewayService {
       principal.applicationId,
       executionId,
     );
-    return this.replay.watch(executionId, after, current.status === 'RUNNING');
+    return await this.replay.watch(
+      executionId,
+      after,
+      current.status === 'RUNNING',
+    );
   }
-  private circuitOpen(providerId: ProviderId, model: string) {
-    const entry = this.breaker.get(providerId + ':' + model);
+  private circuitOpen(
+    connectionId: string,
+    providerId: ProviderId,
+    model: string,
+  ) {
+    const entry = this.breaker.get(`${connectionId}:${providerId}:${model}`);
     return Boolean(entry && entry.openUntil > Date.now());
   }
 
-  private recordCircuitFailure(providerId: ProviderId, model: string) {
-    const key = providerId + ':' + model;
+  private recordCircuitFailure(
+    connectionId: string,
+    providerId: ProviderId,
+    model: string,
+  ) {
+    const key = `${connectionId}:${providerId}:${model}`;
     const current = this.breaker.get(key) ?? { failures: 0, openUntil: 0 };
     const failures = current.failures + 1;
     this.breaker.set(key, {
@@ -479,8 +509,12 @@ export class GatewayService {
     });
   }
 
-  private resetCircuit(providerId: ProviderId, model: string) {
-    this.breaker.delete(providerId + ':' + model);
+  private resetCircuit(
+    connectionId: string,
+    providerId: ProviderId,
+    model: string,
+  ) {
+    this.breaker.delete(`${connectionId}:${providerId}:${model}`);
   }
 }
 
