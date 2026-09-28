@@ -274,6 +274,7 @@ model Attempt {
   runnerEvidence    RunnerEvidence[]
   id                String             @id @db.Uuid
   executionId       String             @map("execution_id") @db.Uuid
+  ownerInstanceId    String?            @map("owner_instance_id") @db.Uuid
   number            Int
   generation        Int                @default(1)
   status            String             @default("PREPARED")
@@ -287,6 +288,7 @@ model Attempt {
 
   @@unique([id, executionId])
   @@unique([executionId, number])
+  @@index([ownerInstanceId])
   @@map("attempts")
   @@schema("control")
 }

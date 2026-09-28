@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '../../infrastructure/database/database.module.js';
 import { DatabaseService } from '../../infrastructure/database/database.service.js';
@@ -124,6 +125,7 @@ const ANTHROPIC = Symbol('AnthropicProvider');
           replay,
           fingerprint,
           structured,
+          randomUUID(),
           telemetry,
         ),
     },

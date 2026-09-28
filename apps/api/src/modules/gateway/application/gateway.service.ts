@@ -60,6 +60,7 @@ export class GatewayService {
     private readonly replay: ReplayStore,
     private readonly fingerprint: RequestFingerprint,
     private readonly structured: StructuredOutputValidator,
+    private readonly ownerInstanceId: string,
     private readonly telemetry: GatewayTelemetry = noopGatewayTelemetry,
   ) {}
 
@@ -115,6 +116,7 @@ export class GatewayService {
           applicationId,
           admission.execution.id,
           inputDigest,
+          this.ownerInstanceId,
         );
       },
     );
@@ -414,7 +416,7 @@ export class GatewayService {
         providerError?.outcome === 'unknown';
       const code = failureCode(cause, timeout.aborted, cancelled);
       const usage = usageView(inputTokens, outputTokens);
-      await this.repository.fail(
+      const failed = await this.repository.fail(
         claim,
         code,
         ambiguous,
@@ -423,6 +425,9 @@ export class GatewayService {
         requestId,
         providerCompleted,
       );
+      if (!failed) {
+        throw publicFailure(cause, code, claim.executionId);
+      }
       try {
         await this.control.recordUsage(
           claim,

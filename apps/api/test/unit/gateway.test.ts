@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { Principal } from '../../src/modules/identity/domain/principal.js';
@@ -40,6 +41,7 @@ const principal: Principal = {
 const claim: GatewayClaim = {
   executionId,
   connectionId: 'connection-primary',
+  ownerInstanceId: '00000000-0000-4000-8000-000000000204',
   attemptId,
   invocationId,
   applicationId: 'm2-test-app',
@@ -143,6 +145,7 @@ class FakeRepository implements GatewayRepository {
     this.current = execution(
       cancelled ? 'CANCELLED' : ambiguous ? 'RECONCILING' : 'FAILED',
     );
+    return true;
   }
   async read() {
     return this.current;
@@ -172,6 +175,7 @@ function service(
       replay,
       new Sha256RequestFingerprint(),
       new BoundedStructuredOutputValidator(),
+      randomUUID(),
     ),
     repository,
     control,

@@ -86,6 +86,7 @@ function gateway(...providers: ProviderAdapter[]) {
     new InMemoryReplayStore(),
     new Sha256RequestFingerprint(),
     new BoundedStructuredOutputValidator(),
+    randomUUID(),
   );
 }
 
@@ -561,4 +562,56 @@ test('concurrent same-key replay observes RUNNING without a second provider call
   const completed = await first;
   assert.equal(completed.status, 'COMPLETED');
   assert.equal(providerCalls, 1);
+});
+
+test('a former provider owner cannot commit after attempt authority moves', async () => {
+  let started!: () => void;
+  let release!: () => void;
+  const providerStarted = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  const providerRelease = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const provider: ProviderAdapter = {
+    id: 'openrouter',
+    async *stream() {
+      yield { type: 'started', requestId: 'provider-stale-owner' };
+      started();
+      await providerRelease;
+      yield {
+        type: 'done',
+        requestId: 'provider-stale-owner',
+        finishReason: 'stop',
+      };
+    },
+  };
+  const key = prefix + '-stale-owner';
+  const running = gateway(provider).execute(principal, command('stale'), key);
+  await providerStarted;
+  const execution = await db.execution.findUniqueOrThrow({
+    where: {
+      applicationId_idempotencyKey: {
+        applicationId: application.id,
+        idempotencyKey: key,
+      },
+    },
+    include: { attempts: true },
+  });
+  const attempt = execution.attempts[0]!;
+  assert.ok(attempt.ownerInstanceId);
+  await db.attempt.update({
+    where: { id: attempt.id },
+    data: { ownerInstanceId: randomUUID() },
+  });
+  release();
+  await assert.rejects(running);
+  const fenced = await db.execution.findUniqueOrThrow({
+    where: { id: execution.id },
+    include: { result: true, providerInvocations: true, observations: true },
+  });
+  assert.equal(fenced.result, null);
+  assert.equal(fenced.status, 'RUNNING');
+  assert.equal(fenced.providerInvocations[0]?.status, 'RUNNING');
+  assert.equal(fenced.observations.length, 0);
 });

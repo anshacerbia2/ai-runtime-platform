@@ -17,6 +17,7 @@ export interface GatewayRoute {
 export interface GatewayClaim {
   executionId: string;
   connectionId: string;
+  ownerInstanceId: string;
   attemptId: string;
   invocationId: string;
   applicationId: string;
@@ -44,6 +45,7 @@ export interface GatewayRepository {
     applicationId: string,
     executionId: string,
     inputDigest: string,
+    ownerInstanceId: string,
   ): Promise<ClaimResult>;
   beginFallback(claim: GatewayClaim, reason: string): Promise<GatewayClaim>;
   complete(
@@ -61,7 +63,7 @@ export interface GatewayRepository {
     usage?: GatewayUsage,
     providerRequestId?: string | null,
     providerCompleted?: boolean,
-  ): Promise<void>;
+  ): Promise<boolean>;
   read(
     applicationId: string,
     executionId: string,

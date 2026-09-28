@@ -39,6 +39,7 @@ export class PrismaGatewayRepository implements GatewayRepository {
     applicationId: string,
     executionId: string,
     inputDigest: string,
+    ownerInstanceId: string,
   ): Promise<ClaimResult> {
     return this.db.$transaction(
       async (tx) => {
@@ -293,6 +294,7 @@ export class PrismaGatewayRepository implements GatewayRepository {
           where: { id: attempt.id },
           data: {
             status: 'RUNNING',
+            ownerInstanceId,
             authority: 'OWNED',
             compute: 'NOT_APPLICABLE',
             external: 'NONE',
@@ -321,6 +323,7 @@ export class PrismaGatewayRepository implements GatewayRepository {
           claim: {
             executionId,
             connectionId: connection.id,
+            ownerInstanceId,
             attemptId: attempt.id,
             invocationId,
             applicationId,
@@ -424,10 +427,15 @@ export class PrismaGatewayRepository implements GatewayRepository {
         const currentInvocation = await tx.providerInvocation.findUnique({
           where: { id: claim.invocationId },
         });
+        const currentAttempt = await tx.attempt.findUnique({
+          where: { id: claim.attemptId },
+        });
         if (
           !currentInvocation ||
           currentInvocation.status !== 'RUNNING' ||
-          currentInvocation.attemptId !== claim.attemptId
+          currentInvocation.attemptId !== claim.attemptId ||
+          currentAttempt?.status !== 'RUNNING' ||
+          currentAttempt.ownerInstanceId !== claim.ownerInstanceId
         ) {
           throw new ApplicationError(
             'IDEMPOTENCY_CONFLICT',
@@ -461,6 +469,7 @@ export class PrismaGatewayRepository implements GatewayRepository {
             executionId: claim.executionId,
             number: nextNumber,
             status: 'RUNNING',
+            ownerInstanceId: claim.ownerInstanceId,
             authority: 'OWNED',
             compute: 'NOT_APPLICABLE',
             external: 'NONE',
@@ -533,12 +542,34 @@ export class PrismaGatewayRepository implements GatewayRepository {
         throw new ApplicationError('NOT_FOUND', 'Execution not found.');
       }
       if (execution.result) {
-        return;
+        throw new ApplicationError(
+          'IDEMPOTENCY_CONFLICT',
+          'Execution already has a committed provider result.',
+          claim.executionId,
+        );
       }
       if (execution.status !== 'RUNNING' || execution.cancelRequestedAt) {
         throw new ApplicationError(
           'IDEMPOTENCY_CONFLICT',
           'Execution cannot accept a provider result.',
+          claim.executionId,
+        );
+      }
+      const attempt = await tx.attempt.findUnique({
+        where: { id: claim.attemptId },
+      });
+      const invocation = await tx.providerInvocation.findUnique({
+        where: { id: claim.invocationId },
+      });
+      if (
+        attempt?.status !== 'RUNNING' ||
+        attempt.ownerInstanceId !== claim.ownerInstanceId ||
+        invocation?.status !== 'RUNNING' ||
+        invocation.attemptId !== claim.attemptId
+      ) {
+        throw new ApplicationError(
+          'IDEMPOTENCY_CONFLICT',
+          'Provider attempt has lost completion authority.',
           claim.executionId,
         );
       }
@@ -609,8 +640,8 @@ export class PrismaGatewayRepository implements GatewayRepository {
     usage?: GatewayUsage,
     providerRequestId: string | null = null,
     providerCompleted = false,
-  ) {
-    await this.db.$transaction(async (tx) => {
+  ): Promise<boolean> {
+    return this.db.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM control.executions WHERE id=${claim.executionId}::uuid FOR UPDATE`;
       const execution = await tx.execution.findFirst({
         where: { id: claim.executionId, applicationId: claim.applicationId },
@@ -627,7 +658,21 @@ export class PrismaGatewayRepository implements GatewayRepository {
           'RECONCILING',
         ].includes(execution.status)
       ) {
-        return;
+        return false;
+      }
+      const attempt = await tx.attempt.findUnique({
+        where: { id: claim.attemptId },
+      });
+      const invocation = await tx.providerInvocation.findUnique({
+        where: { id: claim.invocationId },
+      });
+      if (
+        attempt?.status !== 'RUNNING' ||
+        attempt.ownerInstanceId !== claim.ownerInstanceId ||
+        invocation?.status !== 'RUNNING' ||
+        invocation.attemptId !== claim.attemptId
+      ) {
+        return false;
       }
       const status = cancelled
         ? 'CANCELLED'
@@ -692,6 +737,7 @@ export class PrismaGatewayRepository implements GatewayRepository {
           payload: { execution_id: claim.executionId, code },
         },
       });
+      return true;
     });
   }
 
