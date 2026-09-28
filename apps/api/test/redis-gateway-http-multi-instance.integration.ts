@@ -324,7 +324,11 @@ test('HTTP client detaches from API A and resumes on API B without a second prov
         body: JSON.stringify(body),
       }),
     );
-    assert.equal(replayResponse.status, 200);
+    assert.equal(
+      replayResponse.status,
+      200,
+      await replayResponse.clone().text(),
+    );
     assert.match(
       replayResponse.headers.get('content-type') ?? '',
       /^application\/json/i,

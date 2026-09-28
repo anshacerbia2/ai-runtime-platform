@@ -10,7 +10,15 @@ import {
   GatewayExecution,
   type GatewayStreamEvent,
 } from '@ai-runtime/contracts/http';
-import { Body, Controller, Headers, Param, Req, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Headers,
+  HttpCode,
+  Param,
+  Req,
+  Res,
+} from '@nestjs/common';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { ContractRoute } from '../../../../shared/presentation/contract-route.js';
 import { ApplicationError } from '../../../../shared/domain/application-error.js';
@@ -26,6 +34,7 @@ export class GatewayController {
   constructor(private readonly gateway: GatewayService) {}
 
   @ContractRoute(apiContract.gateway.chat)
+  @HttpCode(200)
   async chat(
     @CurrentPrincipal() principal: Principal,
     @Headers('idempotency-key') key: string,
@@ -42,6 +51,7 @@ export class GatewayController {
         );
   }
   @ContractRoute(apiContract.gateway.generate)
+  @HttpCode(200)
   async generate(
     @CurrentPrincipal() principal: Principal,
     @Headers('idempotency-key') key: string,
@@ -59,6 +69,7 @@ export class GatewayController {
   }
 
   @ContractRoute(apiContract.gateway.submit)
+  @HttpCode(200)
   async submit(
     @CurrentPrincipal() principal: Principal,
     @Headers('idempotency-key') key: string,
@@ -82,6 +93,7 @@ export class GatewayController {
   }
 
   @ContractRoute(apiContract.gateway.cancel)
+  @HttpCode(200)
   async cancel(
     @CurrentPrincipal() principal: Principal,
     @Param('id') id: string,
