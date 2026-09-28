@@ -339,6 +339,176 @@ test('M2 gateway commits result, provider evidence, settlement and exact replay'
   assert.equal(calls, 1);
 });
 
+test('gateway claim rechecks application, connection and binding revocation before invocation', async () => {
+  const executionIds: string[] = [];
+  try {
+    const appAdmission = await control.admit(
+      principal,
+      profileRef,
+      'e'.repeat(64),
+      `${prefix}-revoked-application`,
+    );
+    executionIds.push(appAdmission.execution.id);
+    await db.controlApplication.update({
+      where: { id: application.id },
+      data: { status: 'DISABLED' },
+    });
+    await assert.rejects(
+      repository.claim(
+        application.id,
+        appAdmission.execution.id,
+        'e'.repeat(64),
+        randomUUID(),
+      ),
+      { code: 'POLICY_DENIED' },
+    );
+    await db.controlApplication.update({
+      where: { id: application.id },
+      data: { status: 'ENABLED' },
+    });
+
+    const connectionAdmission = await control.admit(
+      principal,
+      profileRef,
+      'e'.repeat(64),
+      `${prefix}-revoked-connection`,
+    );
+    executionIds.push(connectionAdmission.execution.id);
+    await db.aiConnection.update({
+      where: { id: connectionId },
+      data: { status: 'DISABLED' },
+    });
+    await assert.rejects(
+      repository.claim(
+        application.id,
+        connectionAdmission.execution.id,
+        'e'.repeat(64),
+        randomUUID(),
+      ),
+      { code: 'POLICY_DENIED' },
+    );
+    await db.aiConnection.update({
+      where: { id: connectionId },
+      data: { status: 'ENABLED' },
+    });
+
+    const bindingAdmission = await control.admit(
+      principal,
+      profileRef,
+      'e'.repeat(64),
+      `${prefix}-revoked-binding`,
+    );
+    executionIds.push(bindingAdmission.execution.id);
+    await db.credentialBinding.update({
+      where: { id: bindingId },
+      data: { status: 'DISABLED' },
+    });
+    await assert.rejects(
+      repository.claim(
+        application.id,
+        bindingAdmission.execution.id,
+        'e'.repeat(64),
+        randomUUID(),
+      ),
+      { code: 'POLICY_DENIED' },
+    );
+  } finally {
+    await db.controlApplication.update({
+      where: { id: application.id },
+      data: { status: 'ENABLED' },
+    });
+    await db.aiConnection.update({
+      where: { id: connectionId },
+      data: { status: 'ENABLED' },
+    });
+    await db.credentialBinding.update({
+      where: { id: bindingId },
+      data: { status: 'ENABLED' },
+    });
+  }
+  assert.equal(
+    await db.providerInvocation.count({
+      where: { executionId: { in: executionIds } },
+    }),
+    0,
+  );
+});
+
+test('fallback attempt rechecks revocation after the primary claim', async () => {
+  const inputDigest = 'f'.repeat(64);
+  const admission = await control.admit(
+    principal,
+    profileRef,
+    inputDigest,
+    `${prefix}-fallback-revoked`,
+  );
+  const claimed = await repository.claim(
+    application.id,
+    admission.execution.id,
+    inputDigest,
+    randomUUID(),
+  );
+  assert.equal(claimed.state, 'claimed');
+  if (claimed.state !== 'claimed') {
+    return;
+  }
+  try {
+    await db.controlApplication.update({
+      where: { id: application.id },
+      data: { status: 'DISABLED' },
+    });
+    await assert.rejects(
+      repository.beginFallback(claimed.claim, 'PRIMARY_NOT_SENT'),
+      { code: 'POLICY_DENIED' },
+    );
+    await db.controlApplication.update({
+      where: { id: application.id },
+      data: { status: 'ENABLED' },
+    });
+
+    await db.aiConnection.update({
+      where: { id: fallbackConnectionId },
+      data: { status: 'DISABLED' },
+    });
+    await assert.rejects(
+      repository.beginFallback(claimed.claim, 'PRIMARY_NOT_SENT'),
+      { code: 'DEPENDENCY_UNAVAILABLE' },
+    );
+    await db.aiConnection.update({
+      where: { id: fallbackConnectionId },
+      data: { status: 'ENABLED' },
+    });
+
+    await db.credentialBinding.update({
+      where: { id: fallbackBindingId },
+      data: { status: 'DISABLED' },
+    });
+    await assert.rejects(
+      repository.beginFallback(claimed.claim, 'PRIMARY_NOT_SENT'),
+      { code: 'POLICY_DENIED' },
+    );
+  } finally {
+    await db.controlApplication.update({
+      where: { id: application.id },
+      data: { status: 'ENABLED' },
+    });
+    await db.aiConnection.update({
+      where: { id: fallbackConnectionId },
+      data: { status: 'ENABLED' },
+    });
+    await db.credentialBinding.update({
+      where: { id: fallbackBindingId },
+      data: { status: 'ENABLED' },
+    });
+  }
+  assert.equal(
+    await db.providerInvocation.count({
+      where: { executionId: admission.execution.id },
+    }),
+    1,
+  );
+});
+
 test('G17 not-sent primary failure uses one policy-approved durable fallback attempt', async () => {
   let primaryCalls = 0;
   let fallbackCalls = 0;

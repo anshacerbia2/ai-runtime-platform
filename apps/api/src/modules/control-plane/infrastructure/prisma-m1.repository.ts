@@ -1307,6 +1307,9 @@ export class PrismaM1Repository implements M1Repository {
     try {
       await this.database.$transaction(
         async (tx) => {
+          // Policy updates acquire an exclusive row lock. Hold a compatible
+          // reader lock through commit so a disable cannot overtake admission.
+          await tx.$queryRaw`SELECT id FROM control.applications WHERE id = ${applicationId} FOR SHARE`;
           const application = await tx.controlApplication.findUnique({
             where: { id: applicationId },
           });
@@ -1339,6 +1342,7 @@ export class PrismaM1Repository implements M1Repository {
           if (!profile) {
             notFound('Published profile revision not found.');
           }
+          await tx.$queryRaw`SELECT id FROM control.ai_connections WHERE id = ${profile.connectionId} FOR SHARE`;
           const connection = await tx.aiConnection.findUnique({
             where: { id: profile.connectionId },
           });
@@ -1348,15 +1352,14 @@ export class PrismaM1Repository implements M1Repository {
               'Profile connection is not enabled.',
             );
           }
-          const binding = await tx.credentialBinding.findFirst({
-            where: {
-              applicationId,
-              connectionId: profile.connectionId,
-              status: 'ENABLED',
-              OR: [{ profileRef: null }, { profileRef: profile.profileRef }],
-            },
-          });
-          if (!binding) {
+          const binding = await tx.$queryRaw<Array<{ id: string }>>`
+            SELECT id FROM control.credential_bindings
+            WHERE application_id = ${applicationId}
+              AND connection_id = ${profile.connectionId}
+              AND status = 'ENABLED'
+              AND (profile_ref IS NULL OR profile_ref = ${profile.profileRef})
+            ORDER BY id LIMIT 1 FOR SHARE`;
+          if (binding.length === 0) {
             throw new ApplicationError(
               'POLICY_DENIED',
               'Connection is not bound to this application/profile.',

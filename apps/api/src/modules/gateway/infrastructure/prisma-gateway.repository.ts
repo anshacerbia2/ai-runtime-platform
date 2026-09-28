@@ -86,6 +86,8 @@ export class PrismaGatewayRepository implements GatewayRepository {
             executionId,
           );
         }
+        const application = await tx.$queryRaw<Array<{ status: string }>>`
+          SELECT status FROM control.applications WHERE id = ${applicationId} FOR SHARE`;
         const configuredProvider = provider(execution.profile.providerAdapter);
         if (
           execution.profile.model === 'UNCONFIGURED' ||
@@ -108,6 +110,7 @@ export class PrismaGatewayRepository implements GatewayRepository {
             executionId,
           );
         }
+        await tx.$queryRaw`SELECT id FROM control.ai_connections WHERE id = ${execution.profile.connectionId} FOR SHARE`;
         const connection = await tx.aiConnection.findUnique({
           where: { id: execution.profile.connectionId },
         });
@@ -122,14 +125,12 @@ export class PrismaGatewayRepository implements GatewayRepository {
             executionId,
           );
         }
-        const credential = await tx.credentialInstance.findFirst({
-          where: {
-            connectionId: connection.id,
-            residency: 'CENTRAL',
-            status: 'ENABLED',
-          },
-          select: { id: true, secretRef: true },
-        });
+        const [credential] = await tx.$queryRaw<
+          Array<{ id: string; secretRef: string | null }>
+        >`SELECT id, secret_ref AS "secretRef" FROM control.credential_instances
+          WHERE connection_id = ${connection.id} AND residency = 'CENTRAL'
+            AND status = 'ENABLED' AND secret_ref IS NOT NULL
+          ORDER BY id LIMIT 1 FOR SHARE`;
         if (!credential?.secretRef) {
           throw new ApplicationError(
             'POLICY_DENIED',
@@ -146,40 +147,34 @@ export class PrismaGatewayRepository implements GatewayRepository {
           const fallbackProvider = provider(
             execution.profile.fallbackProviderAdapter,
           );
+          await tx.$queryRaw`SELECT id FROM control.ai_connections WHERE id = ${execution.profile.fallbackConnectionId} FOR SHARE`;
           const fallbackConnection = await tx.aiConnection.findUnique({
             where: { id: execution.profile.fallbackConnectionId },
           });
           const fallbackBinding = fallbackConnection
-            ? await tx.credentialBinding.findFirst({
-                where: {
-                  applicationId,
-                  connectionId: fallbackConnection.id,
-                  status: 'ENABLED',
-                  OR: [
-                    { profileRef: null },
-                    { profileRef: execution.profile.profileRef },
-                  ],
-                },
-              })
-            : null;
+            ? await tx.$queryRaw<Array<{ id: string }>>`
+                SELECT id FROM control.credential_bindings
+                WHERE application_id = ${applicationId}
+                  AND connection_id = ${fallbackConnection.id}
+                  AND status = 'ENABLED'
+                  AND (profile_ref IS NULL OR profile_ref = ${execution.profile.profileRef})
+                ORDER BY id LIMIT 1 FOR SHARE`
+            : [];
           const fallbackCredential = fallbackConnection
-            ? await tx.credentialInstance.findFirst({
-                where: {
-                  connectionId: fallbackConnection.id,
-                  residency: 'CENTRAL',
-                  status: 'ENABLED',
-                  secretRef: { not: null },
-                },
-                select: { secretRef: true },
-              })
-            : null;
+            ? await tx.$queryRaw<Array<{ secretRef: string }>>`
+                SELECT secret_ref AS "secretRef" FROM control.credential_instances
+                WHERE connection_id = ${fallbackConnection.id}
+                  AND residency = 'CENTRAL' AND status = 'ENABLED'
+                  AND secret_ref IS NOT NULL
+                ORDER BY id LIMIT 1 FOR SHARE`
+            : [];
           if (
             !fallbackConnection ||
             fallbackConnection.status !== 'ENABLED' ||
             fallbackConnection.sharingMode !== 'DEDICATED' ||
             fallbackConnection.provider !== fallbackProvider ||
-            !fallbackBinding ||
-            !fallbackCredential?.secretRef
+            fallbackBinding.length === 0 ||
+            !fallbackCredential[0]?.secretRef
           ) {
             throw new ApplicationError(
               'POLICY_DENIED',
@@ -190,7 +185,7 @@ export class PrismaGatewayRepository implements GatewayRepository {
           fallback = {
             connectionId: fallbackConnection.id,
             provider: fallbackProvider,
-            credentialRef: fallbackCredential.secretRef,
+            credentialRef: fallbackCredential[0].secretRef,
             model: execution.profile.fallbackModel,
           };
         }
@@ -307,6 +302,27 @@ export class PrismaGatewayRepository implements GatewayRepository {
             executionId,
           );
         }
+        if (application[0]?.status !== 'ENABLED') {
+          throw new ApplicationError(
+            'POLICY_DENIED',
+            'Application is not enabled.',
+            executionId,
+          );
+        }
+        const primaryBinding = await tx.$queryRaw<Array<{ id: string }>>`
+          SELECT id FROM control.credential_bindings
+          WHERE application_id = ${applicationId}
+            AND connection_id = ${connection.id}
+            AND status = 'ENABLED'
+            AND (profile_ref IS NULL OR profile_ref = ${execution.profile.profileRef})
+          ORDER BY id LIMIT 1 FOR SHARE`;
+        if (primaryBinding.length === 0) {
+          throw new ApplicationError(
+            'POLICY_DENIED',
+            'Connection is no longer bound to this application/profile.',
+            executionId,
+          );
+        }
         const invocationId = randomUUID();
         await tx.providerInvocation.create({
           data: {
@@ -394,6 +410,7 @@ export class PrismaGatewayRepository implements GatewayRepository {
             applicationId: claim.applicationId,
           },
           include: {
+            profile: { select: { profileRef: true } },
             attempts: { orderBy: { number: 'desc' }, take: 1 },
             result: true,
           },
@@ -410,17 +427,50 @@ export class PrismaGatewayRepository implements GatewayRepository {
             claim.executionId,
           );
         }
+        const application = await tx.$queryRaw<Array<{ status: string }>>`
+          SELECT status FROM control.applications
+          WHERE id = ${claim.applicationId} FOR SHARE`;
+        if (application[0]?.status !== 'ENABLED') {
+          throw new ApplicationError(
+            'POLICY_DENIED',
+            'Application is not enabled for a new provider attempt.',
+            claim.executionId,
+          );
+        }
+        await tx.$queryRaw`SELECT id FROM control.ai_connections WHERE id = ${fallback.connectionId} FOR SHARE`;
         const fallbackConnection = await tx.aiConnection.findUnique({
           where: { id: fallback.connectionId },
         });
         if (
           !fallbackConnection ||
           fallbackConnection.status !== 'ENABLED' ||
-          fallbackConnection.sharingMode !== 'DEDICATED'
+          fallbackConnection.sharingMode !== 'DEDICATED' ||
+          fallbackConnection.provider !== fallback.provider
         ) {
           throw new ApplicationError(
             'DEPENDENCY_UNAVAILABLE',
             'Fallback connection is no longer eligible.',
+            claim.executionId,
+          );
+        }
+        const fallbackBinding = await tx.$queryRaw<Array<{ id: string }>>`
+          SELECT id FROM control.credential_bindings
+          WHERE application_id = ${claim.applicationId}
+            AND connection_id = ${fallback.connectionId}
+            AND status = 'ENABLED'
+            AND (profile_ref IS NULL OR profile_ref = ${execution.profile.profileRef})
+          ORDER BY id LIMIT 1 FOR SHARE`;
+        const [fallbackCredential] = await tx.$queryRaw<
+          Array<{ secretRef: string }>
+        >`SELECT secret_ref AS "secretRef" FROM control.credential_instances
+          WHERE connection_id = ${fallback.connectionId}
+            AND residency = 'CENTRAL' AND status = 'ENABLED'
+            AND secret_ref IS NOT NULL
+          ORDER BY id LIMIT 1 FOR SHARE`;
+        if (fallbackBinding.length === 0 || !fallbackCredential?.secretRef) {
+          throw new ApplicationError(
+            'POLICY_DENIED',
+            'Fallback route authorization was revoked.',
             claim.executionId,
           );
         }
@@ -546,7 +596,7 @@ export class PrismaGatewayRepository implements GatewayRepository {
           invocationId,
           connectionId: fallback.connectionId,
           provider: fallback.provider,
-          credentialRef: fallback.credentialRef,
+          credentialRef: fallbackCredential.secretRef,
           model: fallback.model,
           fallback: null,
         };
