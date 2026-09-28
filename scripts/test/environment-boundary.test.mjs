@@ -80,6 +80,29 @@ test('gateway replay Redis endpoint uses a Redis URL and stays in the API projec
   }
 });
 
+test('runner coordination Redis has a distinct validated API projection', () => {
+  const prior = process.env.M3_COORDINATION_REDIS_URL;
+  try {
+    process.env.M3_COORDINATION_REDIS_URL =
+      'https://example.invalid/coordination';
+    assert.throws(
+      () => loadApiEnvironment(),
+      /M3_COORDINATION_REDIS_URL must use the Redis protocol/,
+    );
+    process.env.M3_COORDINATION_REDIS_URL = 'redis://127.0.0.1:6379/13';
+    assert.equal(
+      loadApiEnvironment().runner.coordinationRedisUrl,
+      'redis://127.0.0.1:6379/13',
+    );
+  } finally {
+    if (prior === undefined) {
+      delete process.env.M3_COORDINATION_REDIS_URL;
+    } else {
+      process.env.M3_COORDINATION_REDIS_URL = prior;
+    }
+  }
+});
+
 test('nonlocal API cannot silently use process-local replay', () => {
   const prior = {
     mode: process.env.M0_RUNTIME_MODE,

@@ -125,6 +125,9 @@ jobs:
       - run: npm run test:gateway:redis
         env:
           M2_REPLAY_REDIS_URL: redis://127.0.0.1:6379/14
+      - run: npm run test:runner:redis
+        env:
+          M3_COORDINATION_REDIS_URL: redis://127.0.0.1:6379/13
       - run: npm run cdc:broker-proof
         env:
           PACT_BROKER_BASE_URL: http://127.0.0.1:9292

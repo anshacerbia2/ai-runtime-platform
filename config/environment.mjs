@@ -141,6 +141,7 @@ export const runtimeEnvironmentSchema = z.object({
   M2_OPENROUTER_API_KEY: optStr(),
   M2_ANTHROPIC_API_KEY: optStr(),
   M2_REPLAY_REDIS_URL: optStr(),
+  M3_COORDINATION_REDIS_URL: optStr(),
   OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: optStr(),
   PLAYWRIGHT_BROWSER_NAME: reqStr('PLAYWRIGHT_BROWSER_NAME'),
   PLAYWRIGHT_CHANNEL: reqStr('PLAYWRIGHT_CHANNEL'),
@@ -192,6 +193,7 @@ const apiEnvironmentSchema = runtimeEnvironmentSchema.pick({
   M2_OPENROUTER_API_KEY: true,
   M2_ANTHROPIC_API_KEY: true,
   M2_REPLAY_REDIS_URL: true,
+  M3_COORDINATION_REDIS_URL: true,
   OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: true,
   M1_LOCAL_OPERATOR_TOKEN: true,
   M1_LOCAL_RUNNER_TOKEN: true,
@@ -259,6 +261,12 @@ function buildApiEnvironment(raw) {
   } else if (raw.M0_RUNTIME_MODE !== 'm0-local') {
     throw new Error('M2_REPLAY_REDIS_URL is required outside m0-local mode.');
   }
+  if (raw.M3_COORDINATION_REDIS_URL) {
+    const coordinationEndpoint = new URL(raw.M3_COORDINATION_REDIS_URL);
+    if (!['redis:', 'rediss:'].includes(coordinationEndpoint.protocol)) {
+      throw new Error('M3_COORDINATION_REDIS_URL must use the Redis protocol.');
+    }
+  }
 
   const config = {
     runtimeMode: raw.M0_RUNTIME_MODE,
@@ -300,6 +308,9 @@ function buildApiEnvironment(raw) {
       anthropicApiKey: raw.M2_ANTHROPIC_API_KEY,
       replayRedisUrl: raw.M2_REPLAY_REDIS_URL,
     },
+    runner: Object.freeze({
+      coordinationRedisUrl: raw.M3_COORDINATION_REDIS_URL,
+    }),
     telemetry: Object.freeze({
       tracesEndpoint: raw.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
     }),

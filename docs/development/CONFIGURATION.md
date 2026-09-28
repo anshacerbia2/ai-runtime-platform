@@ -16,18 +16,19 @@ npm run setup
 
 ## Core HTTP
 
-| Variable                             | Meaning                                                                                                                                            |
-| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `M0_RUNTIME_MODE`                    | `m0-local` for local lab/tests; `m1-oidc` for nonlocal platform-owned OIDC/BFF hosting                                                             |
-| `DEPLOYMENT_ROLE`                    | API composition: `api-local` or `api-production`; explicit outside local mode                                                                      |
-| `M0_API_HOST`, `M0_API_PORT`         | API bind address                                                                                                                                   |
-| `M0_WEB_HOST`, `M0_WEB_PORT`         | Web tier (Next.js) bind address                                                                                                                    |
-| `M0_ALLOWED_HOSTS`                   | Explicit comma-separated host allow-list                                                                                                           |
-| `M0_ALLOWED_ORIGINS`                 | Explicit comma-separated origin allow-list                                                                                                         |
-| `M0_API_BODY_LIMIT_BYTES`            | Fastify body cap                                                                                                                                   |
-| `M0_API_REQUEST_TIMEOUT_MS`          | Fastify timeout and BFF local wait bound, not provider/execution cancellation                                                                      |
-| `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | Optional exact HTTP(S) OTLP trace endpoint; empty keeps W3C propagation active without exporting spans                                             |
-| `M2_REPLAY_REDIS_URL`                | Redis endpoint for shared gateway SSE replay, cancel signal, and circuit health; required outside `m0-local`, empty keeps local in-memory adapters |
+| Variable                             | Meaning                                                                                                                                               |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `M0_RUNTIME_MODE`                    | `m0-local` for local lab/tests; `m1-oidc` for nonlocal platform-owned OIDC/BFF hosting                                                                |
+| `DEPLOYMENT_ROLE`                    | API composition: `api-local` or `api-production`; explicit outside local mode                                                                         |
+| `M0_API_HOST`, `M0_API_PORT`         | API bind address                                                                                                                                      |
+| `M0_WEB_HOST`, `M0_WEB_PORT`         | Web tier (Next.js) bind address                                                                                                                       |
+| `M0_ALLOWED_HOSTS`                   | Explicit comma-separated host allow-list                                                                                                              |
+| `M0_ALLOWED_ORIGINS`                 | Explicit comma-separated origin allow-list                                                                                                            |
+| `M0_API_BODY_LIMIT_BYTES`            | Fastify body cap                                                                                                                                      |
+| `M0_API_REQUEST_TIMEOUT_MS`          | Fastify timeout and BFF local wait bound, not provider/execution cancellation                                                                         |
+| `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | Optional exact HTTP(S) OTLP trace endpoint; empty keeps W3C propagation active without exporting spans                                                |
+| `M2_REPLAY_REDIS_URL`                | Redis endpoint for shared gateway SSE replay, cancel signal, and circuit health; required outside `m0-local`, empty keeps local in-memory adapters    |
+| `M3_COORDINATION_REDIS_URL`          | Dedicated Redis endpoint for M3 runner lease coordination; required when the M3 coordinator is enabled and must not reuse the gateway replay database |
 
 ## PostgreSQL and Prisma
 

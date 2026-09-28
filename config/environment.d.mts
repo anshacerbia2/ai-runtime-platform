@@ -44,6 +44,9 @@ export interface RuntimeEnvironment {
     readonly openrouterEndpoint?: string;
     readonly anthropicEndpoint?: string;
   };
+  readonly runner: {
+    readonly coordinationRedisUrl?: string;
+  };
   readonly telemetry: {
     readonly tracesEndpoint?: string;
   };
