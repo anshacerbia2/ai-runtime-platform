@@ -246,17 +246,8 @@ test('admission and application, connection, binding revocation have a database-
     const outcome = await admitted;
     const disabled = await disabling;
     assert.ok(disabled.value, JSON.stringify(disabled));
-    let acceptedCount = 0;
-    if (outcome.value) {
-      acceptedCount++;
-    } else {
-      // A Serializable retry can move admission behind the completed disable.
-      assert.equal(
-        (outcome.error as { code?: string })?.code,
-        'POLICY_DENIED',
-        JSON.stringify(outcome),
-      );
-    }
+    assert.ok(outcome.value, JSON.stringify(outcome));
+    let acceptedCount = 1;
     await assert.rejects(
       control.admit(
         application,
@@ -339,16 +330,8 @@ test('admission and application, connection, binding revocation have a database-
       const accepted = await admitted;
       const disabledPolicy = await disabling;
       assert.ok(disabledPolicy.value, JSON.stringify(disabledPolicy));
-      if (accepted.value) {
-        acceptedCount++;
-      } else {
-        // Serializable may abort and retry admission after disable wins.
-        assert.equal(
-          (accepted.error as { code?: string })?.code,
-          'POLICY_DENIED',
-          JSON.stringify(accepted),
-        );
-      }
+      assert.ok(accepted.value, JSON.stringify(accepted));
+      acceptedCount++;
       await assert.rejects(
         control.admit(
           application,

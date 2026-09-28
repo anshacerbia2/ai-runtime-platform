@@ -28,6 +28,16 @@ const digest = (value: string) =>
 const jsonDigest = (value: unknown) => digest(canonicalJson(value));
 const positive = (value: bigint) => (value > 0n ? value : 0n);
 
+function connectionAdmissionScope(connection: {
+  id: string;
+  sharingMode: 'DEDICATED' | 'SHARED';
+  quotaGroupRef: string | null;
+}) {
+  return connection.sharingMode === 'SHARED'
+    ? 'quota:' + connection.quotaGroupRef
+    : 'connection:' + connection.id;
+}
+
 function requireApplication(principal: Principal) {
   if (principal.kind !== 'application' || !principal.applicationId) {
     throw new ApplicationError(
@@ -609,14 +619,43 @@ export class PrismaM1Repository implements M1Repository {
     }
 
     if (command.kind === 'connection') {
+      // Lock the connection before its old/new route scopes. Admission takes
+      // the same row-before-advisory order, so a quota-group move has one
+      // database-enforced ordering point with every affected route.
+      await tx.$queryRaw`SELECT id FROM control.ai_connections WHERE id = ${command.id} FOR UPDATE`;
       const current = await tx.aiConnection.findUnique({
         where: { id: command.id },
       });
+      if (command.expectedRevision === 0) {
+        if (current) {
+          conflict('Connection already exists.');
+        }
+      } else {
+        if (!current) {
+          notFound();
+        }
+        if (current.revision !== command.expectedRevision) {
+          conflict('Connection revision changed.');
+        }
+      }
       if (command.sharingMode === 'SHARED' && !command.quotaGroupRef) {
         throw new ApplicationError(
           'INVALID_REQUEST',
           'Shared connection requires quotaGroupRef.',
         );
+      }
+      const routeScopes = new Set<string>([
+        connectionAdmissionScope({
+          id: command.id,
+          sharingMode: command.sharingMode,
+          quotaGroupRef: command.quotaGroupRef,
+        }),
+      ]);
+      if (current) {
+        routeScopes.add(connectionAdmissionScope(current));
+      }
+      for (const scope of [...routeScopes].sort()) {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${scope}, 0))`;
       }
       if (command.sharingMode === 'DEDICATED') {
         const owners = await tx.credentialBinding.findMany({
@@ -674,20 +713,11 @@ export class PrismaM1Repository implements M1Repository {
         status: command.status,
       };
       if (command.expectedRevision === 0) {
-        if (current) {
-          conflict('Connection already exists.');
-        }
         const created = await tx.aiConnection.create({
           data: { id: command.id, ...data },
         });
         await audited('connection.created', created.id, created.revision);
         return created;
-      }
-      if (!current) {
-        notFound();
-      }
-      if (current.revision !== command.expectedRevision) {
-        conflict('Connection revision changed.');
       }
       const updated = await tx.aiConnection.update({
         where: { id: command.id },
@@ -833,6 +863,10 @@ export class PrismaM1Repository implements M1Repository {
           'Budget must scope exactly one application or quota group.',
         );
       }
+      // Admission also locks budget rows before checking exposure. Re-read
+      // after this lock so a limit update cannot validate stale held/posted
+      // values while an admission is committing a reservation.
+      await tx.$queryRaw`SELECT id FROM control.budget_accounts WHERE id = ${command.id} FOR UPDATE`;
       const current = await tx.budgetAccount.findUnique({
         where: { id: command.id },
       });
@@ -1319,14 +1353,12 @@ export class PrismaM1Repository implements M1Repository {
               'Application is not enabled.',
             );
           }
-          const alias = await tx.profileAlias.findUnique({
-            where: {
-              applicationId_profileRef: {
-                applicationId,
-                profileRef: command.profileRef,
-              },
-            },
-          });
+          const [alias] = await tx.$queryRaw<
+            Array<{ revision: number; enabled: boolean }>
+          >`SELECT revision, enabled FROM control.profile_aliases
+              WHERE application_id = ${applicationId}
+                AND profile_ref = ${command.profileRef}
+              FOR SHARE`;
           if (!alias?.enabled) {
             notFound('Published profile not found.');
           }
@@ -1366,10 +1398,7 @@ export class PrismaM1Repository implements M1Repository {
             );
           }
 
-          const routeScope =
-            connection.sharingMode === 'SHARED'
-              ? 'quota:' + connection.quotaGroupRef
-              : 'connection:' + connection.id;
+          const routeScope = connectionAdmissionScope(connection);
           const admissionScopes = [
             'application:' + applicationId,
             routeScope,
@@ -1569,7 +1598,11 @@ export class PrismaM1Repository implements M1Repository {
             },
           });
         },
-        { isolationLevel: 'Serializable' },
+        // Every admission invariant is protected by an explicit ordered lock:
+        // policy rows, application/route advisory scopes, then budget rows.
+        // Read Committed avoids broad Serializable predicate-lock retries while
+        // preserving those database-enforced linearization points.
+        { isolationLevel: 'ReadCommitted' },
       );
       return {
         execution: await this.admissionView(executionId, applicationId),

@@ -23,6 +23,9 @@ const prefix = `admit-bench-${runId}`;
 const appName = `admit-bench-${runId.slice(0, 8)}`;
 const poolWaitMs = [];
 const advisoryStatementMs = [];
+const policyLockStatementMs = [];
+const capacityStatementMs = [];
+const rateWindowStatementMs = [];
 const budgetLockStatementMs = [];
 let transactionStarts = 0;
 const instrumented = new WeakSet();
@@ -53,9 +56,21 @@ function instrumentClient(client) {
     }
     const samples = /pg_advisory_xact_lock/i.test(sql ?? '')
       ? advisoryStatementMs
-      : /FROM control\.budget_accounts WHERE id = .*FOR UPDATE/i.test(sql ?? '')
-        ? budgetLockStatementMs
-        : null;
+      : /FROM control\.(applications|ai_connections|credential_bindings|profile_aliases)[\s\S]*FOR SHARE/i.test(
+            sql ?? '',
+          )
+        ? policyLockStatementMs
+        : /SELECT count\(\*\)::bigint AS count[\s\S]*FROM control\.executions/i.test(
+              sql ?? '',
+            )
+          ? capacityStatementMs
+          : /INSERT INTO control\.admission_rate_windows/i.test(sql ?? '')
+            ? rateWindowStatementMs
+            : /FROM control\.budget_accounts WHERE id = .*FOR UPDATE/i.test(
+                  sql ?? '',
+                )
+              ? budgetLockStatementMs
+              : null;
     if (!samples) {
       return originalQuery(...args);
     }
@@ -291,6 +306,9 @@ async function runScenario(concurrency, requests, shards) {
   const before = {
     pool: poolWaitMs.length,
     advisory: advisoryStatementMs.length,
+    policy: policyLockStatementMs.length,
+    capacity: capacityStatementMs.length,
+    rate: rateWindowStatementMs.length,
     budget: budgetLockStatementMs.length,
     transactions: transactionStarts,
   };
@@ -328,6 +346,9 @@ async function runScenario(concurrency, requests, shards) {
     measured = {
       poolAcquireMs: poolWaitMs.slice(before.pool),
       advisoryStatementMs: advisoryStatementMs.slice(before.advisory),
+      policyLockStatementMs: policyLockStatementMs.slice(before.policy),
+      capacityStatementMs: capacityStatementMs.slice(before.capacity),
+      rateWindowStatementMs: rateWindowStatementMs.slice(before.rate),
       budgetLockStatementMs: budgetLockStatementMs.slice(before.budget),
       transactionStarts: transactionStarts - before.transactions,
     };
@@ -349,6 +370,9 @@ async function runScenario(concurrency, requests, shards) {
     admissionMs: summary(latencies),
     poolAcquireMs: summary(measured.poolAcquireMs),
     advisoryStatementMs: summary(measured.advisoryStatementMs),
+    policyLockStatementMs: summary(measured.policyLockStatementMs),
+    capacityStatementMs: summary(measured.capacityStatementMs),
+    rateWindowStatementMs: summary(measured.rateWindowStatementMs),
     budgetLockStatementMs: summary(measured.budgetLockStatementMs),
     postgresWaitSamples: {
       ...activity,
@@ -358,6 +382,9 @@ async function runScenario(concurrency, requests, shards) {
       admissionMs: latencies,
       poolAcquireMs: measured.poolAcquireMs,
       advisoryStatementMs: measured.advisoryStatementMs,
+      policyLockStatementMs: measured.policyLockStatementMs,
+      capacityStatementMs: measured.capacityStatementMs,
+      rateWindowStatementMs: measured.rateWindowStatementMs,
       budgetLockStatementMs: measured.budgetLockStatementMs,
     },
   };
@@ -394,6 +421,7 @@ try {
     caveats: [
       'poolAcquireMs includes connection acquisition overhead as well as queue time',
       'advisoryStatementMs and budgetLockStatementMs include query execution and round trip, not only lock wait',
+      'policy, capacity and rate-window statement timings include query execution and round trip',
       'pg_stat_activity wait events are 10ms samples and may miss short waits',
       'transactionStarts counts BEGIN statements; it is not an error-code breakdown',
       'single local workstation and database; not a production capacity or SLO result',
