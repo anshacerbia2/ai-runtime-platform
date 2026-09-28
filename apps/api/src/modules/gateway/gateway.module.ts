@@ -35,11 +35,17 @@ import {
   GATEWAY_TELEMETRY,
   type GatewayTelemetry,
 } from './application/gateway-telemetry.port.js';
+import {
+  GATEWAY_CANCEL_SIGNAL,
+  noopGatewayCancelSignal,
+  type GatewayCancelSignal,
+} from './application/gateway-cancel-signal.port.js';
 import { GatewayService } from './application/gateway.service.js';
 import { PrismaGatewayRepository } from './infrastructure/prisma-gateway.repository.js';
 import { ControlPlaneGatewayAdapter } from './infrastructure/control-plane-gateway.adapter.js';
 import { InMemoryReplayStore } from './infrastructure/in-memory-replay.store.js';
 import { RedisReplayStore } from './infrastructure/redis-replay.store.js';
+import { RedisGatewayCancelSignal } from './infrastructure/redis-gateway-cancel.signal.js';
 import { Sha256RequestFingerprint } from './infrastructure/sha256-request-fingerprint.js';
 import { BoundedStructuredOutputValidator } from './infrastructure/structured-output.validator.js';
 import { OpenRouterAdapter } from './infrastructure/openrouter.adapter.js';
@@ -49,6 +55,7 @@ import { GatewayController } from './presentation/http/gateway.controller.js';
 
 const OPENROUTER = Symbol('OpenRouterProvider');
 const ANTHROPIC = Symbol('AnthropicProvider');
+const OWNER_INSTANCE_ID = randomUUID();
 
 @Module({
   imports: [DatabaseModule, ControlPlaneModule],
@@ -72,6 +79,14 @@ const ANTHROPIC = Symbol('AnthropicProvider');
         config.gateway.replayRedisUrl
           ? RedisReplayStore.connect(config.gateway.replayRedisUrl)
           : new InMemoryReplayStore(),
+    },
+    {
+      provide: GATEWAY_CANCEL_SIGNAL,
+      inject: [RUNTIME_CONFIG],
+      useFactory: (config: RuntimeConfig) =>
+        config.gateway.replayRedisUrl
+          ? RedisGatewayCancelSignal.connect(config.gateway.replayRedisUrl)
+          : noopGatewayCancelSignal,
     },
     { provide: REQUEST_FINGERPRINT, useClass: Sha256RequestFingerprint },
     { provide: STRUCTURED_OUTPUT, useClass: BoundedStructuredOutputValidator },
@@ -107,6 +122,7 @@ const ANTHROPIC = Symbol('AnthropicProvider');
         REQUEST_FINGERPRINT,
         STRUCTURED_OUTPUT,
         GATEWAY_TELEMETRY,
+        GATEWAY_CANCEL_SIGNAL,
       ],
       useFactory: (
         control: GatewayControl,
@@ -117,6 +133,7 @@ const ANTHROPIC = Symbol('AnthropicProvider');
         fingerprint: RequestFingerprint,
         structured: StructuredOutputValidator,
         telemetry: GatewayTelemetry,
+        cancelSignal: GatewayCancelSignal,
       ) =>
         new GatewayService(
           control,
@@ -125,8 +142,9 @@ const ANTHROPIC = Symbol('AnthropicProvider');
           replay,
           fingerprint,
           structured,
-          randomUUID(),
+          OWNER_INSTANCE_ID,
           telemetry,
+          cancelSignal,
         ),
     },
   ],

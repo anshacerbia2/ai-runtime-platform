@@ -25,6 +25,10 @@ import {
   noopGatewayTelemetry,
   type GatewayTelemetry,
 } from './gateway-telemetry.port.js';
+import {
+  noopGatewayCancelSignal,
+  type GatewayCancelSignal,
+} from './gateway-cancel-signal.port.js';
 
 export interface GatewayCommand {
   profile: string;
@@ -45,9 +49,11 @@ type EventSink = (event: GatewayStreamEvent) => void | Promise<void>;
 interface ActiveExecution {
   controller: AbortController;
   claim: GatewayClaim;
+  checkCancel: () => Promise<void>;
 }
 export class GatewayService {
   private readonly active = new Map<string, ActiveExecution>();
+  private cancelListener: Promise<void> | null = null;
   private readonly breaker = new Map<
     string,
     { failures: number; openUntil: number }
@@ -62,6 +68,7 @@ export class GatewayService {
     private readonly structured: StructuredOutputValidator,
     private readonly ownerInstanceId: string,
     private readonly telemetry: GatewayTelemetry = noopGatewayTelemetry,
+    private readonly cancelSignal: GatewayCancelSignal = noopGatewayCancelSignal,
   ) {}
 
   async execute(
@@ -84,6 +91,21 @@ export class GatewayService {
         'A valid Idempotency-Key is required.',
       );
     }
+    if (!this.cancelListener) {
+      this.cancelListener = this.cancelSignal
+        .listen(this.ownerInstanceId, (executionId) => {
+          const active = this.active.get(executionId);
+          if (active) {
+            void active.checkCancel();
+          }
+        })
+        .catch(() => {
+          // PostgreSQL polling remains the durable fallback. Retry the hot
+          // subscription on the next request if Redis was unavailable.
+          this.cancelListener = null;
+        });
+    }
+    await this.cancelListener;
     if (command.artifactRefs.length) {
       throw new ApplicationError(
         'VERSION_UNSUPPORTED',
@@ -188,7 +210,6 @@ export class GatewayService {
     }
 
     const controller = new AbortController();
-    this.active.set(claim.executionId, { controller, claim });
     let checkingCancel = false;
     const checkCancel = async () => {
       if (checkingCancel || controller.signal.aborted) {
@@ -213,6 +234,7 @@ export class GatewayService {
         checkingCancel = false;
       }
     };
+    this.active.set(claim.executionId, { controller, claim, checkCancel });
     const cancelPoll = setInterval(() => void checkCancel(), 1000);
     void checkCancel();
     const timeout = AbortSignal.timeout(timeoutMs);
@@ -352,7 +374,11 @@ export class GatewayService {
           }
           claim = await this.repository.beginFallback(claim, cause.code);
           fallback = true;
-          this.active.set(claim.executionId, { controller, claim });
+          this.active.set(claim.executionId, {
+            controller,
+            claim,
+            checkCancel,
+          });
           adapter = this.providers.find((item) => item.id === claim.provider);
           if (
             !adapter ||
@@ -499,6 +525,18 @@ export class GatewayService {
       active.controller.abort(
         new DOMException('Execution cancelled.', 'AbortError'),
       );
+    }
+    try {
+      const owner = await this.repository.cancelOwner(
+        principal.applicationId,
+        executionId,
+      );
+      if (owner && owner !== this.ownerInstanceId) {
+        await this.cancelSignal.notify(owner, executionId);
+      }
+    } catch {
+      // Cancel intent is already durable; the owner's PostgreSQL poll still
+      // observes it if Redis notification or the owner lookup is unavailable.
     }
     return this.repository.read(principal.applicationId, executionId);
   }

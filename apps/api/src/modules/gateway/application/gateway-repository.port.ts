@@ -64,6 +64,10 @@ export interface GatewayRepository {
     providerRequestId?: string | null,
     providerCompleted?: boolean,
   ): Promise<boolean>;
+  cancelOwner(
+    applicationId: string,
+    executionId: string,
+  ): Promise<string | null>;
   read(
     applicationId: string,
     executionId: string,

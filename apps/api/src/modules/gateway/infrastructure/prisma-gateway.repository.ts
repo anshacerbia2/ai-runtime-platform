@@ -741,6 +741,22 @@ export class PrismaGatewayRepository implements GatewayRepository {
     });
   }
 
+  async cancelOwner(
+    applicationId: string,
+    executionId: string,
+  ): Promise<string | null> {
+    const attempt = await this.db.attempt.findFirst({
+      where: {
+        executionId,
+        execution: { applicationId },
+        status: 'RUNNING',
+      },
+      orderBy: { number: 'desc' },
+      select: { ownerInstanceId: true },
+    });
+    return attempt?.ownerInstanceId ?? null;
+  }
+
   async read(
     applicationId: string,
     executionId: string,

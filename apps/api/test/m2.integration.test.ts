@@ -600,6 +600,11 @@ test('a former provider owner cannot commit after attempt authority moves', asyn
   });
   const attempt = execution.attempts[0]!;
   assert.ok(attempt.ownerInstanceId);
+  assert.equal(
+    await repository.cancelOwner(application.id, execution.id),
+    attempt.ownerInstanceId,
+  );
+  assert.equal(await repository.cancelOwner('other-app', execution.id), null);
   await db.attempt.update({
     where: { id: attempt.id },
     data: { ownerInstanceId: randomUUID() },
