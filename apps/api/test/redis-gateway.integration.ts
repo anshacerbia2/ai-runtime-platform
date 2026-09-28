@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { createClient } from 'redis';
 import type { GatewayStreamEvent } from '@ai-runtime/contracts/http';
 import { loadConfig } from '../src/infrastructure/config/environment-config.js';
+import { gatewayRedisClient } from '../src/modules/gateway/infrastructure/gateway-redis.client.js';
 import { RedisGatewayCircuit } from '../src/modules/gateway/infrastructure/redis-gateway.circuit.js';
 import { RedisGatewayCancelSignal } from '../src/modules/gateway/infrastructure/redis-gateway-cancel.signal.js';
 import { RedisReplayStore } from '../src/modules/gateway/infrastructure/redis-replay.store.js';
@@ -47,6 +48,43 @@ async function deadline<T>(work: Promise<T>, milliseconds = 3_000) {
     clearTimeout(timer);
   }
 }
+
+async function eventually<T>(work: () => Promise<T>, milliseconds = 3_000) {
+  const expiresAt = Date.now() + milliseconds;
+  let lastError: unknown;
+  while (Date.now() < expiresAt) {
+    try {
+      return await work();
+    } catch (error) {
+      lastError = error;
+      await new Promise<void>((resolve) => {
+        const timer = setTimeout(resolve, 50);
+        timer.unref();
+      });
+    }
+  }
+  throw lastError ?? new Error('Redis connection did not recover.');
+}
+
+test('gateway Redis client reconnects after its established socket is killed', async () => {
+  const connection = gatewayRedisClient(url);
+  const client = await connection.connect();
+  const admin = createClient({ url });
+  try {
+    await admin.connect();
+    const clientId = await client.clientId();
+    assert.equal(
+      await admin.sendCommand(['CLIENT', 'KILL', 'ID', String(clientId)]),
+      1,
+    );
+    assert.equal(await eventually(() => client.ping()), 'PONG');
+  } finally {
+    await Promise.allSettled([
+      client.isOpen ? client.close() : Promise.resolve(),
+      admin.isOpen ? admin.close() : Promise.resolve(),
+    ]);
+  }
+});
 
 test('separate Redis clients resume one stream and admit one half-open probe', async () => {
   const owner = await RedisReplayStore.connect(url);
