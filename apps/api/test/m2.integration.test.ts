@@ -877,3 +877,110 @@ test('provider owner stops after the recovery fence is committed', async () => {
     await running.catch(() => {});
   }
 });
+
+test('only expired gateway admissions release an unclaimed hold', async () => {
+  const before = await db.budgetAccount.findUniqueOrThrow({
+    where: { id: budgetId },
+  });
+  const digest = 'f'.repeat(64);
+  const gatewayKey = prefix + '-unclaimed-gateway';
+  const gatewayAdmission = await control.admit(
+    principal,
+    profileRef,
+    digest,
+    gatewayKey,
+  );
+  const m1 = new PrismaM1Repository(db as unknown as DatabaseService);
+  const directAdmission = await m1.admit(
+    principal,
+    { profileRef, inputDigest: digest },
+    prefix + '-unclaimed-control',
+  );
+  await assert.rejects(
+    m1.admit(principal, { profileRef, inputDigest: digest }, gatewayKey),
+    /different request/i,
+  );
+  await db.execution.updateMany({
+    where: {
+      id: {
+        in: [gatewayAdmission.execution.id, directAdmission.execution.id],
+      },
+    },
+    data: { createdAt: new Date(Date.now() - 65_000) },
+  });
+  assert.ok((await repository.recoverExpiredAdmissions()) >= 1);
+  const gatewayExecution = await db.execution.findUniqueOrThrow({
+    where: { id: gatewayAdmission.execution.id },
+    include: { attempts: true, reservations: true, providerInvocations: true },
+  });
+  const directExecution = await db.execution.findUniqueOrThrow({
+    where: { id: directAdmission.execution.id },
+    include: { reservations: true },
+  });
+  const account = await db.budgetAccount.findUniqueOrThrow({
+    where: { id: budgetId },
+  });
+  assert.equal(gatewayExecution.admissionSource, 'GATEWAY');
+  assert.equal(gatewayExecution.status, 'FAILED');
+  assert.equal(
+    gatewayExecution.statusReason,
+    'GATEWAY_CLAIM_DEADLINE_EXCEEDED',
+  );
+  assert.equal(gatewayExecution.attempts[0]?.external, 'NONE');
+  assert.equal(gatewayExecution.providerInvocations.length, 0);
+  assert.equal(gatewayExecution.reservations[0]?.heldUnits, 0n);
+  assert.equal(gatewayExecution.reservations[0]?.postedUnits, 0n);
+  assert.equal(gatewayExecution.reservations[0]?.state, 'SETTLED');
+  assert.equal(directExecution.admissionSource, 'CONTROL_PLANE');
+  assert.equal(directExecution.status, 'ACCEPTED');
+  assert.equal(directExecution.reservations[0]?.heldUnits, 100n);
+  assert.equal(account.heldUnits, before.heldUnits + 100n);
+  await repository.recoverExpiredAdmissions();
+  assert.equal(
+    await db.outboxEvent.count({
+      where: {
+        aggregateId: gatewayExecution.id,
+        topic: 'execution.failed',
+      },
+    }),
+    1,
+  );
+});
+
+test('claim and orphan release serialize before any provider invocation', async () => {
+  const digest = '1'.repeat(64);
+  const admitted = await control.admit(
+    principal,
+    profileRef,
+    digest,
+    prefix + '-claim-recovery-race',
+  );
+  await db.execution.update({
+    where: { id: admitted.execution.id },
+    data: { createdAt: new Date(Date.now() - 65_000) },
+  });
+  const [, claimed] = await Promise.all([
+    repository.recoverExpiredAdmissions(),
+    repository.claim(
+      application.id,
+      admitted.execution.id,
+      digest,
+      randomUUID(),
+    ),
+  ]);
+  const execution = await db.execution.findUniqueOrThrow({
+    where: { id: admitted.execution.id },
+    include: { reservations: true, providerInvocations: true },
+  });
+  if (claimed.state === 'claimed') {
+    assert.equal(execution.status, 'RUNNING');
+    assert.equal(execution.providerInvocations.length, 1);
+    assert.equal(execution.reservations[0]?.state, 'RESERVED');
+    assert.ok(execution.reservations[0]?.heldUnits > 0n);
+  } else {
+    assert.equal(execution.status, 'FAILED');
+    assert.equal(execution.providerInvocations.length, 0);
+    assert.equal(execution.reservations[0]?.heldUnits, 0n);
+    assert.equal(execution.reservations[0]?.state, 'SETTLED');
+  }
+});

@@ -8,7 +8,7 @@ import type {
 import { ApplicationError } from '../../../shared/domain/application-error.js';
 import type { Principal } from '../../identity/domain/principal.js';
 import { requireAuthority } from '../../identity/domain/principal.js';
-import type { M1Repository } from './m1-repository.port.js';
+import type { AdmissionSource, M1Repository } from './m1-repository.port.js';
 
 function requireKey(value: string) {
   if (!/^[A-Za-z0-9._:-]{1,160}$/.test(value)) {
@@ -55,12 +55,14 @@ export class M1ControlPlaneService {
     principal: Principal,
     command: AdmissionCommand,
     idempotencyKey: string,
+    source: AdmissionSource = 'CONTROL_PLANE',
   ) {
     requireAuthority(principal, 'execution:submit');
     return this.repository.admit(
       principal,
       command,
       requireKey(idempotencyKey),
+      source,
     );
   }
   readExecution(principal: Principal, executionId: string) {

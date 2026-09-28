@@ -24,6 +24,8 @@ export type {
   UsageResult,
 } from '@ai-runtime/contracts/http';
 
+export type AdmissionSource = 'CONTROL_PLANE' | 'GATEWAY';
+
 export interface M1Repository {
   readSnapshot(principal: Principal): Promise<ControlSnapshot>;
   manageReceipted(
@@ -39,6 +41,7 @@ export interface M1Repository {
     principal: Principal,
     command: AdmissionCommand,
     idempotencyKey: string,
+    source?: AdmissionSource,
   ): Promise<AdmissionResult>;
   readExecution(
     principal: Principal,

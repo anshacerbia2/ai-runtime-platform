@@ -15,6 +15,7 @@ import type { DatabaseService } from '../../../infrastructure/database/database.
 import { ApplicationError } from '../../../shared/domain/application-error.js';
 import type { Principal } from '../../identity/domain/principal.js';
 import type {
+  AdmissionSource,
   AdmissionResult,
   ExecutionView,
   M1Repository,
@@ -1277,6 +1278,7 @@ export class PrismaM1Repository implements M1Repository {
     principal: Principal,
     command: AdmissionCommand,
     idempotencyKey: string,
+    source: AdmissionSource = 'CONTROL_PLANE',
     serializationRetry = 0,
   ): Promise<AdmissionResult> {
     const applicationId = requireApplication(principal);
@@ -1289,7 +1291,10 @@ export class PrismaM1Repository implements M1Repository {
       },
     });
     if (existing) {
-      if (existing.requestDigest !== requestDigest) {
+      if (
+        existing.requestDigest !== requestDigest ||
+        existing.admissionSource !== source
+      ) {
         conflict('Idempotency key belongs to a different request.');
       }
       return {
@@ -1505,6 +1510,7 @@ export class PrismaM1Repository implements M1Repository {
               applicationId,
               idempotencyKey,
               requestDigest,
+              admissionSource: source,
               profileRevisionId: profile.id,
               profileSnapshot: snapshot,
             },
@@ -1573,6 +1579,7 @@ export class PrismaM1Repository implements M1Repository {
           principal,
           command,
           idempotencyKey,
+          source,
           serializationRetry + 1,
         );
       }
@@ -1583,7 +1590,10 @@ export class PrismaM1Repository implements M1Repository {
           },
         });
         if (raced) {
-          if (raced.requestDigest !== requestDigest) {
+          if (
+            raced.requestDigest !== requestDigest ||
+            raced.admissionSource !== source
+          ) {
             conflict('Idempotency key belongs to a different request.');
           }
           return {

@@ -15,6 +15,7 @@ import type {
 import type { ProviderId } from '../application/provider-adapter.port.js';
 
 const PROVIDER_RECOVERY_GRACE_MS = 30_000;
+const ADMISSION_CLAIM_GRACE_MS = 60_000;
 const RECOVERY_BATCH = 32;
 
 const provider = (value: string): ProviderId => {
@@ -77,6 +78,13 @@ export class PrismaGatewayRepository implements GatewayRepository {
         });
         if (!execution) {
           throw new ApplicationError('NOT_FOUND', 'Execution not found.');
+        }
+        if (execution.admissionSource !== 'GATEWAY') {
+          throw new ApplicationError(
+            'IDEMPOTENCY_CONFLICT',
+            'Execution was not admitted through the gateway.',
+            executionId,
+          );
         }
         const configuredProvider = provider(execution.profile.providerAdapter);
         if (
@@ -763,12 +771,7 @@ export class PrismaGatewayRepository implements GatewayRepository {
     });
   }
 
-  /** Fence provider work that outlived its profile deadline and grace period.
-   * An old owner may still receive a late upstream response, but cannot commit it.
-   */
-  async recoverExpiredInvocations(): Promise<number> {
-    // Use the PostgreSQL clock so an API pod with skew cannot fence a healthy
-    // owner earlier than its stored provider deadline.
+  private async recoveryClock(): Promise<Date> {
     const epoch = (
       await this.db.$queryRaw<Array<{ epoch_ms: bigint }>>`
         SELECT (extract(epoch FROM clock_timestamp()) * 1000)::bigint AS epoch_ms
@@ -777,7 +780,149 @@ export class PrismaGatewayRepository implements GatewayRepository {
     if (epoch === undefined) {
       throw new Error('PostgreSQL did not return a recovery clock.');
     }
-    const databaseNow = new Date(Number(epoch));
+    return new Date(Number(epoch));
+  }
+
+  /** No provider invocation exists, so the original financial hold can close at zero. */
+  async recoverExpiredAdmissions(): Promise<number> {
+    const databaseNow = await this.recoveryClock();
+    const cutoff = new Date(databaseNow.getTime() - ADMISSION_CLAIM_GRACE_MS);
+    const candidates = await this.db.execution.findMany({
+      where: {
+        admissionSource: 'GATEWAY',
+        status: 'ACCEPTED',
+        createdAt: { lte: cutoff },
+      },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      take: RECOVERY_BATCH,
+      select: { id: true },
+    });
+    let recovered = 0;
+    for (const candidate of candidates) {
+      const changed = await this.db.$transaction(
+        async (tx) => {
+          await tx.$queryRaw`SELECT id FROM control.executions WHERE id=${candidate.id}::uuid FOR UPDATE`;
+          const execution = await tx.execution.findUnique({
+            where: { id: candidate.id },
+            include: {
+              attempts: { orderBy: { number: 'asc' }, take: 1 },
+              reservations: true,
+              providerInvocations: { take: 1 },
+              result: true,
+            },
+          });
+          const attempt = execution?.attempts[0];
+          if (
+            !execution ||
+            execution.admissionSource !== 'GATEWAY' ||
+            execution.status !== 'ACCEPTED' ||
+            execution.createdAt.getTime() > cutoff.getTime() ||
+            execution.result ||
+            execution.providerInvocations.length ||
+            attempt?.status !== 'PREPARED' ||
+            execution.reservations.some(
+              (item) => item.state !== 'RESERVED' || item.postedUnits !== 0n,
+            )
+          ) {
+            return false;
+          }
+          const cancelled = Boolean(execution.cancelRequestedAt);
+          const code = cancelled
+            ? 'CANCELLED_BEFORE_PROVIDER_DISPATCH'
+            : 'GATEWAY_CLAIM_DEADLINE_EXCEEDED';
+          for (const reservation of [...execution.reservations].sort((a, b) =>
+            a.accountId.localeCompare(b.accountId),
+          )) {
+            await tx.$queryRaw`SELECT id FROM control.budget_accounts WHERE id=${reservation.accountId} FOR UPDATE`;
+            const account = await tx.budgetAccount.findUniqueOrThrow({
+              where: { id: reservation.accountId },
+            });
+            if (account.heldUnits < reservation.heldUnits) {
+              throw new Error(
+                'Gateway admission hold exceeds account exposure.',
+              );
+            }
+            const updated = await tx.budgetAccount.update({
+              where: { id: account.id },
+              data: {
+                heldUnits: { decrement: reservation.heldUnits },
+                revision: { increment: 1 },
+              },
+            });
+            await tx.reservation.update({
+              where: {
+                executionId_accountId: {
+                  executionId: execution.id,
+                  accountId: reservation.accountId,
+                },
+              },
+              data: {
+                heldUnits: 0n,
+                state: 'SETTLED',
+                revision: { increment: 1 },
+              },
+            });
+            await tx.outboxEvent.create({
+              data: {
+                id: randomUUID(),
+                applicationId: execution.applicationId,
+                topic: 'budget.updated',
+                aggregateId: account.id,
+                revision: updated.revision,
+                payload: {
+                  account_id: account.id,
+                  revision: updated.revision,
+                  held_units: updated.heldUnits.toString(),
+                  posted_units: updated.postedUnits.toString(),
+                },
+              },
+            });
+          }
+          await tx.attempt.update({
+            where: { id: attempt.id },
+            data: {
+              status: cancelled ? 'CANCELLED' : 'FAILED',
+              authority: 'RELEASED',
+              external: 'NONE',
+            },
+          });
+          await tx.execution.update({
+            where: { id: execution.id },
+            data: {
+              status: cancelled ? 'CANCELLED' : 'FAILED',
+              statusReason: code,
+              completedAt: databaseNow,
+              revision: { increment: 1 },
+            },
+          });
+          await tx.outboxEvent.create({
+            data: {
+              id: randomUUID(),
+              applicationId: execution.applicationId,
+              topic: cancelled ? 'execution.cancelled' : 'execution.failed',
+              aggregateId: execution.id,
+              revision: execution.revision + 1,
+              payload: { execution_id: execution.id, code },
+            },
+          });
+          return true;
+        },
+        { isolationLevel: 'ReadCommitted', maxWait: 2000, timeout: 5000 },
+      );
+      if (changed) {
+        recovered++;
+      }
+    }
+    return recovered;
+  }
+
+  /** Fence provider work that outlived its profile deadline and grace period.
+   * An old owner may still receive a late upstream response, but cannot commit it.
+   */
+  async recoverExpiredInvocations(): Promise<number> {
+    // Use the PostgreSQL clock so an API pod with skew cannot fence a healthy
+    // owner earlier than its stored provider deadline.
+    const databaseNow = await this.recoveryClock();
     const candidates = await this.db.$queryRaw<
       Array<{ id: string; execution_id: string }>
     >`

@@ -37,11 +37,12 @@ export class GatewayRecoveryWorker implements OnModuleInit, OnModuleDestroy {
       return this.running;
     }
     this.running = this.repository
-      .recoverExpiredInvocations()
-      .then((count) => {
-        if (count) {
+      .recoverExpiredAdmissions()
+      .then(async (admissions) => {
+        const invocations = await this.repository.recoverExpiredInvocations();
+        if (admissions || invocations) {
           this.logger.warn(
-            `Fenced ${count} expired gateway provider attempt(s).`,
+            `Recovered ${admissions} unclaimed admission(s) and fenced ${invocations} expired provider attempt(s).`,
           );
         }
         this.failureReported = false;
