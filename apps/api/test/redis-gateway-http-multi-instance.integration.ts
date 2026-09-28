@@ -1,5 +1,7 @@
 import { createServer } from 'node:http';
 import { randomUUID } from 'node:crypto';
+import { fork, type ChildProcess } from 'node:child_process';
+import { resolve } from 'node:path';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -7,7 +9,6 @@ import {
   GatewayStreamEvent,
   type GatewayStreamEvent as GatewayStreamEventValue,
 } from '@ai-runtime/contracts/http';
-import { createApplication } from '../dist/bootstrap.js';
 import {
   loadConfig,
   type RuntimeConfig,
@@ -85,6 +86,71 @@ async function nextEvent(stream: SseReader): Promise<GatewayStreamEventValue> {
   }
 }
 
+interface GatewayProcess {
+  child: ChildProcess;
+  url: string;
+}
+
+async function startGatewayProcess(
+  config: RuntimeConfig,
+): Promise<GatewayProcess> {
+  const child = fork(
+    resolve('apps/api/test/support/gateway-http-instance.ts'),
+    [],
+    {
+      execArgv: ['--import', 'tsx'],
+      stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
+    },
+  );
+  let diagnostics = '';
+  const capture = (chunk: Buffer) => {
+    diagnostics = (diagnostics + chunk.toString('utf8')).slice(-16_384);
+  };
+  child.stdout?.on('data', capture);
+  child.stderr?.on('data', capture);
+  const ready = new Promise<string>((resolveReady, reject) => {
+    child.once('error', reject);
+    child.once('exit', (code) => {
+      reject(
+        new Error(
+          `Gateway child exited before ready (${String(code)}). ${diagnostics}`,
+        ),
+      );
+    });
+    child.on('message', (raw: unknown) => {
+      const message = raw as { type?: string; url?: string; message?: string };
+      if (message.type === 'ready' && message.url) {
+        resolveReady(message.url);
+      } else if (message.type === 'error') {
+        reject(new Error(message.message ?? 'Gateway child startup failed.'));
+      }
+    });
+  });
+  child.send({ type: 'start', config });
+  try {
+    return { child, url: await deadline(ready, 15_000) };
+  } catch (error) {
+    child.kill();
+    throw error;
+  }
+}
+
+async function stopGatewayProcess(instance: GatewayProcess) {
+  if (instance.child.exitCode !== null) {
+    return;
+  }
+  const exited = new Promise<void>((resolveExit) => {
+    instance.child.once('exit', () => resolveExit());
+  });
+  instance.child.send({ type: 'close' });
+  try {
+    await deadline(exited, 5_000);
+  } catch {
+    instance.child.kill();
+    await exited;
+  }
+}
+
 test('HTTP client detaches from API A and resumes on API B without a second provider call', async () => {
   const prefix = `redis-http-${randomUUID()}`;
   const application = {
@@ -99,7 +165,7 @@ test('HTTP client detaches from API A and resumes on API B without a second prov
   const bindingId = randomUUID();
   const idempotencyKey = `${prefix}-request`;
   const db = createDatabaseClient(baseConfig);
-  const applications: Array<Awaited<ReturnType<typeof createApplication>>> = [];
+  const applications: GatewayProcess[] = [];
   let replay: RedisReplayStore | undefined;
   let executionId: string | undefined;
   let providerCalls = 0;
@@ -237,18 +303,13 @@ test('HTTP client detaches from API A and resumes on API B without a second prov
       },
     });
 
-    const [owner, other] = await Promise.all([
-      createApplication(config),
-      createApplication(config),
-    ]);
-    applications.push(owner, other);
-    await Promise.all([
-      owner.listen(0, '127.0.0.1'),
-      other.listen(0, '127.0.0.1'),
-    ]);
+    const owner = await startGatewayProcess(config);
+    applications.push(owner);
+    const other = await startGatewayProcess(config);
+    applications.push(other);
     replay = await RedisReplayStore.connect(configuredRedisUrl);
-    const ownerUrl = await owner.getUrl();
-    const otherUrl = await other.getUrl();
+    const ownerUrl = owner.url;
+    const otherUrl = other.url;
     const body = {
       profile: profileRef,
       stream: true,
@@ -353,7 +414,9 @@ test('HTTP client detaches from API A and resumes on API B without a second prov
     }
     await replay?.onModuleDestroy().catch(() => undefined);
     await Promise.allSettled(
-      applications.map((applicationInstance) => applicationInstance.close()),
+      applications.map((applicationInstance) =>
+        stopGatewayProcess(applicationInstance),
+      ),
     );
     if (providerListening) {
       provider.closeAllConnections();
