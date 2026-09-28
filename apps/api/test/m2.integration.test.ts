@@ -620,3 +620,53 @@ test('a former provider owner cannot commit after attempt authority moves', asyn
   assert.equal(fenced.providerInvocations[0]?.status, 'RUNNING');
   assert.equal(fenced.observations.length, 0);
 });
+
+test('cancel on a second API instance wins over an in-flight provider', async () => {
+  let started!: () => void;
+  const ready = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  const provider: ProviderAdapter = {
+    id: 'openrouter',
+    async *stream(_request, signal) {
+      yield { type: 'started', requestId: 'provider-cross-pod-cancel' };
+      started();
+      await new Promise<never>((_resolve, reject) => {
+        signal.addEventListener('abort', () => reject(signal.reason), {
+          once: true,
+        });
+      });
+    },
+  };
+  const key = prefix + '-cross-pod-cancel';
+  const owner = gateway(provider);
+  const other = gateway(provider);
+  const running = owner.execute(principal, command('cancel cross pod'), key);
+  await ready;
+  const beforeCancel = await db.execution.findUniqueOrThrow({
+    where: {
+      applicationId_idempotencyKey: {
+        applicationId: application.id,
+        idempotencyKey: key,
+      },
+    },
+  });
+  await other.cancel(principal, beforeCancel.id, 'cancel elsewhere');
+  await assert.rejects(running);
+  const cancelled = await db.execution.findUniqueOrThrow({
+    where: { id: beforeCancel.id },
+    include: {
+      result: true,
+      attempts: true,
+      providerInvocations: true,
+      reservations: true,
+      observations: true,
+    },
+  });
+  assert.equal(cancelled.status, 'CANCELLED');
+  assert.equal(cancelled.result, null);
+  assert.equal(cancelled.attempts[0]?.status, 'CANCELLED');
+  assert.equal(cancelled.providerInvocations[0]?.status, 'UNKNOWN');
+  assert.equal(cancelled.reservations[0]?.state, 'PENDING_RECONCILIATION');
+  assert.equal(cancelled.observations[0]?.completeness, 'unknown');
+});
