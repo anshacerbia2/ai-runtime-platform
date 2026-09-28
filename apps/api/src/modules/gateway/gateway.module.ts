@@ -62,7 +62,7 @@ import { GatewayController } from './presentation/http/gateway.controller.js';
 
 const OPENROUTER = Symbol('OpenRouterProvider');
 const ANTHROPIC = Symbol('AnthropicProvider');
-const OWNER_INSTANCE_ID = randomUUID();
+const OWNER_INSTANCE_ID = Symbol('GatewayOwnerInstanceId');
 
 @Module({
   imports: [DatabaseModule, ControlPlaneModule],
@@ -108,6 +108,7 @@ const OWNER_INSTANCE_ID = randomUUID();
     { provide: REQUEST_FINGERPRINT, useClass: Sha256RequestFingerprint },
     { provide: STRUCTURED_OUTPUT, useClass: BoundedStructuredOutputValidator },
     { provide: GATEWAY_TELEMETRY, useClass: OpenTelemetryGatewayTelemetry },
+    { provide: OWNER_INSTANCE_ID, useFactory: () => randomUUID() },
     {
       provide: OPENROUTER,
       inject: [RUNTIME_CONFIG],
@@ -138,6 +139,7 @@ const OWNER_INSTANCE_ID = randomUUID();
         REPLAY_STORE,
         REQUEST_FINGERPRINT,
         STRUCTURED_OUTPUT,
+        OWNER_INSTANCE_ID,
         GATEWAY_CIRCUIT,
         GATEWAY_TELEMETRY,
         GATEWAY_CANCEL_SIGNAL,
@@ -150,6 +152,7 @@ const OWNER_INSTANCE_ID = randomUUID();
         replay: ReplayStore,
         fingerprint: RequestFingerprint,
         structured: StructuredOutputValidator,
+        ownerInstanceId: string,
         circuit: GatewayCircuit,
         telemetry: GatewayTelemetry,
         cancelSignal: GatewayCancelSignal,
@@ -161,7 +164,7 @@ const OWNER_INSTANCE_ID = randomUUID();
           replay,
           fingerprint,
           structured,
-          OWNER_INSTANCE_ID,
+          ownerInstanceId,
           circuit,
           telemetry,
           cancelSignal,
