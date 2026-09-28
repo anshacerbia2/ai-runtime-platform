@@ -5,6 +5,8 @@ import { createClient } from 'redis';
 import { loadConfig } from '../src/infrastructure/config/environment-config.js';
 import type { RunnerLeaseProof } from '../src/modules/control-plane/application/runner-lease-store.port.js';
 import { RedisRunnerLeaseStore } from '../src/modules/control-plane/infrastructure/redis-runner-lease.store.js';
+import { RedisRunnerPresenceStore } from '../src/modules/control-plane/infrastructure/redis-runner-presence.store.js';
+import { runnerPresenceKey } from '../src/modules/control-plane/infrastructure/runner-presence-proof.js';
 
 const url = loadConfig().runner.coordinationRedisUrl;
 if (!url) {
@@ -18,7 +20,7 @@ function leaseProof(): RunnerLeaseProof {
     assignmentId: randomUUID(),
     executionId: randomUUID(),
     attemptId: randomUUID(),
-    runnerId: randomUUID(),
+    runnerId: `runner:${randomUUID()}`,
     ownerSubject: `runner:${randomUUID()}`,
     generation: 7,
     epoch: 4,
@@ -60,6 +62,45 @@ test('separate coordinators enforce exact renewal and never recreate a missing l
     assert.equal(await owner.install(proof, 15_000), 'INSTALLED');
     assert.equal(await peer.release(proof), 'RELEASED');
     assert.equal(await admin.exists(key), 0);
+  } finally {
+    await Promise.allSettled([
+      admin.isOpen ? admin.del(key) : Promise.resolve(),
+    ]);
+    await Promise.allSettled([
+      owner.onModuleDestroy(),
+      peer.onModuleDestroy(),
+      admin.isOpen ? admin.close() : Promise.resolve(),
+    ]);
+  }
+});
+
+test('runner presence is shared and registration-fenced across coordinators', async () => {
+  const owner = await RedisRunnerPresenceStore.connect(url);
+  const peer = await RedisRunnerPresenceStore.connect(url);
+  const admin = createClient({ url });
+  const registration = {
+    runnerId: `runner:${randomUUID()}`,
+    ownerSubject: `runner:${randomUUID()}`,
+    registrationRevision: 9,
+  };
+  const proof = { ...registration, bootId: randomUUID() };
+  const prefix = 'ai-runtime:m3:runner-presence';
+  const key = runnerPresenceKey(prefix, registration);
+  try {
+    await admin.connect();
+    await owner.heartbeat(proof, 15_000);
+    assert.equal(await peer.inspect(registration), 'CURRENT');
+    assert.equal(
+      await peer.inspect({ ...registration, registrationRevision: 10 }),
+      'MISMATCH',
+    );
+    assert.equal(
+      await peer.inspect({ ...registration, ownerSubject: 'runner:other' }),
+      'MISMATCH',
+    );
+    assert.ok((await admin.pTTL(key)) > 0);
+    await admin.del(key);
+    assert.equal(await owner.inspect(registration), 'MISSING');
   } finally {
     await Promise.allSettled([
       admin.isOpen ? admin.del(key) : Promise.resolve(),

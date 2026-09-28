@@ -8,6 +8,7 @@ import {
 } from './resources.js';
 const c = initContract();
 const generation = z.number().int().min(1).max(2147483646);
+const registrationRevision = z.number().int().min(1).max(2147483646);
 export const AssignmentToken = z
   .object({
     assignmentId: z.uuid(),
@@ -73,6 +74,23 @@ export const EvidenceReceipt = z.object({
   stale: z.boolean(),
 });
 export type EvidenceReceipt = z.infer<typeof EvidenceReceipt>;
+export const RunnerHeartbeat = z
+  .object({
+    runnerId: ResourceId,
+    bootId: z.uuid(),
+    registrationRevision,
+  })
+  .strict();
+export type RunnerHeartbeat = z.infer<typeof RunnerHeartbeat>;
+export const RunnerHeartbeatAck = z.object({
+  runnerId: ResourceId,
+  bootId: z.uuid(),
+  registrationRevision,
+  state: z.literal('ALIVE'),
+  heartbeatIntervalMs: z.literal(5000),
+  presenceTtlMs: z.literal(15000),
+});
+export type RunnerHeartbeatAck = z.infer<typeof RunnerHeartbeatAck>;
 export const runnerProtocol = {
   version: '1',
   binding: 'bounded-http-json',
@@ -80,6 +98,8 @@ export const runnerProtocol = {
   maxMessageBytes: 65536,
   executionDispatch: false,
   automaticReassignment: false,
+  heartbeatIntervalMs: 5000,
+  presenceTtlMs: 15000,
 } as const;
 export const runnerContract = c.router({
   protocol: {
@@ -93,8 +113,17 @@ export const runnerContract = c.router({
         maxMessageBytes: z.literal(65536),
         executionDispatch: z.literal(false),
         automaticReassignment: z.literal(false),
+        heartbeatIntervalMs: z.literal(5000),
+        presenceTtlMs: z.literal(15000),
       }),
     },
+  },
+  heartbeat: {
+    method: 'POST',
+    path: '/api/runner/v1/heartbeat',
+    headers: z.object({ 'x-runner-protocol': z.literal('1') }),
+    body: RunnerHeartbeat,
+    responses: { 200: RunnerHeartbeatAck },
   },
   report: {
     method: 'POST',

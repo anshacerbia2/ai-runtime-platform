@@ -7,7 +7,7 @@
 | Document                                                        | Purpose                                                                                |
 | --------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
 | [Current implementation](implementation/CURRENT-STATE.md)       | What source actually implements, and what remains planned                              |
-| [Active HTTP operations](implementation/HTTP-API.md)            | All 53 registered operations and 45 browser pairs, auth, statuses and replay semantics |
+| [Active HTTP operations](implementation/HTTP-API.md)            | All 54 registered operations and 45 browser pairs, auth, statuses and replay semantics |
 | [Implemented diagrams](diagrams/10-implemented-contracts.md)    | Browser/API, receipts, resource reads, runner fencing, and M2 gateway                  |
 | [Source structure](architecture/CODE-STRUCTURE.md)              | Concrete module and file responsibilities                                              |
 | [Documentation sync evidence](reviews/DOCUMENTATION-SYNC.md)    | Full document inventory, corrections and validation scope                              |

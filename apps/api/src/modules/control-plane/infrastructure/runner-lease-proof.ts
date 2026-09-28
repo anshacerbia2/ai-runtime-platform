@@ -3,6 +3,7 @@ import type { RunnerLeaseProof } from '../application/runner-lease-store.port.js
 
 const UUID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const RESOURCE_ID = /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,119}$/;
 const NONCE = /^[A-Za-z0-9_-]{32,128}$/;
 export const MIN_RUNNER_LEASE_TTL_MS = 5_000;
 export const MAX_RUNNER_LEASE_TTL_MS = 60_000;
@@ -19,12 +20,14 @@ export function encodeRunnerLeaseProof(proof: RunnerLeaseProof) {
     ['assignment', proof.assignmentId],
     ['execution', proof.executionId],
     ['attempt', proof.attemptId],
-    ['runner', proof.runnerId],
   ];
   for (const [label, value] of identifiers) {
     if (!UUID.test(value)) {
       throw new Error(`Runner lease ${label} ID must be a UUID.`);
     }
+  }
+  if (!RESOURCE_ID.test(proof.runnerId)) {
+    throw new Error('Runner lease runner ID must be a resource identifier.');
   }
   if (!proof.ownerSubject || proof.ownerSubject.length > 512) {
     throw new Error('Runner lease owner subject is invalid.');

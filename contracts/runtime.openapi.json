@@ -34941,6 +34941,14 @@
                     "automaticReassignment": {
                       "type": "boolean",
                       "const": false
+                    },
+                    "heartbeatIntervalMs": {
+                      "type": "number",
+                      "const": 5000
+                    },
+                    "presenceTtlMs": {
+                      "type": "number",
+                      "const": 15000
                     }
                   },
                   "required": [
@@ -34949,7 +34957,1241 @@
                     "authority",
                     "maxMessageBytes",
                     "executionDispatch",
-                    "automaticReassignment"
+                    "automaticReassignment",
+                    "heartbeatIntervalMs",
+                    "presenceTtlMs"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Normalized error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server correlation ID when available; not an idempotency key or authority token.",
+                "schema": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "message": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "fields": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "type": "string"
+                          }
+                        },
+                        "details": {},
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "execution_id": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Normalized error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server correlation ID when available; not an idempotency key or authority token.",
+                "schema": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "message": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "fields": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "type": "string"
+                          }
+                        },
+                        "details": {},
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "execution_id": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Normalized error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server correlation ID when available; not an idempotency key or authority token.",
+                "schema": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "message": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "fields": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "type": "string"
+                          }
+                        },
+                        "details": {},
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "execution_id": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Normalized error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server correlation ID when available; not an idempotency key or authority token.",
+                "schema": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "message": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "fields": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "type": "string"
+                          }
+                        },
+                        "details": {},
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "execution_id": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Normalized error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server correlation ID when available; not an idempotency key or authority token.",
+                "schema": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "message": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "fields": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "type": "string"
+                          }
+                        },
+                        "details": {},
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "execution_id": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Normalized error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server correlation ID when available; not an idempotency key or authority token.",
+                "schema": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "message": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "fields": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "type": "string"
+                          }
+                        },
+                        "details": {},
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "execution_id": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "408": {
+            "description": "Normalized error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server correlation ID when available; not an idempotency key or authority token.",
+                "schema": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "message": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "fields": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "type": "string"
+                          }
+                        },
+                        "details": {},
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "execution_id": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Normalized error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server correlation ID when available; not an idempotency key or authority token.",
+                "schema": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "message": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "fields": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "type": "string"
+                          }
+                        },
+                        "details": {},
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "execution_id": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Normalized error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server correlation ID when available; not an idempotency key or authority token.",
+                "schema": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "message": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "fields": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "type": "string"
+                          }
+                        },
+                        "details": {},
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "execution_id": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Normalized error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server correlation ID when available; not an idempotency key or authority token.",
+                "schema": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "message": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "fields": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "type": "string"
+                          }
+                        },
+                        "details": {},
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "execution_id": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Normalized error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server correlation ID when available; not an idempotency key or authority token.",
+                "schema": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "message": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "fields": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "type": "string"
+                          }
+                        },
+                        "details": {},
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "execution_id": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Normalized error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server correlation ID when available; not an idempotency key or authority token.",
+                "schema": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "message": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "fields": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "type": "string"
+                          }
+                        },
+                        "details": {},
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "execution_id": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Normalized error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server correlation ID when available; not an idempotency key or authority token.",
+                "schema": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              },
+              "Retry-After": {
+                "description": "Optional minimum retry delay hint; does not grant replay permission.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "message": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "fields": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "type": "string"
+                          }
+                        },
+                        "details": {},
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "execution_id": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Normalized error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server correlation ID when available; not an idempotency key or authority token.",
+                "schema": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "message": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "fields": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "type": "string"
+                          }
+                        },
+                        "details": {},
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "execution_id": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Normalized error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server correlation ID when available; not an idempotency key or authority token.",
+                "schema": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "message": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "fields": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "type": "string"
+                          }
+                        },
+                        "details": {},
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "execution_id": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Normalized error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server correlation ID when available; not an idempotency key or authority token.",
+                "schema": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              },
+              "Retry-After": {
+                "description": "Optional minimum retry delay hint; does not grant replay permission.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "message": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "fields": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "type": "string"
+                          }
+                        },
+                        "details": {},
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "execution_id": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Normalized error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server correlation ID when available; not an idempotency key or authority token.",
+                "schema": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              },
+              "Retry-After": {
+                "description": "Optional minimum retry delay hint; does not grant replay permission.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "message": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "fields": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "type": "string"
+                          }
+                        },
+                        "details": {},
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "execution_id": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/runner/v1/heartbeat": {
+      "post": {
+        "operationId": "post_api_runner_v1_heartbeat",
+        "x-runtime-behavior": {
+          "transport": "unary-json",
+          "timeoutMs": 30000,
+          "maxResponseBytes": 8388608,
+          "maxErrorBytes": 65536,
+          "maxAttempts": 1,
+          "unknownResponseFields": "strip",
+          "replay": "none",
+          "automaticRetry": "never",
+          "ambiguousMutation": "unknown-until-reconciled"
+        },
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
+        "security": [
+          {
+            "PlatformBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-runner-protocol",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "1"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "runnerId": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,119}$"
+                  },
+                  "bootId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "registrationRevision": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 2147483646
+                  }
+                },
+                "required": [
+                  "runnerId",
+                  "bootId",
+                  "registrationRevision"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server correlation ID when available; not an idempotency key or authority token.",
+                "schema": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "runnerId": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,119}$"
+                    },
+                    "bootId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "registrationRevision": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 2147483646
+                    },
+                    "state": {
+                      "type": "string",
+                      "const": "ALIVE"
+                    },
+                    "heartbeatIntervalMs": {
+                      "type": "number",
+                      "const": 5000
+                    },
+                    "presenceTtlMs": {
+                      "type": "number",
+                      "const": 15000
+                    }
+                  },
+                  "required": [
+                    "runnerId",
+                    "bootId",
+                    "registrationRevision",
+                    "state",
+                    "heartbeatIntervalMs",
+                    "presenceTtlMs"
                   ]
                 }
               }

@@ -7,7 +7,7 @@ const proof: RunnerLeaseProof = {
   assignmentId: '00000000-0000-4000-8000-000000000101',
   executionId: '00000000-0000-4000-8000-000000000102',
   attemptId: '00000000-0000-4000-8000-000000000103',
-  runnerId: '00000000-0000-4000-8000-000000000104',
+  runnerId: 'local:runner-node_104',
   ownerSubject: 'runner:test-owner',
   generation: 3,
   epoch: 2,

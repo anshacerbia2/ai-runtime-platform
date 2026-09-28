@@ -564,8 +564,95 @@ async function runnerFixture(name: string) {
     attemptId: attempt.id,
     token,
     budgetId,
+    registrationRevision: registration.json().revision as number,
   };
 }
+
+test('runner heartbeat is registration-fenced and never writes periodic PostgreSQL heartbeats', async () => {
+  const f = await runnerFixture('heartbeat');
+  const before = await db.runnerNode.findUniqueOrThrow({
+    where: { id: f.runnerId },
+  });
+  const bootId = randomUUID();
+  const heartbeat = await request(
+    'POST',
+    '/api/runner/v1/heartbeat',
+    {
+      runnerId: f.runnerId,
+      bootId,
+      registrationRevision: f.registrationRevision,
+    },
+    undefined,
+    runnerToken,
+  );
+  assert.equal(heartbeat.statusCode, 200, heartbeat.body);
+  assert.deepEqual(heartbeat.json(), {
+    runnerId: f.runnerId,
+    bootId,
+    registrationRevision: f.registrationRevision,
+    state: 'ALIVE',
+    heartbeatIntervalMs: 5_000,
+    presenceTtlMs: 15_000,
+  });
+  const after = await db.runnerNode.findUniqueOrThrow({
+    where: { id: f.runnerId },
+  });
+  assert.equal(
+    after.lastHeartbeatAt.toISOString(),
+    before.lastHeartbeatAt.toISOString(),
+  );
+  assert.equal(after.revision, before.revision);
+
+  const registration = await request(
+    'POST',
+    '/api/m1/runners/register',
+    {
+      id: f.runnerId,
+      poolId: f.poolId,
+      version: '1.0.0',
+      capabilities: ['chat'],
+      connectionIds: [prefix + '-heartbeat-connection'],
+      capacity: 2,
+    },
+    undefined,
+    runnerToken,
+  );
+  assert.equal(registration.statusCode, 201, registration.body);
+  assert.equal(
+    (
+      await request(
+        'POST',
+        '/api/runner/v1/heartbeat',
+        {
+          runnerId: f.runnerId,
+          bootId,
+          registrationRevision: f.registrationRevision,
+        },
+        undefined,
+        runnerToken,
+      )
+    ).statusCode,
+    409,
+  );
+  const currentRevision = registration.json().revision as number;
+  assert.equal(
+    (
+      await request(
+        'POST',
+        '/api/runner/v1/heartbeat',
+        {
+          runnerId: f.runnerId,
+          bootId: randomUUID(),
+          registrationRevision: currentRevision,
+        },
+        undefined,
+        runnerToken,
+        replica,
+      )
+    ).statusCode,
+    200,
+  );
+});
 
 test('runner report enforces owner, exact generation and epoch; revocation rejects zombie writes and retains late evidence', async () => {
   const f = await runnerFixture('fencing');

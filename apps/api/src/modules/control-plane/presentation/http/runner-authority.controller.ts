@@ -3,6 +3,7 @@ import {
   apiContract,
   AssignCommand,
   RevokeCommand,
+  RunnerHeartbeat,
   RunnerReport,
   LateEvidence,
 } from '@ai-runtime/contracts/http';
@@ -10,12 +11,21 @@ import { ContractRoute } from '../../../../shared/presentation/contract-route.js
 import { CurrentPrincipal } from '../../../identity/presentation/http/current-principal.decorator.js';
 import type { Principal } from '../../../identity/domain/principal.js';
 import { RunnerAuthorityService } from '../../application/runner-authority.service.js';
+import { RunnerLivenessService } from '../../application/runner-liveness.service.js';
 @Controller()
 export class RunnerAuthorityController {
-  constructor(private readonly service: RunnerAuthorityService) {}
+  constructor(
+    private readonly service: RunnerAuthorityService,
+    private readonly liveness: RunnerLivenessService,
+  ) {}
   @ContractRoute(apiContract.runner.protocol)
   protocol(@CurrentPrincipal() p: Principal) {
     return this.service.protocol(p);
+  }
+  @ContractRoute(apiContract.runner.heartbeat)
+  @HttpCode(200)
+  heartbeat(@CurrentPrincipal() p: Principal, @Body() body: unknown) {
+    return this.liveness.heartbeat(p, RunnerHeartbeat.parse(body));
   }
   @ContractRoute(apiContract.assignments.grant)
   @HttpCode(200)

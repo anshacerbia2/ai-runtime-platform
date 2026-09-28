@@ -8,7 +8,7 @@ Local Contract Lab berjalan di `/api/m0/*` dan tetap validation-only. Gateway M2
 
 ### Source saat ini
 
-[HTTP API aktual](../implementation/HTTP-API.md) mendokumentasikan 53 registered operations: `/api/m0` lab, active gateway `/v1` + BFF mirror `/api/v1`, `/api/v1` resource/assignment, `/api/runner/v1` machine protocol, dan `/api/m1` compatibility. [Runtime OpenAPI](../../contracts/runtime.openapi.json) dan [BFF OpenAPI](../../contracts/bff.openapi.json) sesuai source; assignment/runner/inbox/registration tidak semuanya diekspos oleh browser.
+[HTTP API aktual](../implementation/HTTP-API.md) mendokumentasikan 54 registered operations: `/api/m0` lab, active gateway `/v1` + BFF mirror `/api/v1`, `/api/v1` resource/assignment, `/api/runner/v1` machine protocol, dan `/api/m1` compatibility. [Runtime OpenAPI](../../contracts/runtime.openapi.json) dan [BFF OpenAPI](../../contracts/bff.openapi.json) sesuai source; assignment/runner/inbox/registration tidak semuanya diekspos oleh browser.
 
 Resource mutations sudah memakai receipt + expectedRevision, collection reads punya keyset pagination dan overview count. M1 admission masih metadata profileRef/inputDigest, bukan schema prompt /v1 di bawah. Cancel M1 memberi 201 untuk durable intent, berbeda dari target 200/202. X-Request-ID tersedia; traceparent, X-Execution-ID dan provider deadline propagation pada bagian target bukan fitur end-to-end yang sudah aktif.
 
