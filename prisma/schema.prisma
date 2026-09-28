@@ -86,6 +86,16 @@ enum CredentialResidency {
   @@schema("control")
 }
 
+enum DispatchEnvelopeState {
+  STAGED
+  COMMITTED
+  CONSUMED
+  DELETE_PENDING
+  EXPIRED
+
+  @@schema("control")
+}
+
 model ControlApplication {
   revision                 Int                 @default(1)
   id                       String              @id @db.Text
@@ -99,11 +109,12 @@ model ControlApplication {
   updatedAt                DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
   bindings                 CredentialBinding[]
 
-  profileRevisions ProfileRevision[]
-  budgets          BudgetAccount[]
-  executions       Execution[]
-  events           OutboxEvent[]
-  audit            AuditEntry[]
+  profileRevisions  ProfileRevision[]
+  budgets           BudgetAccount[]
+  executions        Execution[]
+  events            OutboxEvent[]
+  audit             AuditEntry[]
+  dispatchEnvelopes DispatchEnvelope[]
 
   @@map("applications")
   @@schema("control")
@@ -195,6 +206,7 @@ model ProfileRevision {
   fallbackConnection AiConnection?      @relation("FallbackProfileConnection", fields: [fallbackConnectionId], references: [id], onDelete: Restrict)
   aliases            ProfileAlias[]
   executions         Execution[]
+  dispatchEnvelopes  DispatchEnvelope[]
 
   @@unique([id, applicationId])
   @@unique([applicationId, profileRef, revision])
@@ -258,6 +270,7 @@ model Execution {
   artifacts            ArtifactMetadata[]
   providerInvocations  ProviderInvocation[]
   result               ExecutionResult?
+  dispatchEnvelope     DispatchEnvelope?
   statusReason         String?              @map("status_reason")
   completedAt          DateTime?            @map("completed_at") @db.Timestamptz(6)
 
@@ -265,9 +278,48 @@ model Execution {
   profile     ProfileRevision    @relation(fields: [profileRevisionId, applicationId], references: [id, applicationId], onDelete: Restrict)
 
   @@unique([applicationId, idempotencyKey])
+  @@unique([id, applicationId])
   @@index([applicationId, createdAt, id])
   @@index([admissionSource, status, createdAt, id], map: "executions_source_status_created")
   @@map("executions")
+  @@schema("control")
+}
+
+model DispatchEnvelope {
+  id                  String                @id @db.Uuid
+  applicationId       String                @map("application_id") @db.Text
+  executionBindingId  String                @map("execution_binding_id") @db.Uuid
+  executionId         String?               @map("execution_id") @db.Uuid
+  profileRevisionId   String                @map("profile_revision_id") @db.Uuid
+  inputDigest         String                @map("input_digest") @db.Char(64)
+  objectKey           String                @unique @map("object_key") @db.Text
+  plaintextSha256     String                @map("plaintext_sha256") @db.Char(64)
+  ciphertextSha256    String                @map("ciphertext_sha256") @db.Char(64)
+  plaintextBytes      BigInt                @map("plaintext_bytes")
+  ciphertextBytes     BigInt                @map("ciphertext_bytes")
+  encryptionAlgorithm String                @map("encryption_algorithm") @db.Text
+  keyProvider         String                @map("key_provider") @db.Text
+  keyReference        String                @map("key_reference") @db.Text
+  wrappedDataKey      Bytes                 @map("wrapped_data_key")
+  nonce               Bytes                 @db.ByteA
+  authenticationTag   Bytes                 @map("authentication_tag") @db.ByteA
+  state               DispatchEnvelopeState @default(STAGED)
+  revision            Int                   @default(1)
+  createdAt           DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  committedAt         DateTime?             @map("committed_at") @db.Timestamptz(6)
+  consumedAt          DateTime?             @map("consumed_at") @db.Timestamptz(6)
+  expiresAt           DateTime              @map("expires_at") @db.Timestamptz(6)
+  deleteClaimedAt     DateTime?             @map("delete_claimed_at") @db.Timestamptz(6)
+  expiredAt           DateTime?             @map("expired_at") @db.Timestamptz(6)
+
+  application ControlApplication @relation(fields: [applicationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  profile     ProfileRevision    @relation(fields: [profileRevisionId, applicationId], references: [id, applicationId], onDelete: Restrict)
+  execution   Execution?         @relation(fields: [executionId, applicationId], references: [id, applicationId], onDelete: Restrict)
+
+  @@unique([executionId, applicationId])
+  @@index([state, expiresAt, id], map: "dispatch_envelopes_state_expiry")
+  @@index([applicationId, createdAt, id], map: "dispatch_envelopes_application_created")
+  @@map("dispatch_envelopes")
   @@schema("control")
 }
 
@@ -276,7 +328,7 @@ model Attempt {
   runnerEvidence    RunnerEvidence[]
   id                String             @id @db.Uuid
   executionId       String             @map("execution_id") @db.Uuid
-  ownerInstanceId    String?            @map("owner_instance_id") @db.Uuid
+  ownerInstanceId   String?            @map("owner_instance_id") @db.Uuid
   number            Int
   generation        Int                @default(1)
   status            String             @default("PREPARED")

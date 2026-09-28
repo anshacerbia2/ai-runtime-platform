@@ -8,7 +8,11 @@ import type {
 import { ApplicationError } from '../../../shared/domain/application-error.js';
 import type { Principal } from '../../identity/domain/principal.js';
 import { requireAuthority } from '../../identity/domain/principal.js';
-import type { AdmissionSource, M1Repository } from './m1-repository.port.js';
+import type {
+  AdmissionSource,
+  DispatchEnvelopeAdmission,
+  M1Repository,
+} from './m1-repository.port.js';
 
 function requireKey(value: string) {
   if (!/^[A-Za-z0-9._:-]{1,160}$/.test(value)) {
@@ -63,6 +67,26 @@ export class M1ControlPlaneService {
       command,
       requireKey(idempotencyKey),
       source,
+    );
+  }
+
+  /** Internal M3 path; HTTP agent_execute remains disabled until dispatch exists. */
+  admitDispatchEnvelope(
+    principal: Principal,
+    command: AdmissionCommand,
+    idempotencyKey: string,
+    envelope: DispatchEnvelopeAdmission,
+  ) {
+    requireAuthority(principal, 'execution:submit');
+    return this.repository.admit(
+      principal,
+      command,
+      requireKey(idempotencyKey),
+      'AGENT',
+      {
+        envelopeId: requireUuid(envelope.envelopeId),
+        executionId: requireUuid(envelope.executionId),
+      },
     );
   }
   readExecution(principal: Principal, executionId: string) {

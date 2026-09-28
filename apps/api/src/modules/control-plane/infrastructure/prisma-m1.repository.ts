@@ -17,6 +17,7 @@ import type { Principal } from '../../identity/domain/principal.js';
 import type {
   AdmissionSource,
   AdmissionResult,
+  DispatchEnvelopeAdmission,
   ExecutionView,
   M1Repository,
   UsageResult,
@@ -1313,6 +1314,7 @@ export class PrismaM1Repository implements M1Repository {
     command: AdmissionCommand,
     idempotencyKey: string,
     source: AdmissionSource = 'CONTROL_PLANE',
+    envelope?: DispatchEnvelopeAdmission,
     serializationRetry = 0,
   ): Promise<AdmissionResult> {
     const applicationId = requireApplication(principal);
@@ -1331,13 +1333,29 @@ export class PrismaM1Repository implements M1Repository {
       ) {
         conflict('Idempotency key belongs to a different request.');
       }
+      if (envelope) {
+        const committed = await this.database.dispatchEnvelope.findFirst({
+          where: {
+            id: envelope.envelopeId,
+            applicationId,
+            executionBindingId: envelope.executionId,
+            executionId: existing.id,
+            inputDigest: command.inputDigest,
+            state: 'COMMITTED',
+          },
+          select: { id: true },
+        });
+        if (!committed || envelope.executionId !== existing.id) {
+          conflict('Idempotency key belongs to a different dispatch envelope.');
+        }
+      }
       return {
         execution: await this.admissionView(existing.id, applicationId),
         replayed: true,
       };
     }
 
-    const executionId = randomUUID();
+    const executionId = envelope?.executionId ?? randomUUID();
     try {
       await this.database.$transaction(
         async (tx) => {
@@ -1373,6 +1391,35 @@ export class PrismaM1Repository implements M1Repository {
           });
           if (!profile) {
             notFound('Published profile revision not found.');
+          }
+          let lockedEnvelope: { id: string; revision: number } | undefined;
+          if (envelope) {
+            if (profile.capability !== 'agent_execute') {
+              throw new ApplicationError(
+                'POLICY_DENIED',
+                'Dispatch envelopes require an agent_execute profile.',
+              );
+            }
+            const rows = await tx.$queryRaw<
+              Array<{
+                id: string;
+                revision: number;
+              }>
+            >`SELECT id, revision
+                FROM control.dispatch_envelopes
+                WHERE id = ${envelope.envelopeId}
+                  AND application_id = ${applicationId}
+                  AND state = 'STAGED'::control."DispatchEnvelopeState"
+                  AND expires_at > clock_timestamp()
+                  AND execution_binding_id = ${executionId}::uuid
+                  AND profile_revision_id = ${profile.id}::uuid
+                  AND input_digest = ${command.inputDigest}::char(64)
+                FOR UPDATE`;
+            const candidate = rows[0];
+            if (!candidate) {
+              conflict('Dispatch envelope admission precondition failed.');
+            }
+            lockedEnvelope = candidate;
           }
           await tx.$queryRaw`SELECT id FROM control.ai_connections WHERE id = ${profile.connectionId} FOR SHARE`;
           const connection = await tx.aiConnection.findUnique({
@@ -1547,6 +1594,21 @@ export class PrismaM1Repository implements M1Repository {
               profileSnapshot: snapshot,
             },
           });
+          if (envelope && lockedEnvelope) {
+            const promoted = await tx.$executeRaw`
+              UPDATE control.dispatch_envelopes
+              SET execution_id = ${executionId}::uuid,
+                  state = 'COMMITTED'::control."DispatchEnvelopeState",
+                  committed_at = clock_timestamp(),
+                  revision = revision + 1
+              WHERE id = ${envelope.envelopeId}::uuid
+                AND application_id = ${applicationId}
+                AND state = 'STAGED'::control."DispatchEnvelopeState"
+                AND revision = ${lockedEnvelope.revision}`;
+            if (promoted !== 1) {
+              conflict('Dispatch envelope lost its admission race.');
+            }
+          }
           await tx.attempt.create({
             data: { id: randomUUID(), executionId, number: 1 },
           });
@@ -1594,12 +1656,16 @@ export class PrismaM1Repository implements M1Repository {
                 application_id: applicationId,
                 profile_ref: profile.profileRef,
                 profile_revision: profile.revision,
+                ...(envelope
+                  ? { dispatch_envelope_id: envelope.envelopeId }
+                  : {}),
               },
             },
           });
         },
         // Every admission invariant is protected by an explicit ordered lock:
-        // policy rows, application/route advisory scopes, then budget rows.
+        // policy rows, an optional staged envelope, application/route advisory
+        // scopes, then budget rows.
         // Read Committed avoids broad Serializable predicate-lock retries while
         // preserving those database-enforced linearization points.
         { isolationLevel: 'ReadCommitted' },
@@ -1616,6 +1682,7 @@ export class PrismaM1Repository implements M1Repository {
           command,
           idempotencyKey,
           source,
+          envelope,
           serializationRetry + 1,
         );
       }
@@ -1631,6 +1698,24 @@ export class PrismaM1Repository implements M1Repository {
             raced.admissionSource !== source
           ) {
             conflict('Idempotency key belongs to a different request.');
+          }
+          if (envelope) {
+            const committed = await this.database.dispatchEnvelope.findFirst({
+              where: {
+                id: envelope.envelopeId,
+                applicationId,
+                executionBindingId: envelope.executionId,
+                executionId: raced.id,
+                inputDigest: command.inputDigest,
+                state: 'COMMITTED',
+              },
+              select: { id: true },
+            });
+            if (!committed || envelope.executionId !== raced.id) {
+              conflict(
+                'Idempotency key belongs to a different dispatch envelope.',
+              );
+            }
           }
           return {
             execution: await this.admissionView(raced.id, applicationId),

@@ -28,6 +28,7 @@
     "test:integration": "npm run build -w @ai-runtime/api && tsx --test apps/api/test/*.test.ts",
     "test:gateway:redis": "npm run build -w @ai-runtime/api && tsx --test apps/api/test/redis-gateway.integration.ts apps/api/test/redis-gateway-multi-instance.integration.ts apps/api/test/redis-gateway-http-multi-instance.integration.ts",
     "test:runner:redis": "npm run build -w @ai-runtime/api && tsx --test apps/api/test/redis-runner-lease.integration.ts",
+    "test:dispatch:s3": "npm run build -w @ai-runtime/api && tsx --test apps/api/test/s3-dispatch-envelope.integration.ts",
     "benchmark:admission": "npm run build -w @ai-runtime/api && node scripts/benchmark-admission.mjs",
     "test:e2e": "playwright test",
     "format": "prettier --write .",

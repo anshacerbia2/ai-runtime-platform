@@ -24,7 +24,12 @@ export type {
   UsageResult,
 } from '@ai-runtime/contracts/http';
 
-export type AdmissionSource = 'CONTROL_PLANE' | 'GATEWAY';
+export type AdmissionSource = 'CONTROL_PLANE' | 'GATEWAY' | 'AGENT';
+
+export interface DispatchEnvelopeAdmission {
+  envelopeId: string;
+  executionId: string;
+}
 
 export interface M1Repository {
   readSnapshot(principal: Principal): Promise<ControlSnapshot>;
@@ -42,6 +47,7 @@ export interface M1Repository {
     command: AdmissionCommand,
     idempotencyKey: string,
     source?: AdmissionSource,
+    envelope?: DispatchEnvelopeAdmission,
   ): Promise<AdmissionResult>;
   readExecution(
     principal: Principal,

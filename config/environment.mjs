@@ -248,6 +248,16 @@ const databaseEnvironmentSchema = runtimeEnvironmentSchema.pick({
   M0_DB_CONNECTION_TIMEOUT_MS: true,
 });
 
+const dispatchObjectStoreTestEnvironmentSchema = z.object({
+  M3_TEST_OBJECT_STORE_ENDPOINT: reqStr('M3_TEST_OBJECT_STORE_ENDPOINT'),
+  M3_TEST_OBJECT_STORE_ACCESS_KEY_ID: reqStr(
+    'M3_TEST_OBJECT_STORE_ACCESS_KEY_ID',
+  ),
+  M3_TEST_OBJECT_STORE_SECRET_ACCESS_KEY: reqStr(
+    'M3_TEST_OBJECT_STORE_SECRET_ACCESS_KEY',
+  ),
+});
+
 function buildApiEnvironment(raw) {
   const deploymentRole = raw.DEPLOYMENT_ROLE ?? 'api-local';
   if (raw.M0_RUNTIME_MODE !== 'm0-local' && !raw.DEPLOYMENT_ROLE) {
@@ -459,6 +469,25 @@ export function loadDatabaseEnvironment() {
     connectionTimeoutMs: raw.M0_DB_CONNECTION_TIMEOUT_MS,
   });
   return Object.freeze({ database, databaseUrl: databaseUrl(database) });
+}
+
+export function loadDispatchObjectStoreTestEnvironment() {
+  loadDotEnv();
+  const raw = parseWithSchema(
+    dispatchObjectStoreTestEnvironmentSchema,
+    process.env,
+  );
+  const endpoint = new URL(raw.M3_TEST_OBJECT_STORE_ENDPOINT);
+  if (!['http:', 'https:'].includes(endpoint.protocol)) {
+    throw new Error(
+      'M3_TEST_OBJECT_STORE_ENDPOINT must use the HTTP or HTTPS protocol.',
+    );
+  }
+  return Object.freeze({
+    endpoint: endpoint.toString(),
+    accessKeyId: raw.M3_TEST_OBJECT_STORE_ACCESS_KEY_ID,
+    secretAccessKey: raw.M3_TEST_OBJECT_STORE_SECRET_ACCESS_KEY,
+  });
 }
 
 export const projectRoot = root;

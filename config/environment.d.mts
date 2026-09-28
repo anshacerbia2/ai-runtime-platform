@@ -110,10 +110,17 @@ export interface DatabaseEnvironment {
   readonly databaseUrl: string;
 }
 
+export interface DispatchObjectStoreTestEnvironment {
+  readonly endpoint: string;
+  readonly accessKeyId: string;
+  readonly secretAccessKey: string;
+}
+
 export function loadApiEnvironment(): ApiEnvironment;
 export function loadDevEnvironment(): DevEnvironment;
 export function loadE2EEnvironment(): E2EEnvironment;
 export function loadDatabaseEnvironment(): DatabaseEnvironment;
+export function loadDispatchObjectStoreTestEnvironment(): DispatchObjectStoreTestEnvironment;
 export const projectRoot: string;
 
 export interface WebEnvironment {

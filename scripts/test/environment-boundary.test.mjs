@@ -5,6 +5,7 @@ import { resolve, relative } from 'node:path';
 import {
   loadApiEnvironment,
   loadDevEnvironment,
+  loadDispatchObjectStoreTestEnvironment,
   loadE2EEnvironment,
 } from '../../config/environment.mjs';
 
@@ -99,6 +100,40 @@ test('runner coordination Redis has a distinct validated API projection', () => 
       delete process.env.M3_COORDINATION_REDIS_URL;
     } else {
       process.env.M3_COORDINATION_REDIS_URL = prior;
+    }
+  }
+});
+
+test('dispatch object-store credentials stay in an isolated test projection', () => {
+  const keys = [
+    'M3_TEST_OBJECT_STORE_ENDPOINT',
+    'M3_TEST_OBJECT_STORE_ACCESS_KEY_ID',
+    'M3_TEST_OBJECT_STORE_SECRET_ACCESS_KEY',
+  ];
+  const prior = new Map(keys.map((key) => [key, process.env[key]]));
+  try {
+    process.env.M3_TEST_OBJECT_STORE_ENDPOINT = 'redis://127.0.0.1:9000';
+    process.env.M3_TEST_OBJECT_STORE_ACCESS_KEY_ID = 'test-access';
+    process.env.M3_TEST_OBJECT_STORE_SECRET_ACCESS_KEY = 'test-secret';
+    assert.throws(
+      () => loadDispatchObjectStoreTestEnvironment(),
+      /must use the HTTP or HTTPS protocol/,
+    );
+    process.env.M3_TEST_OBJECT_STORE_ENDPOINT = 'http://127.0.0.1:9000';
+    assert.deepEqual(loadDispatchObjectStoreTestEnvironment(), {
+      endpoint: 'http://127.0.0.1:9000/',
+      accessKeyId: 'test-access',
+      secretAccessKey: 'test-secret',
+    });
+    assert.equal('objectStore' in loadApiEnvironment().runner, false);
+  } finally {
+    for (const key of keys) {
+      const value = prior.get(key);
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
     }
   }
 });

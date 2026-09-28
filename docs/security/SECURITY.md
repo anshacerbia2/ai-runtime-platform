@@ -4,7 +4,7 @@
 
 ## Current enforcement and test boundary
 
-Source implements bearer principal separation, role/scope checks, app-owned admission/execution/artifact access, server-owned browser sessions, BFF Origin/Host and allowlist checks, projected response fields, caller-scoped management receipts, and exact runner authority. Outbox/credential resource lists exclude payload/secret reference at query time. Known stale assignment evidence is stored only in quarantine. See [HTTP catalogue](../implementation/HTTP-API.md) for exposure and [local evidence](../reviews/CONTRACT-EXECUTION.md) for actual tests.
+Source implements bearer principal separation, role/scope checks, app-owned admission/execution/artifact access, server-owned browser sessions, BFF Origin/Host and allowlist checks, projected response fields, caller-scoped management receipts, and exact runner authority. Outbox/credential resource lists exclude payload/secret reference at query time. Known stale assignment evidence is stored only in quarantine. The M3 foundation also stores dispatch input as AES-256-GCM ciphertext outside PostgreSQL and atomically binds only sanitized encryption metadata during admission; its key provider is test-only until a production KMS is selected. See [ADR-0030](../adr/0030-encrypted-dispatch-envelope.md), [HTTP catalogue](../implementation/HTTP-API.md), and [local evidence](../reviews/CONTRACT-EXECUTION.md).
 
 These controls are not a complete production security assessment. Operator authorization is currently broad platform-level within one organization; resource-granular approvals, sandbox/egress containment, actual provider secret resolution and deployment IAM/network enforcement remain incomplete. Local debug source and test logs are not a promise of production logging/retention compliance. The threat matrix below is a target requirement catalogue, not an assertion that each sandbox or live dependency test has passed.
 
@@ -48,6 +48,8 @@ Do not pool consumer subscription login directories as an implicit production cr
 Data-class policy covers allowed provider/model route, region, retention/ZDR, plugin/tool destinations, encryption, logging, and deletion. OpenRouter documents ZDR/routing controls (R03), but a configured route/plugin set and organizational agreement still need review. No blanket claim that an aggregator guarantees or prevents compliance.
 
 Default: logs contain IDs, durations, result categories, error codes, and measurements—not full prompts/output. Content capture for evaluation/debug requires explicit policy, access scope, retention, and redaction. Raw transcript archive is optional. Cache shared across applications is off by default.
+
+Dispatch object keys are opaque and object storage receives ciphertext only. PostgreSQL stores wrapped data key and authenticated metadata, never plaintext input or plaintext data key. The seven-day implementation ceiling does not approve a production retention duration; O06 remains mandatory per workload. Runner delivery must be coordinator-scoped and cannot expose broad object-store credentials.
 
 ## 6. Authorization of dangerous operations
 

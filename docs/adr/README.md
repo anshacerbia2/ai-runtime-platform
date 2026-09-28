@@ -1,6 +1,6 @@
 # Architecture Decision Records
 
-**Baseline 0.2 with ADR-0001–ADR-0029. Implementation status reconciled 24 September 2026.** Original decision dates remain historical; local proof and pending production requirements are stated per ADR and in the current implementation reference.
+**Baseline 0.2 with ADR-0001–ADR-0030. Implementation status reconciled 29 September 2026.** Original decision dates remain historical; local proof and pending production requirements are stated per ADR and in the current implementation reference.
 
 ## Reading authority
 
@@ -39,6 +39,7 @@
 | [ADR-0027](0027-shared-rest-consumer-contracts.md)      | Shared REST, inferred clients and Pact compatibility                                      | [Contract Operations](../development/CONTRACTS.md)         |
 | [ADR-0028](0028-http-behavior-and-outcome-semantics.md) | Bounded unary transport and mutation outcomes (historical one-attempt policy)             | [HTTP audit](../reviews/HTTP-CONTRACT-AUDIT.md)            |
 | [ADR-0029](0029-replay-resources-runner-authority.md)   | Atomic receipts, independent resources, runner authority, bounded retry, explicit mapping | [Implemented HTTP API](../implementation/HTTP-API.md)      |
+| [ADR-0030](0030-encrypted-dispatch-envelope.md)         | Encrypted durable dispatch input, atomic admission promotion, and cross-store cleanup     | [DATA-MODEL](../data/DATA-MODEL.md)                        |
 
 ## Otoritas dan traceability
 
@@ -63,3 +64,7 @@ Record ID/date/status, kebutuhan dan keputusan terkait, context, decision, alter
 ## Replay-safe resource contracts and runner authority
 
 [ADR-0029](0029-replay-resources-runner-authority.md) records atomic mutation receipts, independent resources, bounded retry ownership, runner fencing, and serialization gates. [Execution evidence](../reviews/CONTRACT-EXECUTION.md) distinguishes local tests from deployment/runtime gates.
+
+## Encrypted dispatch input
+
+[ADR-0030](0030-encrypted-dispatch-envelope.md) records the ciphertext/object-store boundary, application-level envelope encryption, PostgreSQL lifecycle authority, atomic admission promotion, and orphan cleanup. Production KMS and workload retention remain explicit open decisions.
