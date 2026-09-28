@@ -42,6 +42,7 @@ import {
 } from './application/gateway-cancel-signal.port.js';
 import { GatewayService } from './application/gateway.service.js';
 import { PrismaGatewayRepository } from './infrastructure/prisma-gateway.repository.js';
+import { GatewayRecoveryWorker } from './infrastructure/gateway-recovery.worker.js';
 import { ControlPlaneGatewayAdapter } from './infrastructure/control-plane-gateway.adapter.js';
 import { InMemoryReplayStore } from './infrastructure/in-memory-replay.store.js';
 import { RedisReplayStore } from './infrastructure/redis-replay.store.js';
@@ -62,10 +63,12 @@ const OWNER_INSTANCE_ID = randomUUID();
   controllers: [GatewayController],
   providers: [
     {
-      provide: GATEWAY_REPOSITORY,
+      provide: PrismaGatewayRepository,
       inject: [DatabaseService],
       useFactory: (db: DatabaseService) => new PrismaGatewayRepository(db),
     },
+    { provide: GATEWAY_REPOSITORY, useExisting: PrismaGatewayRepository },
+    GatewayRecoveryWorker,
     {
       provide: GATEWAY_CONTROL,
       inject: [M1ControlPlaneService, M1_REPOSITORY],

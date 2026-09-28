@@ -329,6 +329,7 @@ model ProviderInvocation {
 
   @@index([executionId, startedAt])
   @@index([connectionId, status])
+  @@index([status, startedAt], map: "provider_invocations_status_started")
   @@map("provider_invocations")
   @@schema("control")
 }

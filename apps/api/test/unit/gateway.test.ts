@@ -111,8 +111,8 @@ class FakeRepository implements GatewayRepository {
   current = execution('RUNNING');
   cancelIntent = false;
 
-  async cancelRequested() {
-    return this.cancelIntent;
+  async ownerState() {
+    return this.cancelIntent ? ('cancelled' as const) : ('active' as const);
   }
 
   async cancelOwner() {
@@ -444,13 +444,13 @@ test('owner signal prompts a durable cancel read before the polling interval', a
     started = resolve;
   });
   const listeners = new Map<string, (executionId: string) => void>();
-  let signalled = false;
+  let signalCount = 0;
   const signal: GatewayCancelSignal = {
     async listen(owner, handler) {
       listeners.set(owner, handler);
     },
     async notify(owner, id) {
-      signalled = true;
+      signalCount++;
       listeners.get(owner)?.(id);
     },
   };
@@ -491,9 +491,9 @@ test('owner signal prompts a durable cancel read before the polling interval', a
   await signal.notify(claim.ownerInstanceId, executionId);
   await new Promise((resolve) => setTimeout(resolve, 5));
   assert.equal(repository.failed.length, 0);
-  signalled = false;
+  assert.equal(signalCount, 1);
   await other.cancel(principal, executionId, 'stop');
-  assert.equal(signalled, true);
+  assert.equal(signalCount, 2);
   await assert.rejects(
     Promise.race([
       running,

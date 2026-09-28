@@ -670,3 +670,210 @@ test('cancel on a second API instance wins over an in-flight provider', async ()
   assert.equal(cancelled.reservations[0]?.state, 'PENDING_RECONCILIATION');
   assert.equal(cancelled.observations[0]?.completeness, 'unknown');
 });
+
+test('expired provider work is fenced once and retained for reconciliation', async () => {
+  let providerCalls = 0;
+  let started!: () => void;
+  let release!: () => void;
+  const ready = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  const providerRelease = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const provider: ProviderAdapter = {
+    id: 'openrouter',
+    async *stream() {
+      providerCalls++;
+      yield { type: 'started', requestId: 'provider-expired-owner' };
+      started();
+      await providerRelease;
+      yield {
+        type: 'done',
+        requestId: 'provider-expired-owner',
+        finishReason: 'stop',
+      };
+    },
+  };
+  const key = prefix + '-expired-provider';
+  const running = gateway(provider).execute(principal, command('expired'), key);
+  await ready;
+  try {
+    const execution = await db.execution.findUniqueOrThrow({
+      where: {
+        applicationId_idempotencyKey: {
+          applicationId: application.id,
+          idempotencyKey: key,
+        },
+      },
+      include: { providerInvocations: true, reservations: true },
+    });
+    await repository.recoverExpiredInvocations();
+    assert.equal(
+      (await db.execution.findUniqueOrThrow({ where: { id: execution.id } }))
+        .status,
+      'RUNNING',
+    );
+    await db.providerInvocation.update({
+      where: { id: execution.providerInvocations[0]!.id },
+      data: { startedAt: new Date(Date.now() - 65_000) },
+    });
+    let recovered: number;
+    try {
+      const [first, second] = await Promise.all([
+        repository.recoverExpiredInvocations(),
+        repository.recoverExpiredInvocations(),
+      ]);
+      recovered = first + second;
+    } finally {
+      release();
+    }
+    assert.ok(recovered >= 1);
+    await assert.rejects(running);
+    await assert.rejects(
+      gateway(provider).execute(principal, command('expired'), key),
+    );
+    assert.equal(providerCalls, 1);
+    const fenced = await db.execution.findUniqueOrThrow({
+      where: { id: execution.id },
+      include: {
+        result: true,
+        attempts: true,
+        providerInvocations: true,
+        reservations: true,
+        observations: true,
+      },
+    });
+    assert.equal(fenced.status, 'RECONCILING');
+    assert.equal(fenced.statusReason, 'PROVIDER_OWNER_DEADLINE_EXCEEDED');
+    assert.equal(fenced.result, null);
+    assert.equal(fenced.attempts[0]?.authority, 'FENCED');
+    assert.equal(fenced.attempts[0]?.external, 'UNKNOWN');
+    assert.equal(fenced.providerInvocations[0]?.status, 'UNKNOWN');
+    assert.equal(fenced.reservations[0]?.state, 'PENDING_RECONCILIATION');
+    assert.equal(
+      fenced.reservations[0]?.heldUnits,
+      execution.reservations[0]?.heldUnits,
+    );
+    assert.equal(fenced.observations.length, 0);
+    assert.equal(
+      await db.outboxEvent.count({
+        where: { aggregateId: execution.id, topic: 'execution.reconciling' },
+      }),
+      1,
+    );
+    await repository.recoverExpiredInvocations();
+    assert.equal(
+      await db.outboxEvent.count({
+        where: { aggregateId: execution.id, topic: 'execution.reconciling' },
+      }),
+      1,
+    );
+  } finally {
+    release();
+    await running.catch(() => {});
+  }
+});
+
+test('expired owner with durable cancel intent closes without releasing unknown spend', async () => {
+  const digest = 'e'.repeat(64);
+  const admitted = await control.admit(
+    principal,
+    profileRef,
+    digest,
+    prefix + '-expired-cancel',
+  );
+  const claimed = await repository.claim(
+    application.id,
+    admitted.execution.id,
+    digest,
+    randomUUID(),
+  );
+  assert.equal(claimed.state, 'claimed');
+  await control.cancel(principal, admitted.execution.id, 'owner vanished');
+  await db.providerInvocation.updateMany({
+    where: { executionId: admitted.execution.id },
+    data: { startedAt: new Date(Date.now() - 65_000) },
+  });
+  assert.equal(await repository.recoverExpiredInvocations(), 1);
+  const execution = await db.execution.findUniqueOrThrow({
+    where: { id: admitted.execution.id },
+    include: { result: true, attempts: true, reservations: true },
+  });
+  assert.equal(execution.status, 'CANCELLED');
+  assert.equal(execution.result, null);
+  assert.equal(execution.attempts[0]?.authority, 'FENCED');
+  assert.equal(execution.reservations[0]?.state, 'PENDING_RECONCILIATION');
+  assert.ok(execution.reservations[0]?.heldUnits > 0n);
+});
+
+test('provider owner stops after the recovery fence is committed', async () => {
+  let started!: () => void;
+  let release!: () => void;
+  const ready = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  const forceRelease = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const provider: ProviderAdapter = {
+    id: 'openrouter',
+    async *stream(_request, signal) {
+      yield { type: 'started', requestId: 'provider-fenced-owner' };
+      started();
+      await Promise.race([
+        forceRelease,
+        new Promise<never>((_resolve, reject) => {
+          signal.addEventListener('abort', () => reject(signal.reason), {
+            once: true,
+          });
+        }),
+      ]);
+    },
+  };
+  const key = prefix + '-fenced-owner-poll';
+  const running = gateway(provider).execute(principal, command('fence'), key);
+  await ready;
+  try {
+    const execution = await db.execution.findUniqueOrThrow({
+      where: {
+        applicationId_idempotencyKey: {
+          applicationId: application.id,
+          idempotencyKey: key,
+        },
+      },
+      include: { providerInvocations: true },
+    });
+    await db.providerInvocation.update({
+      where: { id: execution.providerInvocations[0]!.id },
+      data: { startedAt: new Date(Date.now() - 65_000) },
+    });
+    await repository.recoverExpiredInvocations();
+    let timeout!: ReturnType<typeof setTimeout>;
+    try {
+      await assert.rejects(
+        Promise.race([
+          running,
+          new Promise((_resolve, reject) => {
+            timeout = setTimeout(
+              () => reject(new Error('Owner did not stop.')),
+              4_000,
+            );
+          }),
+        ]),
+        (error: unknown) =>
+          error instanceof Error && !error.message.includes('did not stop'),
+      );
+    } finally {
+      clearTimeout(timeout);
+    }
+    assert.equal(
+      (await db.execution.findUniqueOrThrow({ where: { id: execution.id } }))
+        .status,
+      'RECONCILING',
+    );
+  } finally {
+    release();
+    await running.catch(() => {});
+  }
+});

@@ -40,7 +40,7 @@ export type ClaimResult =
       errorCode: string | null;
     };
 export interface GatewayRepository {
-  cancelRequested(applicationId: string, executionId: string): Promise<boolean>;
+  ownerState(claim: GatewayClaim): Promise<'active' | 'cancelled' | 'fenced'>;
   claim(
     applicationId: string,
     executionId: string,

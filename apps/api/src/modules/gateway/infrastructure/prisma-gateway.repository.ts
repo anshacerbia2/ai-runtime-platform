@@ -14,6 +14,9 @@ import type {
 } from '../application/gateway-repository.port.js';
 import type { ProviderId } from '../application/provider-adapter.port.js';
 
+const PROVIDER_RECOVERY_GRACE_MS = 30_000;
+const RECOVERY_BATCH = 32;
+
 const provider = (value: string): ProviderId => {
   if (value === 'openrouter' || value === 'direct-anthropic') {
     return value;
@@ -27,12 +30,31 @@ const provider = (value: string): ProviderId => {
 export class PrismaGatewayRepository implements GatewayRepository {
   constructor(private readonly db: DatabaseService) {}
 
-  async cancelRequested(applicationId: string, executionId: string) {
+  async ownerState(
+    claim: GatewayClaim,
+  ): Promise<'active' | 'cancelled' | 'fenced'> {
     const execution = await this.db.execution.findFirst({
-      where: { id: executionId, applicationId },
-      select: { cancelRequestedAt: true },
+      where: { id: claim.executionId, applicationId: claim.applicationId },
+      select: {
+        status: true,
+        cancelRequestedAt: true,
+        attempts: {
+          where: { id: claim.attemptId },
+          select: { status: true, ownerInstanceId: true },
+        },
+      },
     });
-    return Boolean(execution?.cancelRequestedAt);
+    if (execution?.cancelRequestedAt) {
+      return 'cancelled';
+    }
+    if (
+      execution?.status !== 'RUNNING' ||
+      execution.attempts[0]?.status !== 'RUNNING' ||
+      execution.attempts[0]?.ownerInstanceId !== claim.ownerInstanceId
+    ) {
+      return 'fenced';
+    }
+    return 'active';
   }
 
   async claim(
@@ -739,6 +761,131 @@ export class PrismaGatewayRepository implements GatewayRepository {
       });
       return true;
     });
+  }
+
+  /** Fence provider work that outlived its profile deadline and grace period.
+   * An old owner may still receive a late upstream response, but cannot commit it.
+   */
+  async recoverExpiredInvocations(): Promise<number> {
+    // Use the PostgreSQL clock so an API pod with skew cannot fence a healthy
+    // owner earlier than its stored provider deadline.
+    const epoch = (
+      await this.db.$queryRaw<Array<{ epoch_ms: bigint }>>`
+        SELECT (extract(epoch FROM clock_timestamp()) * 1000)::bigint AS epoch_ms
+      `
+    )[0]?.epoch_ms;
+    if (epoch === undefined) {
+      throw new Error('PostgreSQL did not return a recovery clock.');
+    }
+    const databaseNow = new Date(Number(epoch));
+    const candidates = await this.db.$queryRaw<
+      Array<{ id: string; execution_id: string }>
+    >`
+      SELECT invocation.id, invocation.execution_id
+      FROM control.provider_invocations AS invocation
+      JOIN control.executions AS execution ON execution.id = invocation.execution_id
+      JOIN control.profile_revisions AS profile ON profile.id = execution.profile_revision_id
+      WHERE invocation.status = 'RUNNING'
+        AND execution.status = 'RUNNING'
+        AND invocation.started_at +
+          (profile.timeout_ms + ${PROVIDER_RECOVERY_GRACE_MS}) * interval '1 millisecond' <= ${databaseNow}
+      ORDER BY invocation.started_at, invocation.id
+      LIMIT ${RECOVERY_BATCH}
+    `;
+    let recovered = 0;
+    for (const candidate of candidates) {
+      const changed = await this.db.$transaction(
+        async (tx) => {
+          await tx.$queryRaw`SELECT id FROM control.executions WHERE id=${candidate.execution_id}::uuid FOR UPDATE`;
+          const execution = await tx.execution.findUnique({
+            where: { id: candidate.execution_id },
+            include: { profile: true, result: true },
+          });
+          const invocation = await tx.providerInvocation.findUnique({
+            where: { id: candidate.id },
+          });
+          if (
+            !execution ||
+            execution.status !== 'RUNNING' ||
+            execution.result ||
+            !invocation ||
+            invocation.status !== 'RUNNING' ||
+            invocation.executionId !== execution.id ||
+            invocation.startedAt.getTime() +
+              execution.profile.timeoutMs +
+              PROVIDER_RECOVERY_GRACE_MS >
+              databaseNow.getTime()
+          ) {
+            return false;
+          }
+          const attempt = await tx.attempt.findUnique({
+            where: { id: invocation.attemptId },
+          });
+          if (
+            attempt?.status !== 'RUNNING' ||
+            attempt.executionId !== execution.id ||
+            !attempt.ownerInstanceId
+          ) {
+            return false;
+          }
+          const cancelled = Boolean(execution.cancelRequestedAt);
+          const code = cancelled
+            ? 'CANCELLED_OWNER_DEADLINE'
+            : 'PROVIDER_OWNER_DEADLINE_EXCEEDED';
+          const status = cancelled ? 'CANCELLED' : 'RECONCILING';
+          await tx.providerInvocation.update({
+            where: { id: invocation.id },
+            data: {
+              status: 'UNKNOWN',
+              errorCode: code,
+              completedAt: databaseNow,
+            },
+          });
+          await tx.attempt.update({
+            where: { id: attempt.id },
+            data: {
+              status: cancelled ? 'CANCELLED' : 'FAILED',
+              authority: 'FENCED',
+              external: 'UNKNOWN',
+            },
+          });
+          await tx.reservation.updateMany({
+            where: { executionId: execution.id, state: 'RESERVED' },
+            data: {
+              state: 'PENDING_RECONCILIATION',
+              revision: { increment: 1 },
+            },
+          });
+          await tx.execution.update({
+            where: { id: execution.id },
+            data: {
+              status,
+              statusReason: code,
+              completedAt: cancelled ? databaseNow : null,
+              revision: { increment: 1 },
+            },
+          });
+          await tx.outboxEvent.create({
+            data: {
+              id: randomUUID(),
+              applicationId: execution.applicationId,
+              topic: cancelled
+                ? 'execution.cancelled'
+                : 'execution.reconciling',
+              aggregateId: execution.id,
+              revision: execution.revision + 1,
+              payload: { execution_id: execution.id, code },
+            },
+          });
+          return true;
+        },
+        { isolationLevel: 'ReadCommitted', maxWait: 2000, timeout: 5000 },
+      );
+      if (changed) {
+        recovered++;
+      }
+    }
+    return recovered;
   }
 
   async cancelOwner(

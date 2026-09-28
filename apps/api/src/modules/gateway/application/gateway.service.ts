@@ -217,14 +217,18 @@ export class GatewayService {
       }
       checkingCancel = true;
       try {
-        if (
-          await this.repository.cancelRequested(
-            claim.applicationId,
-            claim.executionId,
-          )
-        ) {
+        const state = await this.repository.ownerState(claim);
+        if (state === 'cancelled') {
           controller.abort(
             new DOMException('Execution cancelled.', 'AbortError'),
+          );
+        } else if (state === 'fenced') {
+          controller.abort(
+            new ApplicationError(
+              'IDEMPOTENCY_CONFLICT',
+              'Provider attempt has lost execution authority.',
+              claim.executionId,
+            ),
           );
         }
       } catch {
@@ -433,7 +437,9 @@ export class GatewayService {
       });
       return completed;
     } catch (cause) {
-      const cancelled = controller.signal.aborted;
+      const cancelled =
+        controller.signal.reason instanceof DOMException &&
+        controller.signal.reason.name === 'AbortError';
       const providerError = cause instanceof ProviderError ? cause : undefined;
       const ambiguous =
         cancelled ||
