@@ -1,11 +1,14 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { createClient } from 'redis';
 import type {
   CircuitOutcome,
   CircuitPermit,
   CircuitRoute,
   GatewayCircuit,
 } from '../application/gateway-circuit.port.js';
+import {
+  gatewayRedisClient,
+  type GatewayRedisClient,
+} from './gateway-redis.client.js';
 
 const OPEN_MS = 30_000;
 const STATE_MS = 90_000;
@@ -66,25 +69,12 @@ redis.call('PEXPIRE', KEYS[1], ${STATE_MS})
 return 1
 `;
 
-function newClient(url: string) {
-  return createClient({
-    url,
-    socket: { connectTimeout: 3000, reconnectStrategy: false },
-    commandOptions: { timeout: 3000 },
-    disableOfflineQueue: true,
-  });
-}
-
-type Client = ReturnType<typeof newClient>;
-
 export class RedisGatewayCircuit implements GatewayCircuit {
-  constructor(private readonly client: Client) {}
+  constructor(private readonly client: GatewayRedisClient) {}
 
   static async connect(url: string): Promise<RedisGatewayCircuit> {
-    const client = newClient(url);
-    client.on('error', () => {});
-    await client.connect();
-    return new RedisGatewayCircuit(client);
+    const connection = gatewayRedisClient(url);
+    return new RedisGatewayCircuit(await connection.connect());
   }
 
   async onModuleDestroy() {

@@ -1,36 +1,31 @@
-import { createClient } from 'redis';
 import type { GatewayCancelSignal } from '../application/gateway-cancel-signal.port.js';
+import {
+  gatewayRedisClient,
+  type GatewayRedisClient,
+} from './gateway-redis.client.js';
 
 const CHANNEL = 'ai-runtime:m2:cancel';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-function client(url: string) {
-  return createClient({
-    url,
-    socket: { connectTimeout: 3000, reconnectStrategy: false },
-    commandOptions: { timeout: 3000 },
-    disableOfflineQueue: true,
-  });
-}
-
-type Client = ReturnType<typeof client>;
 
 /** Redis only prompts a durable PostgreSQL cancel-intent read on the owner. */
 export class RedisGatewayCancelSignal implements GatewayCancelSignal {
   private owner: string | null = null;
 
   private constructor(
-    private readonly publisher: Client,
-    private readonly subscriber: Client,
+    private readonly publisher: GatewayRedisClient,
+    private readonly subscriber: GatewayRedisClient,
   ) {}
 
   static async connect(url: string): Promise<RedisGatewayCancelSignal> {
-    const publisher = client(url);
-    const subscriber = client(url);
-    publisher.on('error', () => {});
-    subscriber.on('error', () => {});
+    const publisherConnection = gatewayRedisClient(url);
+    const subscriberConnection = gatewayRedisClient(url);
+    const publisher = publisherConnection.client;
+    const subscriber = subscriberConnection.client;
     try {
-      await Promise.all([publisher.connect(), subscriber.connect()]);
+      await Promise.all([
+        publisherConnection.connect(),
+        subscriberConnection.connect(),
+      ]);
       return new RedisGatewayCancelSignal(publisher, subscriber);
     } catch (error) {
       await Promise.allSettled([

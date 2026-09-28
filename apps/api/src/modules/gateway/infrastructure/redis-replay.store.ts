@@ -1,10 +1,13 @@
 import { GatewayStreamEvent } from '@ai-runtime/contracts/http';
-import { createClient } from 'redis';
 import type {
   ReplayPage,
   ReplayStore,
   ReplayWatch,
 } from '../application/replay-store.port.js';
+import {
+  gatewayRedisClient,
+  type GatewayRedisClient,
+} from './gateway-redis.client.js';
 
 const MAX_EVENTS = 256;
 const MAX_BYTES = 262_144;
@@ -37,17 +40,7 @@ redis.call('EXPIRE', KEYS[1], ${RETENTION_SECONDS})
 return 1
 `;
 
-function newClient(url: string) {
-  return createClient({
-    url,
-    socket: { connectTimeout: 3000, reconnectStrategy: false },
-    commandOptions: { timeout: 3000 },
-    disableOfflineQueue: true,
-  });
-}
-
-type Client = ReturnType<typeof newClient>;
-type StreamRow = Awaited<ReturnType<Client['xRange']>>[number];
+type StreamRow = Awaited<ReturnType<GatewayRedisClient['xRange']>>[number];
 
 function redisId(sequence: number) {
   return `${sequence + 1}-0`;
@@ -103,17 +96,13 @@ function wait(ms: number, signal: AbortSignal): Promise<void> {
 /** Redis is bounded hot replay only; it never becomes execution authority. */
 export class RedisReplayStore implements ReplayStore {
   constructor(
-    private readonly client: Client,
+    private readonly client: GatewayRedisClient,
     private readonly prefix = 'ai-runtime:m2:replay',
   ) {}
 
   static async connect(url: string): Promise<RedisReplayStore> {
-    const client = newClient(url);
-    client.on('error', () => {
-      /* The pending replay operation reports failure to its caller. */
-    });
-    await client.connect();
-    return new RedisReplayStore(client);
+    const connection = gatewayRedisClient(url);
+    return new RedisReplayStore(await connection.connect());
   }
 
   async onModuleDestroy() {
