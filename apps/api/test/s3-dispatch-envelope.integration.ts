@@ -25,8 +25,12 @@ const client = new S3Client({
 });
 const bucket = `dispatch-${randomUUID()}`;
 const store = new S3DispatchEnvelopeBlobStore({ bucket, client });
+let objectKey: string | undefined;
 
 after(async () => {
+  if (objectKey) {
+    await store.delete(objectKey);
+  }
   await client.send(new DeleteBucketCommand({ Bucket: bucket }));
   client.destroy();
 });
@@ -44,23 +48,28 @@ test('S3-compatible store keeps only authenticated ciphertext and enforces creat
   const sealed = await new AesGcmDispatchEnvelopeCipher(
     new EphemeralDispatchKeyProvider(),
   ).seal(context, secret);
-  const key = `dispatch-envelopes/v1/${context.envelopeId}`;
+  objectKey = `dispatch-envelopes/v1/${context.envelopeId}`;
 
-  await store.putIfAbsent(key, sealed.ciphertext, sealed.ciphertextSha256);
-  const fetched = await store.get(key);
-  assert.deepEqual(fetched, sealed.ciphertext);
-  assert.equal(Buffer.from(fetched!).includes(secret), false);
+  await store.putIfAbsent(
+    objectKey,
+    sealed.ciphertext,
+    sealed.ciphertextSha256,
+  );
+  const fetched = await store.get(objectKey);
+  assert.ok(fetched);
+  assert.equal(Buffer.from(fetched).equals(sealed.ciphertext), true);
+  assert.equal(Buffer.from(fetched).includes(secret), false);
   assert.deepEqual(
     (await store.list('dispatch-envelopes/v1/', 10)).map((x) => x.key),
-    [key],
+    [objectKey],
   );
 
   await assert.rejects(
-    store.putIfAbsent(key, sealed.ciphertext, sealed.ciphertextSha256),
+    store.putIfAbsent(objectKey, sealed.ciphertext, sealed.ciphertextSha256),
     (error) =>
       error instanceof DispatchEnvelopeError &&
       error.code === 'ENVELOPE_CONFLICT',
   );
-  await store.delete(key);
-  assert.equal(await store.get(key), null);
+  await store.delete(objectKey);
+  assert.equal(await store.get(objectKey), null);
 });
