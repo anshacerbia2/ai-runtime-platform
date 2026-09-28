@@ -26,6 +26,7 @@
     "docs:check": "node scripts/check-docs.mjs",
     "test": "npm run build -w @ai-runtime/contracts && tsx --test packages/contracts/test/contracts.test.ts",
     "test:integration": "npm run build -w @ai-runtime/api && tsx --test apps/api/test/*.test.ts",
+    "test:gateway:redis": "npm run build -w @ai-runtime/api && tsx --test apps/api/test/redis-gateway.integration.ts",
     "test:e2e": "playwright test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

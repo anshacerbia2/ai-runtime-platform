@@ -16,6 +16,7 @@ import {
 import { ControlPlaneGatewayAdapter } from '../src/modules/gateway/infrastructure/control-plane-gateway.adapter.js';
 import { PrismaGatewayRepository } from '../src/modules/gateway/infrastructure/prisma-gateway.repository.js';
 import { InMemoryReplayStore } from '../src/modules/gateway/infrastructure/in-memory-replay.store.js';
+import { InMemoryGatewayCircuit } from '../src/modules/gateway/infrastructure/in-memory-gateway.circuit.js';
 import { Sha256RequestFingerprint } from '../src/modules/gateway/infrastructure/sha256-request-fingerprint.js';
 import { BoundedStructuredOutputValidator } from '../src/modules/gateway/infrastructure/structured-output.validator.js';
 
@@ -87,6 +88,7 @@ function gateway(...providers: ProviderAdapter[]) {
     new Sha256RequestFingerprint(),
     new BoundedStructuredOutputValidator(),
     randomUUID(),
+    new InMemoryGatewayCircuit(),
   );
 }
 

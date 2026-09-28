@@ -13,7 +13,6 @@ import type {
 } from './gateway-repository.port.js';
 import type {
   ProviderAdapter,
-  ProviderId,
   ProviderMessage,
   ProviderRequest,
 } from './provider-adapter.port.js';
@@ -29,6 +28,7 @@ import {
   noopGatewayCancelSignal,
   type GatewayCancelSignal,
 } from './gateway-cancel-signal.port.js';
+import type { CircuitPermit, GatewayCircuit } from './gateway-circuit.port.js';
 
 export interface GatewayCommand {
   profile: string;
@@ -54,10 +54,6 @@ interface ActiveExecution {
 export class GatewayService {
   private readonly active = new Map<string, ActiveExecution>();
   private cancelListener: Promise<void> | null = null;
-  private readonly breaker = new Map<
-    string,
-    { failures: number; openUntil: number }
-  >();
 
   constructor(
     private readonly control: GatewayControl,
@@ -67,6 +63,7 @@ export class GatewayService {
     private readonly fingerprint: RequestFingerprint,
     private readonly structured: StructuredOutputValidator,
     private readonly ownerInstanceId: string,
+    private readonly circuit: GatewayCircuit,
     private readonly telemetry: GatewayTelemetry = noopGatewayTelemetry,
     private readonly cancelSignal: GatewayCancelSignal = noopGatewayCancelSignal,
   ) {}
@@ -200,7 +197,25 @@ export class GatewayService {
         claim.executionId,
       );
     }
-    if (this.circuitOpen(claim.connectionId, claim.provider, claim.model)) {
+    let circuitPermit: CircuitPermit | null;
+    try {
+      circuitPermit = await this.circuit.acquire(
+        {
+          connectionId: claim.connectionId,
+          provider: claim.provider,
+          model: claim.model,
+        },
+        timeoutMs,
+      );
+    } catch {
+      await this.repository.fail(claim, 'DEPENDENCY_UNAVAILABLE', false, false);
+      throw new ApplicationError(
+        'DEPENDENCY_UNAVAILABLE',
+        'Provider route health is unavailable.',
+        claim.executionId,
+      );
+    }
+    if (!circuitPermit) {
       await this.repository.fail(claim, 'DEPENDENCY_UNAVAILABLE', false, false);
       throw new ApplicationError(
         'DEPENDENCY_UNAVAILABLE',
@@ -376,6 +391,8 @@ export class GatewayService {
           if (!safeFallback) {
             throw cause;
           }
+          await this.reportCircuit(circuitPermit, 'neutral');
+          circuitPermit = null;
           claim = await this.repository.beginFallback(claim, cause.code);
           fallback = true;
           this.active.set(claim.executionId, {
@@ -384,10 +401,22 @@ export class GatewayService {
             checkCancel,
           });
           adapter = this.providers.find((item) => item.id === claim.provider);
-          if (
-            !adapter ||
-            this.circuitOpen(claim.connectionId, claim.provider, claim.model)
-          ) {
+          if (!adapter) {
+            throw new ApplicationError(
+              'DEPENDENCY_UNAVAILABLE',
+              'Policy-approved fallback route is unavailable.',
+              claim.executionId,
+            );
+          }
+          circuitPermit = await this.circuit.acquire(
+            {
+              connectionId: claim.connectionId,
+              provider: claim.provider,
+              model: claim.model,
+            },
+            timeoutMs,
+          );
+          if (!circuitPermit) {
             throw new ApplicationError(
               'DEPENDENCY_UNAVAILABLE',
               'Policy-approved fallback route is unavailable.',
@@ -428,7 +457,7 @@ export class GatewayService {
       } catch {
         // Result completion is independent from financial reconciliation.
       }
-      this.resetCircuit(claim.connectionId, claim.provider, claim.model);
+      await this.reportCircuit(circuitPermit, 'success');
       await publish('execution.completed', {
         provider: claim.provider,
         model: claim.model,
@@ -448,6 +477,10 @@ export class GatewayService {
         providerError?.outcome === 'unknown';
       const code = failureCode(cause, timeout.aborted, cancelled);
       const usage = usageView(inputTokens, outputTokens);
+      await this.reportCircuit(
+        circuitPermit,
+        ambiguous && !cancelled ? 'ambiguous' : 'neutral',
+      );
       const failed = await this.repository.fail(
         claim,
         code,
@@ -469,13 +502,6 @@ export class GatewayService {
         );
       } catch {
         // Unknown/incomplete usage remains held for reconciliation.
-      }
-      if (ambiguous && !cancelled) {
-        this.recordCircuitFailure(
-          claim.connectionId,
-          claim.provider,
-          claim.model,
-        );
       }
       await publish(cancelled ? 'execution.cancelled' : 'execution.failed', {
         code,
@@ -565,35 +591,17 @@ export class GatewayService {
       current.status === 'RUNNING',
     );
   }
-  private circuitOpen(
-    connectionId: string,
-    providerId: ProviderId,
-    model: string,
+  private async reportCircuit(
+    permit: CircuitPermit | null,
+    outcome: 'success' | 'ambiguous' | 'neutral',
   ) {
-    const entry = this.breaker.get(`${connectionId}:${providerId}:${model}`);
-    return Boolean(entry && entry.openUntil > Date.now());
-  }
-
-  private recordCircuitFailure(
-    connectionId: string,
-    providerId: ProviderId,
-    model: string,
-  ) {
-    const key = `${connectionId}:${providerId}:${model}`;
-    const current = this.breaker.get(key) ?? { failures: 0, openUntil: 0 };
-    const failures = current.failures + 1;
-    this.breaker.set(key, {
-      failures,
-      openUntil: failures >= 3 ? Date.now() + 30_000 : 0,
-    });
-  }
-
-  private resetCircuit(
-    connectionId: string,
-    providerId: ProviderId,
-    model: string,
-  ) {
-    this.breaker.delete(`${connectionId}:${providerId}:${model}`);
+    if (permit) {
+      try {
+        await this.circuit.report(permit, outcome);
+      } catch {
+        // Health hints cannot rewrite a durable PostgreSQL terminal result.
+      }
+    }
   }
 }
 

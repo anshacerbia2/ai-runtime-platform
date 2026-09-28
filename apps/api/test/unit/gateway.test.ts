@@ -20,6 +20,8 @@ import type {
   GatewayRepository,
 } from '../../src/modules/gateway/application/gateway-repository.port.js';
 import { InMemoryReplayStore } from '../../src/modules/gateway/infrastructure/in-memory-replay.store.js';
+import { InMemoryGatewayCircuit } from '../../src/modules/gateway/infrastructure/in-memory-gateway.circuit.js';
+import type { GatewayCircuit } from '../../src/modules/gateway/application/gateway-circuit.port.js';
 import type { ReplayStore } from '../../src/modules/gateway/application/replay-store.port.js';
 import { Sha256RequestFingerprint } from '../../src/modules/gateway/infrastructure/sha256-request-fingerprint.js';
 import { BoundedStructuredOutputValidator } from '../../src/modules/gateway/infrastructure/structured-output.validator.js';
@@ -177,6 +179,7 @@ function service(
   replay: ReplayStore = new InMemoryReplayStore(),
   signal: GatewayCancelSignal = noopGatewayCancelSignal,
   ownerInstanceId: string = randomUUID(),
+  circuit: GatewayCircuit = new InMemoryGatewayCircuit(),
 ) {
   return {
     gateway: new GatewayService(
@@ -187,6 +190,7 @@ function service(
       new Sha256RequestFingerprint(),
       new BoundedStructuredOutputValidator(),
       ownerInstanceId,
+      circuit,
       noopGatewayTelemetry,
       signal,
     ),
@@ -333,6 +337,104 @@ test('a circuit opened by one connection does not block another connection using
   );
   assert.equal(result.status, 'COMPLETED');
   assert.equal(calls, 4);
+});
+
+test('two gateway instances share a circuit decision before provider dispatch', async () => {
+  const circuit = new InMemoryGatewayCircuit();
+  let calls = 0;
+  const provider: ProviderAdapter = {
+    id: 'openrouter',
+    async *stream() {
+      calls++;
+      yield { type: 'started', requestId: `req-${calls}` };
+      throw new ProviderError('openrouter', 'CONNECTION_LOST', 'unknown');
+    },
+  };
+  const first = service(
+    provider,
+    new FakeRepository(),
+    new FakeControl(),
+    new InMemoryReplayStore(),
+    noopGatewayCancelSignal,
+    randomUUID(),
+    circuit,
+  ).gateway;
+  const second = service(
+    provider,
+    new FakeRepository(),
+    new FakeControl(),
+    new InMemoryReplayStore(),
+    noopGatewayCancelSignal,
+    randomUUID(),
+    circuit,
+  ).gateway;
+  for (let i = 0; i < 3; i++) {
+    await assert.rejects(
+      first.execute(principal, command, `shared-failure-${i}`),
+    );
+  }
+  await assert.rejects(second.execute(principal, command, 'shared-open'));
+  assert.equal(calls, 3);
+});
+
+test('circuit store outage before dispatch closes the claim without provider effect', async () => {
+  let calls = 0;
+  const provider: ProviderAdapter = {
+    id: 'openrouter',
+    async *stream() {
+      calls++;
+      yield { type: 'done', requestId: null, finishReason: null };
+    },
+  };
+  const circuit: GatewayCircuit = {
+    acquire: async () => {
+      throw new Error('Redis unavailable');
+    },
+    report: async () => {},
+  };
+  const { gateway, repository } = service(
+    provider,
+    new FakeRepository(),
+    new FakeControl(),
+    new InMemoryReplayStore(),
+    noopGatewayCancelSignal,
+    randomUUID(),
+    circuit,
+  );
+  await assert.rejects(gateway.execute(principal, command, 'circuit-outage'));
+  assert.equal(calls, 0);
+  assert.deepEqual(repository.failed, [{ ambiguous: false, cancelled: false }]);
+});
+
+test('a circuit report outage cannot rewrite a committed provider result', async () => {
+  const provider: ProviderAdapter = {
+    id: 'openrouter',
+    async *stream() {
+      yield { type: 'done', requestId: null, finishReason: null };
+    },
+  };
+  const memory = new InMemoryGatewayCircuit();
+  const circuit: GatewayCircuit = {
+    acquire: (route, timeoutMs) => memory.acquire(route, timeoutMs),
+    report: async () => {
+      throw new Error('Redis unavailable');
+    },
+  };
+  const { gateway, repository } = service(
+    provider,
+    new FakeRepository(),
+    new FakeControl(),
+    new InMemoryReplayStore(),
+    noopGatewayCancelSignal,
+    randomUUID(),
+    circuit,
+  );
+  assert.equal(
+    (await gateway.execute(principal, command, 'circuit-report-outage')).status,
+    'COMPLETED',
+  );
+  assert.equal(repository.completed, 1);
+  assert.deepEqual(repository.failed, []);
 });
 
 test('same-key terminal replay never calls the provider twice', async () => {

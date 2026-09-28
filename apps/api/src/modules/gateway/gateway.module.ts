@@ -47,6 +47,12 @@ import { ControlPlaneGatewayAdapter } from './infrastructure/control-plane-gatew
 import { InMemoryReplayStore } from './infrastructure/in-memory-replay.store.js';
 import { RedisReplayStore } from './infrastructure/redis-replay.store.js';
 import { RedisGatewayCancelSignal } from './infrastructure/redis-gateway-cancel.signal.js';
+import {
+  GATEWAY_CIRCUIT,
+  type GatewayCircuit,
+} from './application/gateway-circuit.port.js';
+import { InMemoryGatewayCircuit } from './infrastructure/in-memory-gateway.circuit.js';
+import { RedisGatewayCircuit } from './infrastructure/redis-gateway.circuit.js';
 import { Sha256RequestFingerprint } from './infrastructure/sha256-request-fingerprint.js';
 import { BoundedStructuredOutputValidator } from './infrastructure/structured-output.validator.js';
 import { OpenRouterAdapter } from './infrastructure/openrouter.adapter.js';
@@ -91,6 +97,14 @@ const OWNER_INSTANCE_ID = randomUUID();
           ? RedisGatewayCancelSignal.connect(config.gateway.replayRedisUrl)
           : noopGatewayCancelSignal,
     },
+    {
+      provide: GATEWAY_CIRCUIT,
+      inject: [RUNTIME_CONFIG],
+      useFactory: (config: RuntimeConfig) =>
+        config.gateway.replayRedisUrl
+          ? RedisGatewayCircuit.connect(config.gateway.replayRedisUrl)
+          : new InMemoryGatewayCircuit(),
+    },
     { provide: REQUEST_FINGERPRINT, useClass: Sha256RequestFingerprint },
     { provide: STRUCTURED_OUTPUT, useClass: BoundedStructuredOutputValidator },
     { provide: GATEWAY_TELEMETRY, useClass: OpenTelemetryGatewayTelemetry },
@@ -124,6 +138,7 @@ const OWNER_INSTANCE_ID = randomUUID();
         REPLAY_STORE,
         REQUEST_FINGERPRINT,
         STRUCTURED_OUTPUT,
+        GATEWAY_CIRCUIT,
         GATEWAY_TELEMETRY,
         GATEWAY_CANCEL_SIGNAL,
       ],
@@ -135,6 +150,7 @@ const OWNER_INSTANCE_ID = randomUUID();
         replay: ReplayStore,
         fingerprint: RequestFingerprint,
         structured: StructuredOutputValidator,
+        circuit: GatewayCircuit,
         telemetry: GatewayTelemetry,
         cancelSignal: GatewayCancelSignal,
       ) =>
@@ -146,6 +162,7 @@ const OWNER_INSTANCE_ID = randomUUID();
           fingerprint,
           structured,
           OWNER_INSTANCE_ID,
+          circuit,
           telemetry,
           cancelSignal,
         ),
