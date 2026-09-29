@@ -15,6 +15,7 @@ import { RunnerDispatchService } from '../src/modules/control-plane/application/
 import { RunnerLivenessService } from '../src/modules/control-plane/application/runner-liveness.service.js';
 import { PrismaRunnerLivenessRegistry } from '../src/modules/control-plane/infrastructure/prisma-runner-liveness.registry.js';
 import { InMemoryRunnerPresenceStore } from '../src/modules/control-plane/infrastructure/in-memory-runner-presence.store.js';
+import { PrismaRunnerAuthority } from '../src/modules/control-plane/infrastructure/prisma-runner-authority.js';
 
 const config = loadConfig();
 const database = createDatabaseClient(config);
@@ -386,6 +387,40 @@ test('current runner presence autonomously claims one policy-scoped dispatch gra
 
   const replay = await dispatch.claim(runnerPrincipal, claim);
   assert.equal(replay.grant?.assignmentId, grant.assignmentId);
+  const authority = new PrismaRunnerAuthority(
+    database as unknown as DatabaseService,
+  );
+  await assert.rejects(
+    authority.report(runnerPrincipal, {
+      type: 'started',
+      token: {
+        assignmentId: grant.assignmentId,
+        executionId: grant.executionId,
+        attemptId: grant.attemptId,
+        runnerId: grant.runnerId,
+        generation: grant.generation,
+        epoch: grant.epoch,
+      },
+    }),
+    (error) =>
+      error instanceof ApplicationError && error.code === 'POLICY_DENIED',
+  );
+  assert.equal(
+    (
+      await database.runnerAssignment.findUniqueOrThrow({
+        where: { id: grant.assignmentId },
+      })
+    ).state,
+    'GRANTED',
+  );
+  assert.equal(
+    (
+      await database.execution.findUniqueOrThrow({
+        where: { id: grant.executionId },
+      })
+    ).status,
+    'ACCEPTED',
+  );
   assert.equal(
     (
       await database.runnerAssignment.findUniqueOrThrow({

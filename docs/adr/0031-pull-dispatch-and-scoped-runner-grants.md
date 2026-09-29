@@ -20,7 +20,7 @@ Candidate order is oldest creation time then ID, with a bounded scan. `FOR UPDAT
 
 `RunnerAssignment` is the scoped durable delivery authority. The claim response adds only envelope ID, input digest, plaintext byte count, and envelope expiry to the assignment identity. It does not return object key, wrapped/plaintext data key, input, provider credential, or broad storage access. An autonomous grant persists the claiming process boot UUID. Repeated claims replay the runner's oldest still-valid `GRANTED` assignment only to that same current boot. The coordinator checks presence again after placement and withholds a grant if another boot superseded it during the transaction. A replacement boot cannot obtain that grant through claim; it remains for explicit reconciliation. This is a claim boundary, not process fencing for reports or payload delivery; those still need lease and recovery integration. Existing invalid/stale grants fail closed rather than silently moving work.
 
-Only initial generation-zero placement is automatic. `automaticReassignment` remains false. Redis presence is a liveness projection; losing it cannot create, revoke, or transfer durable authority. The future coordinator delivery path must recheck the assignment and envelope, read/decrypt through production KMS, and send payload over a bounded scoped channel without giving the runner object-store credentials.
+Only initial generation-zero placement is automatic. `automaticReassignment` remains false. Redis presence is a liveness projection; losing it cannot create, revoke, or transfer durable authority. Until assignment lease installation and report validation are integrated, `AGENT` admissions cannot transition through runner start or result reports; the durable report transaction rejects them before any state change. Manual non-agent assignment reports retain their existing behavior. The future coordinator delivery path must recheck the assignment and envelope, read/decrypt through production KMS, and send payload over a bounded scoped channel without giving the runner object-store credentials.
 
 ## Alternatives considered
 
@@ -34,7 +34,7 @@ One runner-local credential test proves that a live otherwise-compatible runner 
 
 ## Verification
 
-Unit tests cover exact process boot, fail-closed coordination access, and a boot replacement during placement. PostgreSQL integration covers no-heartbeat and wrong-boot rejection, replacement-boot replay denial, runner-local credential exclusion, binding revocation, two concurrent claims producing one durable assignment, idempotent same-boot replay, capacity ownership, and sanitized outbox/grant fields. HTTP integration covers the registered machine-only route and protocol flags. Real Redis conformance checks exact boot mismatch across two clients.
+Unit tests cover exact process boot, fail-closed coordination access, and a boot replacement during placement. PostgreSQL integration covers no-heartbeat and wrong-boot rejection, replacement-boot replay denial, runner-local credential exclusion, binding revocation, two concurrent claims producing one durable assignment, idempotent same-boot replay, capacity ownership, agent report denial without a lease, and sanitized outbox/grant fields. HTTP integration covers the registered machine-only route and protocol flags. Real Redis conformance checks exact boot mismatch across two clients.
 
 ## Revisit trigger
 

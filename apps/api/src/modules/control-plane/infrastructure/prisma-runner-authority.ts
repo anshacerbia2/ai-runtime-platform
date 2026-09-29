@@ -342,6 +342,12 @@ export class PrismaRunnerAuthority implements RunnerAuthority {
       ) {
         stale();
       }
+      if (execution.admissionSource === 'AGENT') {
+        throw new ApplicationError(
+          'POLICY_DENIED',
+          'Agent runner reports require an active assignment lease.',
+        );
+      }
       await tx.$queryRaw`SELECT id FROM control.runner_nodes WHERE id=${row.runnerId} FOR SHARE`;
       const runner = await tx.runnerNode.findUnique({
         where: { id: row.runnerId },
