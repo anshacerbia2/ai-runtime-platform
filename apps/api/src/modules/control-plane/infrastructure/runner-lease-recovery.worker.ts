@@ -5,6 +5,7 @@ import {
   type OnModuleInit,
 } from '@nestjs/common';
 import { RunnerLeaseRecoveryService } from '../application/runner-lease-recovery.service.js';
+import { RunnerCoordinationService } from '../application/runner-coordination.service.js';
 
 const SCAN_MS = 5_000;
 
@@ -17,7 +18,10 @@ export class RunnerLeaseRecoveryWorker
   private running: Promise<void> | null = null;
   private failureReported = false;
 
-  constructor(private readonly recovery: RunnerLeaseRecoveryService) {}
+  constructor(
+    private readonly recovery: RunnerLeaseRecoveryService,
+    private readonly coordination: RunnerCoordinationService,
+  ) {}
 
   onModuleInit() {
     void this.tick();
@@ -37,8 +41,11 @@ export class RunnerLeaseRecoveryWorker
     if (this.running) {
       return this.running;
     }
-    this.running = this.recovery
+    this.running = this.coordination
       .recover()
+      .then(
+        async (epochFences) => epochFences + (await this.recovery.recover()),
+      )
       .then((fenced) => {
         if (fenced) {
           this.logger.warn(

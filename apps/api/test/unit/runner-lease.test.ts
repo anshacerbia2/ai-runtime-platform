@@ -103,6 +103,9 @@ test('recovery suspends stale unactivated grants and retries failed lease inspec
       cursors.push(afterId);
       return [candidate];
     },
+    async scanActive() {
+      return [candidate];
+    },
     async fence(_candidate, reason) {
       fenced.push(reason);
       return true;
@@ -122,6 +125,9 @@ test('recovery suspends stale unactivated grants and retries failed lease inspec
 
   const unactivated: RunnerLeaseRecovery = {
     async scan() {
+      return [{ ...candidate, proof: null }];
+    },
+    async scanActive() {
       return [{ ...candidate, proof: null }];
     },
     async fence(_candidate, reason) {

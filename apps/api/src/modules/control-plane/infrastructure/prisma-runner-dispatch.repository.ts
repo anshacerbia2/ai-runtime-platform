@@ -10,6 +10,7 @@ import type {
 import type { DatabaseService } from '../../../infrastructure/database/database.service.js';
 import type { RunnerDispatchRepository } from '../application/runner-dispatch.port.js';
 import type { RunnerRegistrationIdentity } from '../application/runner-liveness-registry.port.js';
+import { ApplicationError } from '../../../shared/domain/application-error.js';
 
 const ACTIVE_ASSIGNMENT_STATES = [
   'GRANTED',
@@ -56,7 +57,10 @@ interface LockedDispatch {
 }
 
 export class PrismaRunnerDispatchRepository implements RunnerDispatchRepository {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly strictCoordination = false,
+  ) {}
 
   private async lockAndValidate(
     tx: Prisma.TransactionClient,
@@ -64,6 +68,7 @@ export class PrismaRunnerDispatchRepository implements RunnerDispatchRepository 
     registration: RunnerRegistrationIdentity,
     bootId: string,
     existingAssignmentId?: string,
+    coordinationEpoch?: number,
   ): Promise<LockedDispatch | null> {
     const locked = await tx.$queryRaw<Array<{ id: string }>>`
       SELECT id FROM control.executions
@@ -95,6 +100,13 @@ export class PrismaRunnerDispatchRepository implements RunnerDispatchRepository 
       !execution.dispatchEnvelope ||
       execution.dispatchEnvelope.state !== 'COMMITTED' ||
       execution.dispatchEnvelope.executionId !== execution.id
+    ) {
+      return null;
+    }
+    if (
+      coordinationEpoch !== undefined &&
+      existingAssignmentId &&
+      execution.coordinationEpoch !== coordinationEpoch
     ) {
       return null;
     }
@@ -212,7 +224,7 @@ export class PrismaRunnerDispatchRepository implements RunnerDispatchRepository 
         plaintextBytes: Number(envelope.plaintextBytes),
         expiresAt: envelope.expiresAt,
         executionRevision: execution.revision,
-        coordinationEpoch: execution.coordinationEpoch,
+        coordinationEpoch: coordinationEpoch ?? execution.coordinationEpoch,
       };
     }
 
@@ -241,7 +253,7 @@ export class PrismaRunnerDispatchRepository implements RunnerDispatchRepository 
       plaintextBytes: Number(envelope.plaintextBytes),
       expiresAt: envelope.expiresAt,
       executionRevision: execution.revision,
-      coordinationEpoch: execution.coordinationEpoch,
+      coordinationEpoch: coordinationEpoch ?? execution.coordinationEpoch,
     };
   }
 
@@ -255,7 +267,11 @@ export class PrismaRunnerDispatchRepository implements RunnerDispatchRepository 
     const generation = 1;
     await tx.execution.update({
       where: { id: dispatch.executionId },
-      data: { assignmentGeneration: generation, revision: { increment: 1 } },
+      data: {
+        assignmentGeneration: generation,
+        coordinationEpoch: dispatch.coordinationEpoch,
+        revision: { increment: 1 },
+      },
     });
     const created = await tx.runnerAssignment.create({
       data: {
@@ -311,6 +327,19 @@ export class PrismaRunnerDispatchRepository implements RunnerDispatchRepository 
   ): Promise<RunnerDispatchGrant | null> {
     return this.db.$transaction(
       async (tx) => {
+        let coordinationEpoch: number | undefined;
+        if (this.strictCoordination) {
+          const rows = await tx.$queryRaw<
+            Array<{ epoch: number; state: string }>
+          >`SELECT epoch, state FROM control.runner_coordination WHERE id = 1 FOR SHARE`;
+          if (rows[0]?.state !== 'ACTIVE') {
+            throw new ApplicationError(
+              'DEPENDENCY_UNAVAILABLE',
+              'Runner coordination is paused.',
+            );
+          }
+          coordinationEpoch = rows[0].epoch;
+        }
         const registered = await tx.runnerNode.findUnique({
           where: { id: registration.runnerId },
           include: { pool: true },
@@ -340,6 +369,7 @@ export class PrismaRunnerDispatchRepository implements RunnerDispatchRepository 
             registration,
             bootId,
             existing.id,
+            coordinationEpoch,
           );
           return dispatch
             ? RunnerDispatchGrant.parse({
@@ -378,6 +408,8 @@ export class PrismaRunnerDispatchRepository implements RunnerDispatchRepository 
             candidate.id,
             registration,
             bootId,
+            undefined,
+            coordinationEpoch,
           );
           if (!dispatch) {
             continue;

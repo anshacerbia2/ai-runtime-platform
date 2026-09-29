@@ -63,6 +63,12 @@ import {
 import { RunnerLeaseRecoveryService } from './application/runner-lease-recovery.service.js';
 import { PrismaRunnerLeaseRecoveryRepository } from './infrastructure/prisma-runner-lease-recovery.repository.js';
 import { RunnerLeaseRecoveryWorker } from './infrastructure/runner-lease-recovery.worker.js';
+import { RunnerCoordinationService } from './application/runner-coordination.service.js';
+import type { RunnerCoordinationStore } from './application/runner-coordination.port.js';
+import { PrismaRunnerCoordinationRepository } from './infrastructure/prisma-runner-coordination.repository.js';
+import { RedisRunnerCoordinationStore } from './infrastructure/redis-runner-coordination.store.js';
+
+const RUNNER_COORDINATION_STORE = Symbol('RUNNER_COORDINATION_STORE');
 
 @Module({
   imports: [DatabaseModule],
@@ -74,8 +80,9 @@ import { RunnerLeaseRecoveryWorker } from './infrastructure/runner-lease-recover
   providers: [
     {
       provide: RUNNER_AUTHORITY,
-      inject: [DatabaseService],
-      useFactory: (db: DatabaseService) => new PrismaRunnerAuthority(db),
+      inject: [DatabaseService, RUNTIME_CONFIG],
+      useFactory: (db: DatabaseService, config: RuntimeConfig) =>
+        new PrismaRunnerAuthority(db, config.runtimeMode !== 'm0-local'),
     },
     {
       provide: RunnerAuthorityService,
@@ -111,15 +118,46 @@ import { RunnerLeaseRecoveryWorker } from './infrastructure/runner-lease-recover
     },
     {
       provide: RUNNER_LEASE_AUTHORITY,
-      inject: [DatabaseService],
-      useFactory: (database: DatabaseService) =>
-        new PrismaRunnerLeaseAuthority(database),
+      inject: [DatabaseService, RUNTIME_CONFIG],
+      useFactory: (database: DatabaseService, config: RuntimeConfig) =>
+        new PrismaRunnerLeaseAuthority(
+          database,
+          config.runtimeMode !== 'm0-local',
+        ),
     },
     {
       provide: RUNNER_LEASE_RECOVERY,
       inject: [DatabaseService],
       useFactory: (database: DatabaseService) =>
         new PrismaRunnerLeaseRecoveryRepository(database),
+    },
+    {
+      provide: RUNNER_COORDINATION_STORE,
+      inject: [RUNTIME_CONFIG],
+      useFactory: (config: RuntimeConfig) =>
+        config.runtimeMode === 'm0-local'
+          ? null
+          : RedisRunnerCoordinationStore.connect(
+              config.runner.coordinationRedisUrl!,
+            ),
+    },
+    {
+      provide: RunnerCoordinationService,
+      inject: [
+        DatabaseService,
+        RUNNER_LEASE_RECOVERY,
+        RUNNER_COORDINATION_STORE,
+      ],
+      useFactory: (
+        database: DatabaseService,
+        recovery: RunnerLeaseRecovery,
+        store: RunnerCoordinationStore | null,
+      ) =>
+        new RunnerCoordinationService(
+          new PrismaRunnerCoordinationRepository(database),
+          recovery,
+          store,
+        ),
     },
     {
       provide: RunnerLeaseRecoveryService,
@@ -135,13 +173,22 @@ import { RunnerLeaseRecoveryWorker } from './infrastructure/runner-lease-recover
         RUNNER_PRESENCE_STORE,
         RUNNER_LEASE_STORE,
         RUNNER_LEASE_AUTHORITY,
+        RunnerCoordinationService,
       ],
       useFactory: (
         registry: RunnerLivenessRegistry,
         presence: RunnerPresenceStore,
         leases: RunnerLeaseStore,
         authority: RunnerLeaseAuthority,
-      ) => new RunnerLeaseService(registry, presence, leases, authority),
+        coordination: RunnerCoordinationService,
+      ) =>
+        new RunnerLeaseService(
+          registry,
+          presence,
+          leases,
+          authority,
+          coordination,
+        ),
     },
     {
       provide: RunnerLivenessService,
@@ -153,9 +200,12 @@ import { RunnerLeaseRecoveryWorker } from './infrastructure/runner-lease-recover
     },
     {
       provide: RUNNER_DISPATCH_REPOSITORY,
-      inject: [DatabaseService],
-      useFactory: (database: DatabaseService) =>
-        new PrismaRunnerDispatchRepository(database),
+      inject: [DatabaseService, RUNTIME_CONFIG],
+      useFactory: (database: DatabaseService, config: RuntimeConfig) =>
+        new PrismaRunnerDispatchRepository(
+          database,
+          config.runtimeMode !== 'm0-local',
+        ),
     },
     {
       provide: RunnerDispatchService,
@@ -163,12 +213,15 @@ import { RunnerLeaseRecoveryWorker } from './infrastructure/runner-lease-recover
         RUNNER_LIVENESS_REGISTRY,
         RUNNER_PRESENCE_STORE,
         RUNNER_DISPATCH_REPOSITORY,
+        RunnerCoordinationService,
       ],
       useFactory: (
         registry: RunnerLivenessRegistry,
         presence: RunnerPresenceStore,
         repository: RunnerDispatchRepository,
-      ) => new RunnerDispatchService(registry, presence, repository),
+        coordination: RunnerCoordinationService,
+      ) =>
+        new RunnerDispatchService(registry, presence, repository, coordination),
     },
     {
       provide: RESOURCE_READER,

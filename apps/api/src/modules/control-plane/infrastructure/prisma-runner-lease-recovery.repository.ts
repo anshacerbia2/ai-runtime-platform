@@ -19,6 +19,25 @@ interface CandidateRow {
 export class PrismaRunnerLeaseRecoveryRepository implements RunnerLeaseRecovery {
   constructor(private readonly db: DatabaseService) {}
 
+  private candidates(rows: CandidateRow[]): RunnerLeaseRecoveryCandidate[] {
+    return rows.map((row) => ({
+      assignmentId: row.assignmentId,
+      executionId: row.executionId,
+      proof: row.nonceDigest
+        ? {
+            assignmentId: row.assignmentId,
+            executionId: row.executionId,
+            attemptId: row.attemptId,
+            runnerId: row.runnerId,
+            ownerSubject: row.ownerSubject,
+            generation: row.generation,
+            epoch: row.epoch,
+            nonceDigest: row.nonceDigest.trim(),
+          }
+        : null,
+    }));
+  }
+
   async scan(
     afterId: string | null,
     limit: number,
@@ -39,7 +58,7 @@ export class PrismaRunnerLeaseRecoveryRepository implements RunnerLeaseRecovery 
       JOIN control.executions e ON e.id = a.execution_id
       WHERE a.id > ${afterId ?? '00000000-0000-0000-0000-000000000000'}::uuid
         AND a.claim_boot_id IS NOT NULL
-        AND a.state IN ('GRANTED', 'STARTED')
+        AND a.state IN ('GRANTED', 'STARTED', 'RESULT_PROPOSED')
         AND e.admission_source = 'AGENT'
         AND e.status IN ('ACCEPTED', 'RUNNING')
         AND e.assignment_generation = a.generation
@@ -53,27 +72,39 @@ export class PrismaRunnerLeaseRecoveryRepository implements RunnerLeaseRecovery 
         )
       ORDER BY a.id
       LIMIT ${limit}`;
-    return rows.map((row) => ({
-      assignmentId: row.assignmentId,
-      executionId: row.executionId,
-      proof: row.nonceDigest
-        ? {
-            assignmentId: row.assignmentId,
-            executionId: row.executionId,
-            attemptId: row.attemptId,
-            runnerId: row.runnerId,
-            ownerSubject: row.ownerSubject,
-            generation: row.generation,
-            epoch: row.epoch,
-            nonceDigest: row.nonceDigest.trim(),
-          }
-        : null,
-    }));
+    return this.candidates(rows);
+  }
+
+  async scanActive(limit: number): Promise<RunnerLeaseRecoveryCandidate[]> {
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 64) {
+      throw new Error('Runner lease recovery scan limit must be 1-64.');
+    }
+    const rows = await this.db.$queryRaw<CandidateRow[]>`
+      SELECT a.id AS "assignmentId",
+             a.execution_id AS "executionId",
+             a.attempt_id AS "attemptId",
+             a.runner_id AS "runnerId",
+             a.owner_subject AS "ownerSubject",
+             a.generation,
+             a.epoch,
+             a.lease_nonce_digest AS "nonceDigest"
+      FROM control.runner_assignments a
+      JOIN control.executions e ON e.id = a.execution_id
+      WHERE a.claim_boot_id IS NOT NULL
+        AND a.state IN ('GRANTED', 'STARTED', 'RESULT_PROPOSED')
+        AND e.admission_source = 'AGENT'
+        AND e.status IN ('ACCEPTED', 'RUNNING')
+        AND e.assignment_generation = a.generation
+        AND e.coordination_epoch = a.epoch
+      ORDER BY a.id
+      LIMIT ${limit}`;
+    return this.candidates(rows);
   }
 
   async fence(
     candidate: RunnerLeaseRecoveryCandidate,
-    reason: 'ACTIVATION_TIMEOUT' | 'LEASE_MISSING' | 'LEASE_MISMATCH',
+    reason:
+      'ACTIVATION_TIMEOUT' | 'LEASE_MISSING' | 'LEASE_MISMATCH' | 'EPOCH_LOST',
   ): Promise<boolean> {
     return this.db.$transaction(
       async (tx) => {
@@ -96,13 +127,14 @@ export class PrismaRunnerLeaseRecoveryRepository implements RunnerLeaseRecovery 
           !row ||
           execution.admissionSource !== 'AGENT' ||
           !['ACCEPTED', 'RUNNING'].includes(execution.status) ||
-          !['GRANTED', 'STARTED'].includes(row.state) ||
+          !['GRANTED', 'STARTED', 'RESULT_PROPOSED'].includes(row.state) ||
           row.claimBootId === null ||
           row.executionId !== execution.id ||
           row.generation !== execution.assignmentGeneration ||
           row.epoch !== execution.coordinationEpoch ||
           (candidate.proof === null
-            ? row.leaseNonceDigest !== null || reason !== 'ACTIVATION_TIMEOUT'
+            ? row.leaseNonceDigest !== null ||
+              !['ACTIVATION_TIMEOUT', 'EPOCH_LOST'].includes(reason)
             : row.leaseNonceDigest?.trim() !== candidate.proof.nonceDigest ||
               row.attemptId !== candidate.proof.attemptId ||
               row.runnerId !== candidate.proof.runnerId ||
@@ -122,9 +154,12 @@ export class PrismaRunnerLeaseRecoveryRepository implements RunnerLeaseRecovery 
           data: {
             status: 'ORPHAN_SUSPENDED',
             authority: 'FENCED',
-            compute: row.state === 'STARTED' ? 'UNKNOWN' : row.attempt.compute,
+            compute:
+              row.state === 'STARTED' || row.state === 'RESULT_PROPOSED'
+                ? 'UNKNOWN'
+                : row.attempt.compute,
             external:
-              row.state === 'STARTED' &&
+              (row.state === 'STARTED' || row.state === 'RESULT_PROPOSED') &&
               ['NONE', 'IN_FLIGHT'].includes(row.attempt.external)
                 ? 'UNKNOWN'
                 : row.attempt.external,

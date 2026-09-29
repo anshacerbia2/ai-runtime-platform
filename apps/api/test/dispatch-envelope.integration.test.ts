@@ -556,6 +556,23 @@ test('current runner presence autonomously claims one policy-scoped dispatch gra
       .state,
     'STARTED',
   );
+  const proposal = {
+    outcome: 'completed' as const,
+    digest: 'a'.repeat(64),
+    artifactIds: [],
+    summary: '',
+  };
+  assert.equal(
+    (
+      await reports.report(runnerPrincipal, {
+        type: 'result.proposed',
+        token,
+        lease,
+        proposal,
+      })
+    ).state,
+    'RESULT_PROPOSED',
+  );
   const proof = {
     ...token,
     ownerSubject: runnerPrincipal.subject,
@@ -576,7 +593,7 @@ test('current runner presence autonomously claims one policy-scoped dispatch gra
         where: { id: grant.assignmentId },
       })
     ).state,
-    'STARTED',
+    'RESULT_PROPOSED',
   );
   assert.equal(await leaseStore.release(proof), 'RELEASED');
   await assert.rejects(
@@ -589,12 +606,7 @@ test('current runner presence autonomously claims one policy-scoped dispatch gra
       type: 'result.proposed',
       token,
       lease,
-      proposal: {
-        outcome: 'completed',
-        digest: 'a'.repeat(64),
-        artifactIds: [],
-        summary: '',
-      },
+      proposal,
     }),
     (error) =>
       error instanceof ApplicationError && error.code === 'STALE_ASSIGNMENT',
@@ -605,7 +617,7 @@ test('current runner presence autonomously claims one policy-scoped dispatch gra
         where: { id: grant.assignmentId },
       })
     ).state,
-    'STARTED',
+    'RESULT_PROPOSED',
   );
   const held = await database.reservation.findMany({
     where: { executionId: grant.executionId },
@@ -619,6 +631,14 @@ test('current runner presence autonomously claims one policy-scoped dispatch gra
       })
     ).state,
     'FENCED',
+  );
+  assert.deepEqual(
+    (
+      await database.runnerAssignment.findUniqueOrThrow({
+        where: { id: grant.assignmentId },
+      })
+    ).proposal,
+    proposal,
   );
   const suspended = await database.attempt.findUniqueOrThrow({
     where: { id: grant.attemptId },
@@ -662,4 +682,85 @@ test('current runner presence autonomously claims one policy-scoped dispatch gra
     },
   });
   assert.equal(JSON.stringify(fencedEvent.payload).includes(nonce), false);
+});
+
+test('epoch recovery fences a live lease without treating the runner proposal as final', async () => {
+  const nextEnvelopeId = randomUUID();
+  const nextExecutionId = randomUUID();
+  const inputDigest = randomBytes(32).toString('hex');
+  await repository.createStaged({
+    ...staged,
+    envelopeId: nextEnvelopeId,
+    executionBindingId: nextExecutionId,
+    inputDigest,
+    objectKey: `dispatch-envelopes/v1/${nextEnvelopeId}`,
+  });
+  await control.admitDispatchEnvelope(
+    principal,
+    { profileRef: `${prefix}-agent`, inputDigest },
+    `${prefix}-epoch-recovery`,
+    { envelopeId: nextEnvelopeId, executionId: nextExecutionId },
+  );
+  const runner = await database.runnerNode.findUniqueOrThrow({
+    where: { id: runnerId },
+  });
+  const bootId = randomUUID();
+  const heartbeat = {
+    runnerId,
+    bootId,
+    registrationRevision: runner.revision,
+  };
+  await liveness.heartbeat(runnerPrincipal, heartbeat);
+  const grant = (await dispatch.claim(runnerPrincipal, heartbeat)).grant;
+  assert.ok(grant);
+  const token = {
+    assignmentId: grant.assignmentId,
+    executionId: grant.executionId,
+    attemptId: grant.attemptId,
+    runnerId: grant.runnerId,
+    generation: grant.generation,
+    epoch: grant.epoch,
+  };
+  const nonce = randomBytes(32).toString('base64url');
+  const lease = { bootId, registrationRevision: runner.revision, nonce };
+  await leaseService.activate(runnerPrincipal, { token, ...lease });
+  const authority = new PrismaRunnerAuthority(
+    database as unknown as DatabaseService,
+  );
+  const reports = new RunnerAuthorityService(authority, leaseService);
+  assert.equal(
+    (await reports.report(runnerPrincipal, { type: 'started', token, lease }))
+      .state,
+    'STARTED',
+  );
+  const recovery = new PrismaRunnerLeaseRecoveryRepository(
+    database as unknown as DatabaseService,
+  );
+  const candidate = (await recovery.scanActive(64)).find(
+    (row) => row.assignmentId === grant.assignmentId,
+  );
+  assert.ok(candidate);
+  assert.equal(await recovery.fence(candidate, 'EPOCH_LOST'), true);
+  assert.equal(await recovery.fence(candidate, 'EPOCH_LOST'), false);
+  assert.equal(
+    (
+      await database.execution.findUniqueOrThrow({
+        where: { id: grant.executionId },
+      })
+    ).status,
+    'RECONCILING',
+  );
+  await assert.rejects(
+    authority.report(runnerPrincipal, { type: 'started', token, lease }),
+    (error) =>
+      error instanceof ApplicationError && error.code === 'STALE_ASSIGNMENT',
+  );
+  assert.equal(
+    await leaseStore.release({
+      ...token,
+      ownerSubject: runnerPrincipal.subject,
+      nonce,
+    }),
+    'RELEASED',
+  );
 });

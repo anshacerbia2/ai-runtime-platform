@@ -635,3 +635,15 @@ model RunnerEvidence {
   @@map("runner_evidence")
   @@schema("control")
 }
+
+model RunnerCoordination {
+  id        Int      @id
+  epoch     Int      @default(1)
+  state     String   @default("ACTIVE")
+  marker    String?  @db.Uuid
+  revision  Int      @default(1)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@map("runner_coordination")
+  @@schema("control")
+}

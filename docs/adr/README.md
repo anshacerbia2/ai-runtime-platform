@@ -41,6 +41,7 @@
 | [ADR-0029](0029-replay-resources-runner-authority.md)      | Atomic receipts, independent resources, runner authority, bounded retry, explicit mapping | [Implemented HTTP API](../implementation/HTTP-API.md)      |
 | [ADR-0030](0030-encrypted-dispatch-envelope.md)            | Encrypted durable dispatch input, atomic admission promotion, and cross-store cleanup     | [DATA-MODEL](../data/DATA-MODEL.md)                        |
 | [ADR-0031](0031-pull-dispatch-and-scoped-runner-grants.md) | Pull placement and scoped durable runner grants                                           | [Execution lifecycle](../contracts/EXECUTION-LIFECYCLE.md) |
+| [ADR-0032](0032-runner-coordination-epoch.md)              | Pause, fence, and advance runner epoch after Redis marker loss                            | [Ownership recovery](../reliability/OWNERSHIP-RECOVERY.md) |
 
 ## Otoritas dan traceability
 
@@ -73,3 +74,7 @@ Record ID/date/status, kebutuhan dan keputusan terkait, context, decision, alter
 ## Pull dispatch and scoped runner grants
 
 [ADR-0031](0031-pull-dispatch-and-scoped-runner-grants.md) records exact-process pull claims, PostgreSQL-authoritative initial placement, current policy/locality checks, durable assignment grants, and the boundary that still excludes payload/KMS delivery and automatic reassignment.
+
+## Runner coordination epoch
+
+[ADR-0032](0032-runner-coordination-epoch.md) records the PostgreSQL pause/fence/reopen barrier after Redis marker loss. It does not treat lost hot state as permission to rerun an ambiguous agent effect.
