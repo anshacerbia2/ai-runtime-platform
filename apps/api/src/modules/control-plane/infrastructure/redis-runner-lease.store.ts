@@ -6,6 +6,7 @@ import type {
   RunnerLeaseInstallResult,
   RunnerLeaseMatchResult,
   RunnerLeaseProof,
+  RunnerLeaseDurableProof,
   RunnerLeaseReleaseResult,
   RunnerLeaseRenewResult,
   RunnerLeaseStore,
@@ -13,6 +14,7 @@ import type {
 import {
   assertRunnerLeaseTtl,
   encodeRunnerLeaseProof,
+  matchDurableRunnerLease,
   runnerLeaseKey,
 } from './runner-lease-proof.js';
 
@@ -79,6 +81,13 @@ export class RedisRunnerLeaseStore implements RunnerLeaseStore {
       : current === encodeRunnerLeaseProof(proof)
         ? 'CURRENT'
         : 'MISMATCH';
+  }
+
+  async inspectDurable(
+    proof: RunnerLeaseDurableProof,
+  ): Promise<RunnerLeaseMatchResult> {
+    const current = await this.client.get(runnerLeaseKey(this.prefix, proof));
+    return matchDurableRunnerLease(current, proof);
   }
 
   async renew(

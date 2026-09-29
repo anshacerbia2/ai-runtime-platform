@@ -20,6 +20,8 @@ import { PrismaRunnerLeaseAuthority } from '../src/modules/control-plane/infrast
 import { InMemoryRunnerLeaseStore } from '../src/modules/control-plane/infrastructure/in-memory-runner-lease.store.js';
 import { RunnerLeaseService } from '../src/modules/control-plane/application/runner-lease.service.js';
 import { RunnerAuthorityService } from '../src/modules/control-plane/application/runner-authority.service.js';
+import { RunnerLeaseRecoveryService } from '../src/modules/control-plane/application/runner-lease-recovery.service.js';
+import { PrismaRunnerLeaseRecoveryRepository } from '../src/modules/control-plane/infrastructure/prisma-runner-lease-recovery.repository.js';
 
 const config = loadConfig();
 const database = createDatabaseClient(config);
@@ -476,6 +478,18 @@ test('current runner presence autonomously claims one policy-scoped dispatch gra
   // Restore the original boot in the reference presence store to exercise its
   // still-current durable grant after the replacement-boot rejection above.
   await liveness.heartbeat(runnerPrincipal, claim);
+  const recoveryRepository = new PrismaRunnerLeaseRecoveryRepository(
+    database as unknown as DatabaseService,
+  );
+  await database.runnerAssignment.update({
+    where: { id: grant.assignmentId },
+    data: { updatedAt: new Date(Date.now() - 31_000) },
+  });
+  const staleScan = (await recoveryRepository.scan(null, 64)).find(
+    (candidate) => candidate.assignmentId === grant.assignmentId,
+  );
+  assert.ok(staleScan);
+  assert.equal(staleScan.proof, null);
   const firstNonce = randomBytes(32).toString('base64url');
   const secondNonce = randomBytes(32).toString('base64url');
   const activations = await Promise.allSettled([
@@ -514,6 +528,10 @@ test('current runner presence autonomously claims one policy-scoped dispatch gra
     ).leaseNonceDigest?.trim(),
     createHash('sha256').update(nonce).digest('hex'),
   );
+  assert.equal(
+    await recoveryRepository.fence(staleScan, 'ACTIVATION_TIMEOUT'),
+    false,
+  );
   await leaseService.activate(runnerPrincipal, leaseCommand);
   await assert.rejects(
     leaseService.activate(runnerPrincipal, {
@@ -543,6 +561,23 @@ test('current runner presence autonomously claims one policy-scoped dispatch gra
     ownerSubject: runnerPrincipal.subject,
     nonce,
   };
+  const recovery = new RunnerLeaseRecoveryService(
+    recoveryRepository,
+    leaseStore,
+  );
+  await database.runnerAssignment.update({
+    where: { id: grant.assignmentId },
+    data: { updatedAt: new Date(Date.now() - 31_000) },
+  });
+  assert.equal(await recovery.recover(), 0);
+  assert.equal(
+    (
+      await database.runnerAssignment.findUniqueOrThrow({
+        where: { id: grant.assignmentId },
+      })
+    ).state,
+    'STARTED',
+  );
   assert.equal(await leaseStore.release(proof), 'RELEASED');
   await assert.rejects(
     leaseService.activate(runnerPrincipal, leaseCommand),
@@ -572,4 +607,59 @@ test('current runner presence autonomously claims one policy-scoped dispatch gra
     ).state,
     'STARTED',
   );
+  const held = await database.reservation.findMany({
+    where: { executionId: grant.executionId },
+  });
+  assert.equal(await recovery.recover(), 1);
+  assert.equal(await recovery.recover(), 0);
+  assert.equal(
+    (
+      await database.runnerAssignment.findUniqueOrThrow({
+        where: { id: grant.assignmentId },
+      })
+    ).state,
+    'FENCED',
+  );
+  const suspended = await database.attempt.findUniqueOrThrow({
+    where: { id: grant.attemptId },
+  });
+  assert.equal(suspended.status, 'ORPHAN_SUSPENDED');
+  assert.equal(suspended.authority, 'FENCED');
+  assert.equal(suspended.compute, 'UNKNOWN');
+  assert.equal(suspended.external, 'UNKNOWN');
+  const reconciling = await database.execution.findUniqueOrThrow({
+    where: { id: grant.executionId },
+  });
+  assert.equal(reconciling.status, 'RECONCILING');
+  assert.equal(reconciling.assignmentGeneration, grant.generation + 1);
+  const retained = await database.reservation.findMany({
+    where: { executionId: grant.executionId },
+  });
+  assert.deepEqual(
+    retained.map(({ accountId, heldUnits, state }) => ({
+      accountId,
+      heldUnits,
+      state,
+    })),
+    held.map(({ accountId, heldUnits }) => ({
+      accountId,
+      heldUnits,
+      state: 'PENDING_RECONCILIATION',
+    })),
+  );
+  await assert.rejects(
+    authority.report(runnerPrincipal, { type: 'started', token, lease }),
+    (error) =>
+      error instanceof ApplicationError && error.code === 'STALE_ASSIGNMENT',
+  );
+  const fencedEvent = await database.outboxEvent.findUniqueOrThrow({
+    where: {
+      topic_aggregateId_revision: {
+        topic: 'runner.assignment-orphan-suspended',
+        aggregateId: grant.assignmentId,
+        revision: 1,
+      },
+    },
+  });
+  assert.equal(JSON.stringify(fencedEvent.payload).includes(nonce), false);
 });

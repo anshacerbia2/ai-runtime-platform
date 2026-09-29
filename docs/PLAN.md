@@ -12,7 +12,7 @@ NestJS + Fastify + Prisma + PostgreSQL, React/Next.js App Router + BFF, TypeScri
 
 M0–M2 local closure sekarang mencakup HTTP/UI hardening, /api/v1 resource APIs, count overview, receipt atomik, retry per operasi, explicit mappers/AST gate, /api/runner/v1 authority messages, serta gateway executable untuk chat/generate/structured_generate dengan OpenRouter + Direct Anthropic adapters, bounded SSE/replay, structured-output validation, database-backed admission capacity/rate limits, safe not-sent fallback, durable provider invocation/result, dan accounting evidence. Migration 0005–0010 sudah applied lokal. [Source status](implementation/CURRENT-STATE.md) dan [test evidence](reviews/CONTRACT-EXECUTION.md) memisahkan implementasi lokal dari deployment/production approval.
 
-Sisa P3 tetap payload delivery, automatic reassignment, Redis lease/epoch recovery, runtime/sandbox, provider/tool effect safety dan streaming. Tidak perlu mengimplementasikan ulang registry/fencing/initial-placement kernel yang sudah ada; perluas kernel tersebut dan buktikan integrasi runtime-nya. P0 governance dan P3.5 sign-off tidak ditutup hanya oleh pembaruan dokumentasi.
+Sisa P3 tetap payload delivery, automatic reassignment, Redis epoch recovery, runtime/sandbox, provider/tool effect safety dan streaming. Bounded lease-loss suspension sudah tersedia, tetapi belum menghentikan proses atau mengotorisasi retry. Tidak perlu mengimplementasikan ulang registry/fencing/initial-placement kernel yang sudah ada; perluas kernel tersebut dan buktikan integrasi runtime-nya. P0 governance dan P3.5 sign-off tidak ditutup hanya oleh pembaruan dokumentasi.
 
 ## 1. Batas pekerjaan
 
@@ -62,7 +62,7 @@ Tambahkan per-app/pool concurrency, rate limits, token/output bounds, deadline, 
 
 ### P3 — Claude Agent Runtime MVP
 
-**Status:** IN PROGRESS — coordination lease/presence, encrypted dispatch envelope, connection-locality-aware initial pull placement, dan lease-gated start/result reports tersedia lokal; payload delivery, lease-loss reaper, epoch recovery, automatic reassignment, sandbox, tool broker, artifact promotion, production KMS, dan retention approval masih pending.
+**Status:** IN PROGRESS — coordination lease/presence, encrypted dispatch envelope, connection-locality-aware initial pull placement, lease-gated start/result reports, dan bounded lease-loss suspension tersedia lokal; payload delivery, epoch recovery, automatic reassignment, sandbox, tool broker, artifact promotion, production KMS, dan retention approval masih pending.
 
 **Dependency:** P1; P2 common contracts. **Owner roles:** runtime + security + Scribe owner.
 

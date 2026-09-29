@@ -11,6 +11,13 @@ export interface RunnerLeaseProof {
   nonce: string;
 }
 
+export interface RunnerLeaseDurableProof extends Omit<
+  RunnerLeaseProof,
+  'nonce'
+> {
+  nonceDigest: string;
+}
+
 export type RunnerLeaseInstallResult = 'INSTALLED' | 'REFRESHED' | 'CONFLICT';
 export type RunnerLeaseMatchResult = 'CURRENT' | 'MISSING' | 'MISMATCH';
 export type RunnerLeaseRenewResult = 'RENEWED' | 'MISSING' | 'MISMATCH';
@@ -23,6 +30,9 @@ export interface RunnerLeaseStore {
     ttlMs: number,
   ): Promise<RunnerLeaseInstallResult>;
   inspect(proof: RunnerLeaseProof): Promise<RunnerLeaseMatchResult>;
+  inspectDurable(
+    proof: RunnerLeaseDurableProof,
+  ): Promise<RunnerLeaseMatchResult>;
   renew(
     proof: RunnerLeaseProof,
     ttlMs: number,

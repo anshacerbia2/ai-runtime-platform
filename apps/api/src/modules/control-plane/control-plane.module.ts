@@ -56,6 +56,13 @@ import { PrismaRunnerLeaseAuthority } from './infrastructure/prisma-runner-lease
 import { InMemoryRunnerLeaseStore } from './infrastructure/in-memory-runner-lease.store.js';
 import { RedisRunnerLeaseStore } from './infrastructure/redis-runner-lease.store.js';
 import { UnavailableRunnerLeaseStore } from './infrastructure/unavailable-runner-lease.store.js';
+import {
+  RUNNER_LEASE_RECOVERY,
+  type RunnerLeaseRecovery,
+} from './application/runner-lease-recovery.port.js';
+import { RunnerLeaseRecoveryService } from './application/runner-lease-recovery.service.js';
+import { PrismaRunnerLeaseRecoveryRepository } from './infrastructure/prisma-runner-lease-recovery.repository.js';
+import { RunnerLeaseRecoveryWorker } from './infrastructure/runner-lease-recovery.worker.js';
 
 @Module({
   imports: [DatabaseModule],
@@ -108,6 +115,19 @@ import { UnavailableRunnerLeaseStore } from './infrastructure/unavailable-runner
       useFactory: (database: DatabaseService) =>
         new PrismaRunnerLeaseAuthority(database),
     },
+    {
+      provide: RUNNER_LEASE_RECOVERY,
+      inject: [DatabaseService],
+      useFactory: (database: DatabaseService) =>
+        new PrismaRunnerLeaseRecoveryRepository(database),
+    },
+    {
+      provide: RunnerLeaseRecoveryService,
+      inject: [RUNNER_LEASE_RECOVERY, RUNNER_LEASE_STORE],
+      useFactory: (repository: RunnerLeaseRecovery, leases: RunnerLeaseStore) =>
+        new RunnerLeaseRecoveryService(repository, leases),
+    },
+    RunnerLeaseRecoveryWorker,
     {
       provide: RunnerLeaseService,
       inject: [

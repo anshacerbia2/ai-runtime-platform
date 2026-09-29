@@ -1,5 +1,9 @@
 import { createHash } from 'node:crypto';
-import type { RunnerLeaseProof } from '../application/runner-lease-store.port.js';
+import type {
+  RunnerLeaseDurableProof,
+  RunnerLeaseMatchResult,
+  RunnerLeaseProof,
+} from '../application/runner-lease-store.port.js';
 
 const UUID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -8,11 +12,55 @@ const NONCE = /^[A-Za-z0-9_-]{32,128}$/;
 export const MIN_RUNNER_LEASE_TTL_MS = 5_000;
 export const MAX_RUNNER_LEASE_TTL_MS = 60_000;
 
-export function runnerLeaseKey(prefix: string, proof: RunnerLeaseProof) {
+export function runnerLeaseKey(
+  prefix: string,
+  proof: Pick<RunnerLeaseProof, 'executionId'>,
+) {
   if (!UUID.test(proof.executionId)) {
     throw new Error('Runner lease execution ID must be a UUID.');
   }
   return `${prefix}:${proof.executionId}`;
+}
+
+export function matchDurableRunnerLease(
+  encoded: string | null,
+  proof: RunnerLeaseDurableProof,
+): RunnerLeaseMatchResult {
+  if (encoded === null) {
+    return 'MISSING';
+  }
+  if (encoded.length > 2_048 || !/^[a-f0-9]{64}$/.test(proof.nonceDigest)) {
+    return 'MISMATCH';
+  }
+  let fields: unknown;
+  try {
+    fields = JSON.parse(encoded);
+  } catch {
+    return 'MISMATCH';
+  }
+  if (
+    !Array.isArray(fields) ||
+    fields.length !== 9 ||
+    typeof fields[8] !== 'string' ||
+    !NONCE.test(fields[8])
+  ) {
+    return 'MISMATCH';
+  }
+  const ownerDigest = createHash('sha256')
+    .update(proof.ownerSubject)
+    .digest('hex');
+  const nonceDigest = createHash('sha256').update(fields[8]).digest('hex');
+  return fields[0] === '1' &&
+    fields[1] === proof.assignmentId &&
+    fields[2] === proof.executionId &&
+    fields[3] === proof.attemptId &&
+    fields[4] === proof.runnerId &&
+    fields[5] === ownerDigest &&
+    fields[6] === proof.generation &&
+    fields[7] === proof.epoch &&
+    nonceDigest === proof.nonceDigest
+    ? 'CURRENT'
+    : 'MISMATCH';
 }
 
 export function encodeRunnerLeaseProof(proof: RunnerLeaseProof) {

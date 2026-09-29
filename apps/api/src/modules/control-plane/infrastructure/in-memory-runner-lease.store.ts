@@ -2,6 +2,7 @@ import type {
   RunnerLeaseInstallResult,
   RunnerLeaseMatchResult,
   RunnerLeaseProof,
+  RunnerLeaseDurableProof,
   RunnerLeaseReleaseResult,
   RunnerLeaseRenewResult,
   RunnerLeaseStore,
@@ -9,6 +10,7 @@ import type {
 import {
   assertRunnerLeaseTtl,
   encodeRunnerLeaseProof,
+  matchDurableRunnerLease,
   runnerLeaseKey,
 } from './runner-lease-proof.js';
 
@@ -26,7 +28,7 @@ export class InMemoryRunnerLeaseStore implements RunnerLeaseStore {
     private readonly prefix = 'ai-runtime:m3:lease',
   ) {}
 
-  private current(proof: RunnerLeaseProof) {
+  private current(proof: Pick<RunnerLeaseProof, 'executionId'>) {
     const key = runnerLeaseKey(this.prefix, proof);
     const entry = this.leases.get(key);
     if (entry && entry.expiresAt <= this.now()) {
@@ -54,6 +56,13 @@ export class InMemoryRunnerLeaseStore implements RunnerLeaseStore {
     const value = encodeRunnerLeaseProof(proof);
     const { entry } = this.current(proof);
     return !entry ? 'MISSING' : entry.value === value ? 'CURRENT' : 'MISMATCH';
+  }
+
+  async inspectDurable(
+    proof: RunnerLeaseDurableProof,
+  ): Promise<RunnerLeaseMatchResult> {
+    const { entry } = this.current(proof);
+    return matchDurableRunnerLease(entry?.value ?? null, proof);
   }
 
   async renew(

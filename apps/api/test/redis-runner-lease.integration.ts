@@ -1,4 +1,4 @@
-import { randomBytes, randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createClient } from 'redis';
@@ -38,6 +38,13 @@ test('separate coordinators enforce exact renewal and never recreate a missing l
     await admin.connect();
     assert.equal(await owner.install(proof, 15_000), 'INSTALLED');
     assert.equal(await peer.inspect(proof), 'CURRENT');
+    assert.equal(
+      await peer.inspectDurable({
+        ...proof,
+        nonceDigest: createHash('sha256').update(proof.nonce).digest('hex'),
+      }),
+      'CURRENT',
+    );
     assert.equal(await peer.install(proof, 15_000), 'REFRESHED');
 
     for (const changed of [

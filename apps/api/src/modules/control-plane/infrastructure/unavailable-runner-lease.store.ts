@@ -7,6 +7,9 @@ export class UnavailableRunnerLeaseStore implements RunnerLeaseStore {
   async inspect(): Promise<never> {
     throw new Error('Runner coordination Redis is not configured.');
   }
+  async inspectDurable(): Promise<never> {
+    throw new Error('Runner coordination Redis is not configured.');
+  }
   async renew(): Promise<never> {
     throw new Error('Runner coordination Redis is not configured.');
   }
