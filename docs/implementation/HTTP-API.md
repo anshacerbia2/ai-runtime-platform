@@ -1,12 +1,12 @@
 # HTTP API yang Terdaftar
 
-**Snapshot source 28 September 2026.** Tabel ini memuat 54 method/path dari apiContract dan 45 pasangan yang diekspos oleh browserContract. Bukan daftar endpoint target yang belum diimplementasikan. Sumber: [routes](../../packages/contracts/src/http/routes.ts), [gateway contract](../../packages/contracts/src/http/gateway.ts), [resource contracts](../../packages/contracts/src/http/resources.ts), [runner contracts](../../packages/contracts/src/http/runner.ts), [gateway controller](../../apps/api/src/modules/gateway/presentation/http/gateway.controller.ts), [controller resources](../../apps/api/src/modules/control-plane/presentation/http/resource.controller.ts), dan [authority policy](../../apps/api/src/modules/identity/domain/principal.ts).
+**Snapshot source 29 September 2026.** Tabel ini memuat 55 method/path dari apiContract dan 45 pasangan yang diekspos oleh browserContract. Bukan daftar endpoint target yang belum diimplementasikan. Sumber: [routes](../../packages/contracts/src/http/routes.ts), [gateway contract](../../packages/contracts/src/http/gateway.ts), [resource contracts](../../packages/contracts/src/http/resources.ts), [runner contracts](../../packages/contracts/src/http/runner.ts), [gateway controller](../../apps/api/src/modules/gateway/presentation/http/gateway.controller.ts), [controller resources](../../apps/api/src/modules/control-plane/presentation/http/resource.controller.ts), dan [authority policy](../../apps/api/src/modules/identity/domain/principal.ts).
 
 ## Authentication dan exposure
 
 API memeriksa bearer principal. Pada nonlocal web, browser mengirim opaque session cookie; BFF mengambil bearer dari server-side session, bukan mempercayai Authorization dari browser. Local mode menggantinya dengan fixture token di server. Operator memerlukan role platform-operator atau platform-admin; usage:verify memerlukan platform-accountant atau platform-admin. Scopes dan jenis principal tetap diperiksa per service. Liveness tidak memerlukan token tetapi tetap tunduk pada host/origin policy.
 
-Kolom “BFF” berarti pasangan method/path di-allowlist, bukan setiap caller memperoleh izin. Contohnya admission terdaftar pada browser contract, tetapi token operator tidak otomatis berubah menjadi application caller. Assignment, runner heartbeat/report/protocol/evidence, registration dan inbox tidak diekspos ke browser.
+Kolom “BFF” berarti pasangan method/path di-allowlist, bukan setiap caller memperoleh izin. Contohnya admission terdaftar pada browser contract, tetapi token operator tidak otomatis berubah menjadi application caller. Assignment, runner heartbeat/dispatch/report/protocol/evidence, registration dan inbox tidak diekspos ke browser.
 
 ## Operasi aktif
 
@@ -41,6 +41,7 @@ Kolom “BFF” berarti pasangan method/path di-allowlist, bukan setiap caller m
 | resources.outbox.list           | GET    | `/api/v1/outbox`                                             | 200          | Operator · platform:read                            | Ya                                   |
 | runner.protocol                 | GET    | `/api/runner/v1/protocol`                                    | 200          | Runner · runner:register                            | Tidak                                |
 | runner.heartbeat                | POST   | `/api/runner/v1/heartbeat`                                   | 200          | Runner · runner:register                            | Tidak                                |
+| runner.claimDispatch            | POST   | `/api/runner/v1/dispatches/claim`                            | 200          | Runner · runner:report                              | Tidak                                |
 | runner.report                   | POST   | `/api/runner/v1/reports`                                     | 200          | Runner · runner:report                              | Tidak                                |
 | runner.evidence                 | POST   | `/api/runner/v1/evidence`                                    | 202          | Runner · runner:report                              | Tidak                                |
 | assignments.grant               | POST   | `/api/v1/executions/:id/assignments`                         | 200          | Operator · platform:manage                          | Tidak                                |

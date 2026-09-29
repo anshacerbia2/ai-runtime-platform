@@ -1,6 +1,6 @@
 # Architecture Decision Records
 
-**Baseline 0.2 with ADR-0001–ADR-0030. Implementation status reconciled 29 September 2026.** Original decision dates remain historical; local proof and pending production requirements are stated per ADR and in the current implementation reference.
+**Baseline 0.2 with ADR-0001–ADR-0031. Implementation status reconciled 29 September 2026.** Original decision dates remain historical; local proof and pending production requirements are stated per ADR and in the current implementation reference.
 
 ## Reading authority
 
@@ -8,38 +8,39 @@
 
 ## Decision catalogue
 
-| ADR                                                     | Decision                                                                                  | Spesifikasi terkait                                        |
-| ------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| [ADR-0001](0001-application-ownership.md)               | Application-owned workflow dan AI execution boundary                                      | [BOUNDARIES](../architecture/BOUNDARIES.md)                |
-| [ADR-0002](0002-managed-envelope.md)                    | Managed Execution Envelope dan typed profiles                                             | [PROFILES-ADAPTERS](../contracts/PROFILES-ADAPTERS.md)     |
-| [ADR-0003](0003-tiered-storage.md)                      | Tiered Storage dan authoritative data paths                                               | [DATA-MODEL](../data/DATA-MODEL.md)                        |
-| [ADR-0004](0004-routing-dual-adapter.md)                | OpenRouter-first dan dual-adapter proof                                                   | [PROFILES-ADAPTERS](../contracts/PROFILES-ADAPTERS.md)     |
-| [ADR-0005](0005-leases-fencing.md)                      | Conditional Redis lease dan durable fencing                                               | [OWNERSHIP-RECOVERY](../reliability/OWNERSHIP-RECOVERY.md) |
-| [ADR-0006](0006-orthogonal-state.md)                    | Separate execution outcome, compute, external effect, dan accounting                      | [EXECUTION-LIFECYCLE](../contracts/EXECUTION-LIFECYCLE.md) |
-| [ADR-0007](0007-durable-accounting.md)                  | Transactional reservation, settlement, dan ledger authority                               | [ACCOUNTING](../data/ACCOUNTING.md)                        |
-| [ADR-0008](0008-late-usage.md)                          | Verified late evidence dan post-window adjustment                                         | [ACCOUNTING](../data/ACCOUNTING.md)                        |
-| [ADR-0009](0009-stream-replay.md)                       | Bounded SSE replay dan durable control events                                             | [EVENTS-STREAMING](../contracts/EVENTS-STREAMING.md)       |
-| [ADR-0010](0010-tool-side-effects.md)                   | Receiver-supported idempotency untuk mutating tools                                       | [TOOLS-PLUGINS](../contracts/TOOLS-PLUGINS.md)             |
-| [ADR-0011](0011-sandbox-security.md)                    | Isolated compute dan server-side policy                                                   | [SECURITY](../security/SECURITY.md)                        |
-| [ADR-0012](0012-deployment-dispatch.md)                 | Modular control plane dan durable dispatch                                                | [DEPLOYMENT](../operations/DEPLOYMENT.md)                  |
-| [ADR-0013](0013-evolution-gates.md)                     | Reliability gate sebelum production migration                                             | [ACCEPTANCE](../testing/ACCEPTANCE.md)                     |
-| [ADR-0014](0014-artifacts-sessions.md)                  | Immutable artifact promotion dan scoped sessions                                          | [ARTIFACTS-SESSIONS](../contracts/ARTIFACTS-SESSIONS.md)   |
-| [ADR-0015](0015-testable-milestone-slices.md)           | Testable milestone slices dan local Contract Lab                                          | [M0](../milestones/M0.md)                                  |
-| [ADR-0016](0016-nestjs-fastify.md)                      | NestJS dengan Fastify; perbandingan Express dan evaluasi masukan principal                | [Code structure](../architecture/CODE-STRUCTURE.md)        |
-| [ADR-0017](0017-prisma-postgresql.md)                   | Prisma/PostgreSQL, transaction boundary, baseline migration                               | [Code structure](../architecture/CODE-STRUCTURE.md)        |
-| [ADR-0018](0018-clean-architecture-quality.md)          | Clean Architecture, readability dan automated dependency rules                            | [Code structure](../architecture/CODE-STRUCTURE.md)        |
-| [ADR-0019](0019-application-connections-credentials.md) | Application Registry, AI Connections, credential binding                                  | [SECURITY](../security/SECURITY.md)                        |
-| [ADR-0020](0020-plugin-registry-execution-packaging.md) | Plugin registry dan execution packaging                                                   | [TOOLS-PLUGINS](../contracts/TOOLS-PLUGINS.md)             |
-| [ADR-0021](0021-workspace-remote-tools.md)              | Optional workspace dan remote tool model                                                  | [ARTIFACTS-SESSIONS](../contracts/ARTIFACTS-SESSIONS.md)   |
-| [ADR-0022](0022-distributed-runner-fleet.md)            | Distributed runner fleet dan placement                                                    | [DEPLOYMENT](../operations/DEPLOYMENT.md)                  |
-| [ADR-0023](0023-ati-one-internal-app.md)                | ATI One internal-app delivery + dedicated Keycloak client                                 | [FRONTEND](../architecture/FRONTEND.md)                    |
-| [ADR-0024](0024-component-driven-ui-tokens.md)          | CDD + AI Platform semantic design-token contract                                          | [FRONTEND](../architecture/FRONTEND.md)                    |
-| [ADR-0025](0025-external-app-standalone-auth.md)        | External-app delivery + standalone Keycloak sign-in entry                                 | [SECURITY](../security/SECURITY.md)                        |
-| [ADR-0026](0026-nextjs-bff.md)                          | Next.js App Router + Backend-for-Frontend tier                                            | [FRONTEND](../architecture/FRONTEND.md)                    |
-| [ADR-0027](0027-shared-rest-consumer-contracts.md)      | Shared REST, inferred clients and Pact compatibility                                      | [Contract Operations](../development/CONTRACTS.md)         |
-| [ADR-0028](0028-http-behavior-and-outcome-semantics.md) | Bounded unary transport and mutation outcomes (historical one-attempt policy)             | [HTTP audit](../reviews/HTTP-CONTRACT-AUDIT.md)            |
-| [ADR-0029](0029-replay-resources-runner-authority.md)   | Atomic receipts, independent resources, runner authority, bounded retry, explicit mapping | [Implemented HTTP API](../implementation/HTTP-API.md)      |
-| [ADR-0030](0030-encrypted-dispatch-envelope.md)         | Encrypted durable dispatch input, atomic admission promotion, and cross-store cleanup     | [DATA-MODEL](../data/DATA-MODEL.md)                        |
+| ADR                                                        | Decision                                                                                  | Spesifikasi terkait                                        |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| [ADR-0001](0001-application-ownership.md)                  | Application-owned workflow dan AI execution boundary                                      | [BOUNDARIES](../architecture/BOUNDARIES.md)                |
+| [ADR-0002](0002-managed-envelope.md)                       | Managed Execution Envelope dan typed profiles                                             | [PROFILES-ADAPTERS](../contracts/PROFILES-ADAPTERS.md)     |
+| [ADR-0003](0003-tiered-storage.md)                         | Tiered Storage dan authoritative data paths                                               | [DATA-MODEL](../data/DATA-MODEL.md)                        |
+| [ADR-0004](0004-routing-dual-adapter.md)                   | OpenRouter-first dan dual-adapter proof                                                   | [PROFILES-ADAPTERS](../contracts/PROFILES-ADAPTERS.md)     |
+| [ADR-0005](0005-leases-fencing.md)                         | Conditional Redis lease dan durable fencing                                               | [OWNERSHIP-RECOVERY](../reliability/OWNERSHIP-RECOVERY.md) |
+| [ADR-0006](0006-orthogonal-state.md)                       | Separate execution outcome, compute, external effect, dan accounting                      | [EXECUTION-LIFECYCLE](../contracts/EXECUTION-LIFECYCLE.md) |
+| [ADR-0007](0007-durable-accounting.md)                     | Transactional reservation, settlement, dan ledger authority                               | [ACCOUNTING](../data/ACCOUNTING.md)                        |
+| [ADR-0008](0008-late-usage.md)                             | Verified late evidence dan post-window adjustment                                         | [ACCOUNTING](../data/ACCOUNTING.md)                        |
+| [ADR-0009](0009-stream-replay.md)                          | Bounded SSE replay dan durable control events                                             | [EVENTS-STREAMING](../contracts/EVENTS-STREAMING.md)       |
+| [ADR-0010](0010-tool-side-effects.md)                      | Receiver-supported idempotency untuk mutating tools                                       | [TOOLS-PLUGINS](../contracts/TOOLS-PLUGINS.md)             |
+| [ADR-0011](0011-sandbox-security.md)                       | Isolated compute dan server-side policy                                                   | [SECURITY](../security/SECURITY.md)                        |
+| [ADR-0012](0012-deployment-dispatch.md)                    | Modular control plane dan durable dispatch                                                | [DEPLOYMENT](../operations/DEPLOYMENT.md)                  |
+| [ADR-0013](0013-evolution-gates.md)                        | Reliability gate sebelum production migration                                             | [ACCEPTANCE](../testing/ACCEPTANCE.md)                     |
+| [ADR-0014](0014-artifacts-sessions.md)                     | Immutable artifact promotion dan scoped sessions                                          | [ARTIFACTS-SESSIONS](../contracts/ARTIFACTS-SESSIONS.md)   |
+| [ADR-0015](0015-testable-milestone-slices.md)              | Testable milestone slices dan local Contract Lab                                          | [M0](../milestones/M0.md)                                  |
+| [ADR-0016](0016-nestjs-fastify.md)                         | NestJS dengan Fastify; perbandingan Express dan evaluasi masukan principal                | [Code structure](../architecture/CODE-STRUCTURE.md)        |
+| [ADR-0017](0017-prisma-postgresql.md)                      | Prisma/PostgreSQL, transaction boundary, baseline migration                               | [Code structure](../architecture/CODE-STRUCTURE.md)        |
+| [ADR-0018](0018-clean-architecture-quality.md)             | Clean Architecture, readability dan automated dependency rules                            | [Code structure](../architecture/CODE-STRUCTURE.md)        |
+| [ADR-0019](0019-application-connections-credentials.md)    | Application Registry, AI Connections, credential binding                                  | [SECURITY](../security/SECURITY.md)                        |
+| [ADR-0020](0020-plugin-registry-execution-packaging.md)    | Plugin registry dan execution packaging                                                   | [TOOLS-PLUGINS](../contracts/TOOLS-PLUGINS.md)             |
+| [ADR-0021](0021-workspace-remote-tools.md)                 | Optional workspace dan remote tool model                                                  | [ARTIFACTS-SESSIONS](../contracts/ARTIFACTS-SESSIONS.md)   |
+| [ADR-0022](0022-distributed-runner-fleet.md)               | Distributed runner fleet dan placement                                                    | [DEPLOYMENT](../operations/DEPLOYMENT.md)                  |
+| [ADR-0023](0023-ati-one-internal-app.md)                   | ATI One internal-app delivery + dedicated Keycloak client                                 | [FRONTEND](../architecture/FRONTEND.md)                    |
+| [ADR-0024](0024-component-driven-ui-tokens.md)             | CDD + AI Platform semantic design-token contract                                          | [FRONTEND](../architecture/FRONTEND.md)                    |
+| [ADR-0025](0025-external-app-standalone-auth.md)           | External-app delivery + standalone Keycloak sign-in entry                                 | [SECURITY](../security/SECURITY.md)                        |
+| [ADR-0026](0026-nextjs-bff.md)                             | Next.js App Router + Backend-for-Frontend tier                                            | [FRONTEND](../architecture/FRONTEND.md)                    |
+| [ADR-0027](0027-shared-rest-consumer-contracts.md)         | Shared REST, inferred clients and Pact compatibility                                      | [Contract Operations](../development/CONTRACTS.md)         |
+| [ADR-0028](0028-http-behavior-and-outcome-semantics.md)    | Bounded unary transport and mutation outcomes (historical one-attempt policy)             | [HTTP audit](../reviews/HTTP-CONTRACT-AUDIT.md)            |
+| [ADR-0029](0029-replay-resources-runner-authority.md)      | Atomic receipts, independent resources, runner authority, bounded retry, explicit mapping | [Implemented HTTP API](../implementation/HTTP-API.md)      |
+| [ADR-0030](0030-encrypted-dispatch-envelope.md)            | Encrypted durable dispatch input, atomic admission promotion, and cross-store cleanup     | [DATA-MODEL](../data/DATA-MODEL.md)                        |
+| [ADR-0031](0031-pull-dispatch-and-scoped-runner-grants.md) | Pull placement and scoped durable runner grants                                           | [Execution lifecycle](../contracts/EXECUTION-LIFECYCLE.md) |
 
 ## Otoritas dan traceability
 
@@ -68,3 +69,7 @@ Record ID/date/status, kebutuhan dan keputusan terkait, context, decision, alter
 ## Encrypted dispatch input
 
 [ADR-0030](0030-encrypted-dispatch-envelope.md) records the ciphertext/object-store boundary, application-level envelope encryption, PostgreSQL lifecycle authority, atomic admission promotion, and orphan cleanup. Production KMS and workload retention remain explicit open decisions.
+
+## Pull dispatch and scoped runner grants
+
+[ADR-0031](0031-pull-dispatch-and-scoped-runner-grants.md) records exact-process pull claims, PostgreSQL-authoritative initial placement, current policy/locality checks, durable assignment grants, and the boundary that still excludes payload/KMS delivery and automatic reassignment.

@@ -10,6 +10,11 @@ import { PrismaM1Repository } from '../src/modules/control-plane/infrastructure/
 import { M1ControlPlaneService } from '../src/modules/control-plane/application/m1-control-plane.service.js';
 import type { Principal } from '../src/modules/identity/domain/principal.js';
 import { ApplicationError } from '../src/shared/domain/application-error.js';
+import { PrismaRunnerDispatchRepository } from '../src/modules/control-plane/infrastructure/prisma-runner-dispatch.repository.js';
+import { RunnerDispatchService } from '../src/modules/control-plane/application/runner-dispatch.service.js';
+import { RunnerLivenessService } from '../src/modules/control-plane/application/runner-liveness.service.js';
+import { PrismaRunnerLivenessRegistry } from '../src/modules/control-plane/infrastructure/prisma-runner-liveness.registry.js';
+import { InMemoryRunnerPresenceStore } from '../src/modules/control-plane/infrastructure/in-memory-runner-presence.store.js';
 
 const config = loadConfig();
 const database = createDatabaseClient(config);
@@ -20,14 +25,27 @@ const profileRevisionId = randomUUID();
 const executionId = randomUUID();
 const envelopeId = randomUUID();
 const bindingId = randomUUID();
+const poolId = `${prefix}-pool`;
+const runnerId = `${prefix}-runner`;
+const ineligibleRunnerId = `${prefix}-runner-without-local-credential`;
+const credentialId = `${prefix}-credential`;
 let repository: PrismaDispatchEnvelopeRepository;
 let control: M1ControlPlaneService;
+let dispatch: RunnerDispatchService;
+let liveness: RunnerLivenessService;
+const presence = new InMemoryRunnerPresenceStore();
 const principal: Principal = {
   subject: applicationId,
   kind: 'application',
   applicationId,
   roles: ['runtime-application'],
   scopes: ['execution:submit'],
+};
+const runnerPrincipal: Principal = {
+  subject: `${prefix}-runner-owner`,
+  kind: 'runner',
+  roles: ['runtime-runner'],
+  scopes: ['runner:register', 'runner:report'],
 };
 
 const staged = {
@@ -105,17 +123,71 @@ before(async () => {
       status: 'ENABLED',
     },
   });
+  await database.runnerPool.create({
+    data: {
+      id: poolId,
+      environment: 'local',
+      region: 'test',
+      minimumVersion: '1.0.0',
+    },
+  });
+  await database.runnerNode.create({
+    data: {
+      id: runnerId,
+      ownerSubject: runnerPrincipal.subject,
+      poolId,
+      version: '1.0.0',
+      capabilities: ['agent_execute'],
+      connectionIds: [connectionId],
+      capacity: 1,
+    },
+  });
+  await database.runnerNode.create({
+    data: {
+      id: ineligibleRunnerId,
+      ownerSubject: runnerPrincipal.subject,
+      poolId,
+      version: '1.0.0',
+      capabilities: ['agent_execute'],
+      connectionIds: [connectionId],
+      capacity: 1,
+    },
+  });
+  await database.credentialInstance.create({
+    data: {
+      id: credentialId,
+      connectionId,
+      residency: 'RUNNER_LOCAL',
+      runnerRef: runnerId,
+    },
+  });
   repository = new PrismaDispatchEnvelopeRepository(
     database as unknown as DatabaseService,
   );
   control = new M1ControlPlaneService(
     new PrismaM1Repository(database as unknown as DatabaseService),
   );
+  const registry = new PrismaRunnerLivenessRegistry(
+    database as unknown as DatabaseService,
+  );
+  liveness = new RunnerLivenessService(registry, presence);
+  dispatch = new RunnerDispatchService(
+    registry,
+    presence,
+    new PrismaRunnerDispatchRepository(database as unknown as DatabaseService),
+  );
 });
 
 after(async () => {
   await database.dispatchEnvelope.deleteMany({ where: { applicationId } });
+  await database.runnerEvidence.deleteMany({
+    where: { execution: { applicationId } },
+  });
+  await database.runnerAssignment.deleteMany({
+    where: { execution: { applicationId } },
+  });
   await database.outboxEvent.deleteMany({ where: { applicationId } });
+  await database.auditEntry.deleteMany({ where: { applicationId } });
   await database.attempt.deleteMany({
     where: { execution: { applicationId } },
   });
@@ -123,10 +195,17 @@ after(async () => {
   await database.admissionRateWindow.deleteMany({
     where: { scopeKey: { contains: prefix } },
   });
+  await database.credentialInstance.deleteMany({
+    where: { id: credentialId },
+  });
   await database.credentialBinding.deleteMany({ where: { id: bindingId } });
   await database.profileAlias.deleteMany({ where: { applicationId } });
   await database.profileRevision.deleteMany({ where: { applicationId } });
   await database.aiConnection.deleteMany({ where: { id: connectionId } });
+  await database.runnerNode.deleteMany({
+    where: { id: { in: [runnerId, ineligibleRunnerId] } },
+  });
+  await database.runnerPool.deleteMany({ where: { id: poolId } });
   await database.controlApplication.deleteMany({
     where: { id: applicationId },
   });
@@ -214,4 +293,116 @@ test('admission atomically promotes one staged envelope before consume and expir
   assert.equal(await repository.markExpired(envelopeId, 4), true);
   assert.equal((await repository.find(envelopeId))?.state, 'EXPIRED');
   assert.equal(await repository.markExpired(envelopeId, 4), false);
+});
+
+test('current runner presence autonomously claims one policy-scoped dispatch grant', async () => {
+  const nextEnvelopeId = randomUUID();
+  const nextExecutionId = randomUUID();
+  const nextDigest = randomBytes(32).toString('hex');
+  await repository.createStaged({
+    ...staged,
+    envelopeId: nextEnvelopeId,
+    executionBindingId: nextExecutionId,
+    inputDigest: nextDigest,
+    objectKey: `dispatch-envelopes/v1/${nextEnvelopeId}`,
+  });
+  await control.admitDispatchEnvelope(
+    principal,
+    { profileRef: `${prefix}-agent`, inputDigest: nextDigest },
+    `${prefix}-automatic-dispatch`,
+    { envelopeId: nextEnvelopeId, executionId: nextExecutionId },
+  );
+
+  const runner = await database.runnerNode.findUniqueOrThrow({
+    where: { id: runnerId },
+  });
+  const bootId = randomUUID();
+  const claim = {
+    runnerId,
+    bootId,
+    registrationRevision: runner.revision,
+  };
+  await assert.rejects(
+    dispatch.claim(runnerPrincipal, claim),
+    (error) =>
+      error instanceof ApplicationError &&
+      error.code === 'STALE_RUNNER_REGISTRATION',
+  );
+  await liveness.heartbeat(runnerPrincipal, claim);
+  await assert.rejects(
+    dispatch.claim(runnerPrincipal, { ...claim, bootId: randomUUID() }),
+    (error) =>
+      error instanceof ApplicationError &&
+      error.code === 'STALE_RUNNER_REGISTRATION',
+  );
+
+  const ineligibleRunner = await database.runnerNode.findUniqueOrThrow({
+    where: { id: ineligibleRunnerId },
+  });
+  const ineligibleClaim = {
+    runnerId: ineligibleRunnerId,
+    bootId: randomUUID(),
+    registrationRevision: ineligibleRunner.revision,
+  };
+  await liveness.heartbeat(runnerPrincipal, ineligibleClaim);
+  assert.deepEqual(await dispatch.claim(runnerPrincipal, ineligibleClaim), {
+    grant: null,
+  });
+
+  await database.credentialBinding.update({
+    where: { id: bindingId },
+    data: { status: 'DISABLED' },
+  });
+  assert.deepEqual(await dispatch.claim(runnerPrincipal, claim), {
+    grant: null,
+  });
+  assert.equal(
+    await database.runnerAssignment.count({
+      where: { executionId: nextExecutionId },
+    }),
+    0,
+  );
+  await database.credentialBinding.update({
+    where: { id: bindingId },
+    data: { status: 'ENABLED' },
+  });
+
+  const claims = await Promise.all([
+    dispatch.claim(runnerPrincipal, claim),
+    dispatch.claim(runnerPrincipal, claim),
+  ]);
+  const grants = claims.flatMap((item) => (item.grant ? [item.grant] : []));
+  assert.ok(grants.length >= 1);
+  assert.equal(new Set(grants.map((item) => item.assignmentId)).size, 1);
+  const grant = grants[0]!;
+  assert.equal(grant.executionId, nextExecutionId);
+  assert.equal(grant.runnerId, runnerId);
+  assert.equal(grant.envelopeId, nextEnvelopeId);
+  assert.equal(grant.inputDigest, nextDigest);
+  assert.equal(grant.generation, 1);
+  assert.equal(grant.state, 'GRANTED');
+  assert.equal('objectKey' in grant, false);
+  assert.equal('wrappedDataKey' in grant, false);
+
+  const replay = await dispatch.claim(runnerPrincipal, claim);
+  assert.equal(replay.grant?.assignmentId, grant.assignmentId);
+  assert.equal(
+    await database.runnerAssignment.count({
+      where: { executionId: nextExecutionId },
+    }),
+    1,
+  );
+  const event = await database.outboxEvent.findUniqueOrThrow({
+    where: {
+      topic_aggregateId_revision: {
+        topic: 'runner.assignment-granted',
+        aggregateId: grant.assignmentId,
+        revision: 1,
+      },
+    },
+  });
+  const payload = JSON.stringify(event.payload);
+  assert.equal(payload.includes('object_key'), false);
+  assert.equal(payload.includes('wrapped_data_key'), false);
+  assert.equal(payload.includes('plaintext'), false);
 });

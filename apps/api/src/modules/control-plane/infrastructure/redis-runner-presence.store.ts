@@ -36,7 +36,7 @@ export class RedisRunnerPresenceStore implements RunnerPresenceStore {
   }
 
   async inspect(
-    registration: RunnerRegistrationIdentity,
+    registration: RunnerRegistrationIdentity | RunnerPresenceProof,
   ): Promise<RunnerPresenceMatch> {
     const current = await this.client.get(
       runnerPresenceKey(this.prefix, registration),
@@ -44,9 +44,11 @@ export class RedisRunnerPresenceStore implements RunnerPresenceStore {
     if (current === null) {
       return 'MISSING';
     }
-    return current.startsWith(`${runnerPresenceIdentity(registration)}:`)
-      ? 'CURRENT'
-      : 'MISMATCH';
+    const matches =
+      'bootId' in registration
+        ? current === encodeRunnerPresence(registration)
+        : current.startsWith(`${runnerPresenceIdentity(registration)}:`);
+    return matches ? 'CURRENT' : 'MISMATCH';
   }
 
   async onModuleDestroy() {

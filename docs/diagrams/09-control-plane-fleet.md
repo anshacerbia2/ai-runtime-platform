@@ -1,6 +1,6 @@
 # Control Plane, AI Connections, dan Distributed Runner Fleet
 
-**Implementation boundary — 24 September 2026:** Target fleet view: registry, bindings and manual assignment/fencing are implemented. Plugin registry, automatic placement, secret materialization and Redis liveness remain planned. See [I01–I04](10-implemented-contracts.md) and [current state](../implementation/CURRENT-STATE.md).
+**Implementation boundary — 29 September 2026:** Registry, bindings, exact-process Redis presence, manual assignment/fencing, and initial pull placement are implemented. Plugin registry, payload/secret materialization, lease-driven reassignment, epoch recovery, and runtime supervision remain planned. See [I01–I06](10-implemented-contracts.md) and [current state](../implementation/CURRENT-STATE.md).
 
 ```mermaid
 flowchart LR
@@ -21,13 +21,15 @@ flowchart LR
     A --> Providers["AI Providers / Runtimes"]
     B --> Providers
     C --> Providers
-    Redis["Redis<br/>runner lease/capacity"] <--> RR
+    Redis["Redis<br/>runner presence / lease primitive"] <--> RR
     PG["PostgreSQL<br/>durable registry/config"] <--> CP
 ```
 
 ## Placement rule
 
 Eligible runner = runtime compatible + application/profile authorized + AI connection available + credential locality satisfied + capacity + environment/region/data policy + version compatible + lifecycle `RUNNING`.
+
+The current initial scheduler implements exact-process presence, application/connection/binding state, environment, minimum version, `agent_execute` capability, advertised connection, central or exact runner-local credential, and node capacity. Region/data policy, global fairness, automatic reassignment, payload delivery, and quota-aware multi-pool scheduling are still target behavior.
 
 Multiple runner bindings may represent one logical AI Connection and one upstream quota group. More runners therefore do not automatically imply more provider quota.
 

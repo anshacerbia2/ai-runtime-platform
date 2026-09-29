@@ -37,6 +37,12 @@ import { PrismaRunnerLivenessRegistry } from './infrastructure/prisma-runner-liv
 import { InMemoryRunnerPresenceStore } from './infrastructure/in-memory-runner-presence.store.js';
 import { RedisRunnerPresenceStore } from './infrastructure/redis-runner-presence.store.js';
 import { UnavailableRunnerPresenceStore } from './infrastructure/runner-presence-proof.js';
+import {
+  RUNNER_DISPATCH_REPOSITORY,
+  type RunnerDispatchRepository,
+} from './application/runner-dispatch.port.js';
+import { RunnerDispatchService } from './application/runner-dispatch.service.js';
+import { PrismaRunnerDispatchRepository } from './infrastructure/prisma-runner-dispatch.repository.js';
 
 @Module({
   imports: [DatabaseModule],
@@ -80,6 +86,25 @@ import { UnavailableRunnerPresenceStore } from './infrastructure/runner-presence
         registry: RunnerLivenessRegistry,
         presence: RunnerPresenceStore,
       ) => new RunnerLivenessService(registry, presence),
+    },
+    {
+      provide: RUNNER_DISPATCH_REPOSITORY,
+      inject: [DatabaseService],
+      useFactory: (database: DatabaseService) =>
+        new PrismaRunnerDispatchRepository(database),
+    },
+    {
+      provide: RunnerDispatchService,
+      inject: [
+        RUNNER_LIVENESS_REGISTRY,
+        RUNNER_PRESENCE_STORE,
+        RUNNER_DISPATCH_REPOSITORY,
+      ],
+      useFactory: (
+        registry: RunnerLivenessRegistry,
+        presence: RunnerPresenceStore,
+        repository: RunnerDispatchRepository,
+      ) => new RunnerDispatchService(registry, presence, repository),
     },
     {
       provide: RESOURCE_READER,

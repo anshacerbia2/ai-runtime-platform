@@ -33,7 +33,7 @@ export class InMemoryRunnerPresenceStore implements RunnerPresenceStore {
   }
 
   async inspect(
-    registration: RunnerRegistrationIdentity,
+    registration: RunnerRegistrationIdentity | RunnerPresenceProof,
   ): Promise<RunnerPresenceMatch> {
     const key = runnerPresenceKey(this.prefix, registration);
     const entry = this.entries.get(key);
@@ -41,8 +41,10 @@ export class InMemoryRunnerPresenceStore implements RunnerPresenceStore {
       this.entries.delete(key);
       return 'MISSING';
     }
-    return entry.value.startsWith(`${runnerPresenceIdentity(registration)}:`)
-      ? 'CURRENT'
-      : 'MISMATCH';
+    const current =
+      'bootId' in registration
+        ? entry.value === encodeRunnerPresence(registration)
+        : entry.value.startsWith(`${runnerPresenceIdentity(registration)}:`);
+    return current ? 'CURRENT' : 'MISMATCH';
   }
 }

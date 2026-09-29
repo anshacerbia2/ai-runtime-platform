@@ -120,6 +120,14 @@ test('presence is current only for the durable registration revision and expires
   await store.heartbeat({ ...registration, bootId: input.bootId }, 15_000);
   assert.equal(await store.inspect(registration), 'CURRENT');
   assert.equal(
+    await store.inspect({ ...registration, bootId: input.bootId }),
+    'CURRENT',
+  );
+  assert.equal(
+    await store.inspect({ ...registration, bootId: randomUUID() }),
+    'MISMATCH',
+  );
+  assert.equal(
     await store.inspect({ ...registration, registrationRevision: 5 }),
     'MISMATCH',
   );

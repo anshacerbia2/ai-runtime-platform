@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased — 29 September 2026 — initial runner pull dispatch
+
+Added the machine-only `/api/runner/v1/dispatches/claim` route and enabled runner protocol execution dispatch for initial `agent_execute` placement. Claims require authenticated ownership, exact registration revision, and exact current boot presence. PostgreSQL remains authority and atomically checks current application/connection/binding policy, pool/node lifecycle, environment, minimum version, capability, advertised connection, runner-local or central credential, capacity, and committed envelope before issuing generation 1 assignment authority. Duplicate/concurrent claims replay one scoped grant containing only assignment and sanitized envelope metadata; object keys, wrapped/plaintext keys, payloads, and credentials remain withheld. ADR-0031 records the decision. Payload/KMS delivery, lease-driven recovery, automatic reassignment, sandbox/tools, and agent execution remain pending.
+
 ## Unreleased — 27 September 2026 — P0 observability baseline
 
 Added manual, bounded OpenTelemetry tracing with W3C TraceContext propagation from BFF to API and onward to provider requests. API and BFF ingress/client spans are bounded at response-header boundaries; hijacked SSE ends its ingress span at `flushHeaders`, so streams do not create zombie spans. Gateway admission and provider invocations use explicit phase spans, with provider attempts linked back to admission using Trace Links. Fitness tests forbid OpenTelemetry imports in application/domain layers, per-token/delta span events, baggage, prompt/raw-output/credential attributes, and metrics emission before a low-cardinality metric contract exists. Optional OTLP HTTP export is enabled only through the validated `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`; local/test mode propagates trace context with no exporter/network dependency.

@@ -12,6 +12,6 @@ export type RunnerPresenceMatch = 'CURRENT' | 'MISSING' | 'MISMATCH';
 export interface RunnerPresenceStore {
   heartbeat(proof: RunnerPresenceProof, ttlMs: number): Promise<void>;
   inspect(
-    registration: RunnerRegistrationIdentity,
+    registration: RunnerRegistrationIdentity | RunnerPresenceProof,
   ): Promise<RunnerPresenceMatch>;
 }

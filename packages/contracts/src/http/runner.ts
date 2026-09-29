@@ -91,12 +91,28 @@ export const RunnerHeartbeatAck = z.object({
   presenceTtlMs: z.literal(15000),
 });
 export type RunnerHeartbeatAck = z.infer<typeof RunnerHeartbeatAck>;
+export const RunnerDispatchGrant = Assignment.extend({
+  state: z.literal('GRANTED'),
+  envelopeId: z.uuid(),
+  inputDigest: z.string().regex(/^[a-f0-9]{64}$/),
+  plaintextBytes: z.number().int().min(1).max(1_048_576),
+  expiresAt: z.iso.datetime({ offset: true }),
+}).strict();
+export type RunnerDispatchGrant = z.infer<typeof RunnerDispatchGrant>;
+export const RunnerDispatchClaimResult = z
+  .object({
+    grant: RunnerDispatchGrant.nullable(),
+  })
+  .strict();
+export type RunnerDispatchClaimResult = z.infer<
+  typeof RunnerDispatchClaimResult
+>;
 export const runnerProtocol = {
   version: '1',
   binding: 'bounded-http-json',
   authority: 'durable-generation',
   maxMessageBytes: 65536,
-  executionDispatch: false,
+  executionDispatch: true,
   automaticReassignment: false,
   heartbeatIntervalMs: 5000,
   presenceTtlMs: 15000,
@@ -111,7 +127,7 @@ export const runnerContract = c.router({
         binding: z.literal('bounded-http-json'),
         authority: z.literal('durable-generation'),
         maxMessageBytes: z.literal(65536),
-        executionDispatch: z.literal(false),
+        executionDispatch: z.literal(true),
         automaticReassignment: z.literal(false),
         heartbeatIntervalMs: z.literal(5000),
         presenceTtlMs: z.literal(15000),
@@ -124,6 +140,16 @@ export const runnerContract = c.router({
     headers: z.object({ 'x-runner-protocol': z.literal('1') }),
     body: RunnerHeartbeat,
     responses: { 200: RunnerHeartbeatAck },
+  },
+  claimDispatch: {
+    method: 'POST',
+    path: '/api/runner/v1/dispatches/claim',
+    headers: z.object({ 'x-runner-protocol': z.literal('1') }),
+    body: RunnerHeartbeat,
+    metadata: {
+      behavior: { replay: 'none', maxAttempts: 1, maxResponseBytes: 65_536 },
+    },
+    responses: { 200: RunnerDispatchClaimResult },
   },
   report: {
     method: 'POST',

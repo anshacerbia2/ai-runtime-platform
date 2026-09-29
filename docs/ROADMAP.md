@@ -1,6 +1,6 @@
 # AI Runtime Platform — Roadmap
 
-**Baseline 0.2 + extensions through ADR-0030; status source diperiksa 29 September 2026.** Roadmap berbasis dependency dan gate, bukan janji tanggal. M0 tetap runnable; M1 local P1 foundation sekarang implemented dan lulus acceptance lokal, sementara live Keycloak sign-in, deployed BFF/Redis session evidence, production KMS, provider runtime, dan production readiness belum selesai. Lihat [M0](milestones/M0.md) dan [M1](milestones/M1.md).
+**Baseline 0.2 + extensions through ADR-0031; status source diperiksa 29 September 2026.** Roadmap berbasis dependency dan gate, bukan janji tanggal. M0 tetap runnable; M1 local P1 foundation sekarang implemented dan lulus acceptance lokal, sementara live Keycloak sign-in, deployed BFF/Redis session evidence, production KMS, provider runtime, dan production readiness belum selesai. Lihat [M0](milestones/M0.md) dan [M1](milestones/M1.md).
 
 ## Stack implementasi tetap
 
@@ -21,7 +21,7 @@ Satu AI Runtime Platform dengan canonical capability catalogue (`chat`, `generat
 | M0 — Contract baseline           | API, state, usage, stream, profile, tool schemas disepakati              | Review docs              | P0 review + blocking decisions resolved           | IN PROGRESS; contract lab runnable, formal review pending |
 | M1 — Durable foundation          | App/connection/credential/runner registries, identity, ledger, execution | M0                       | Admission, cross-app isolation, persistence tests | LOCAL COMPLETE; external deployment evidence pending      |
 | M2 — Direct & Aggregator Gateway | OpenRouter-first + Direct Anthropic proof; chat/structured/stream        | M1                       | Adapter conformance and restricted routing tests  | LOCAL IMPLEMENTATION COMPLETE; live vendor smoke pending  |
-| M3 — Claude Agent Runtime        | Distributed runner placement, plugin/workspace, tools, artifacts         | M1 + shared M2 contracts | Fleet, agent, cancellation, orphan, tool tests    | IN PROGRESS; lease/presence/encrypted-envelope foundation |
+| M3 — Claude Agent Runtime        | Distributed runner placement, plugin/workspace, tools, artifacts         | M1 + shared M2 contracts | Fleet, agent, cancellation, orphan, tool tests    | IN PROGRESS; initial pull placement/grant foundation      |
 | M3.5 — Production Readiness Gate | Measured reliability/security/accounting confidence                      | M1–M3                    | Applicable gate report and rollback drill         | BLOCKED; not yet implemented                              |
 | M4 — Application migration       | Scribe/simple inference/Farexlate/RAG adopt without losing job ownership | M3.5                     | Per-app quality, canary, audit, rollback sign-off | PLANNED                                                   |
 | M5 — Codex runtime               | Tested second agent implementation                                       | M3.5 + workload          | Runtime conformance + plugin acceptance           | PLANNED                                                   |
@@ -62,6 +62,6 @@ Detailed work packages: [PLAN](PLAN.md). Test catalogue: [ACCEPTANCE](testing/AC
 
 - **M1:** Application Registry foundation, dedicated Keycloak client dengan Authorization Code sign-in pada external-app delivery, Next.js/BFF web tier, AI Connections, credential bindings/instances, runner registry/pools, Admin UI foundation; frontend CDD/token dan Next.js/BFF sudah diimplementasikan lokal, termasuk paginated resource views dan explicit mutation outcomes.
 - **M2:** connection-aware gateway routing; dedicated/shared connection and quota-group enforcement; production-facing shared components continue through isolated accessibility/visual-regression gates.
-- **M3:** perluasan registrasi/manual fencing yang sudah tersedia menuju automatic placement, runner-local credential resolution, plugin registry/materialization, optional workspaces, remote tools.
+- **M3:** initial pull placement kini memfilter process presence, policy, capability, capacity, connection, dan runner-local credential. Berikutnya: payload/KMS delivery, lease-driven reassignment/recovery, plugin registry/materialization, optional workspaces, dan remote tools.
 - **M3.5:** isolation, supply-chain, shared-quota, drain/failover/fencing evidence.
 - **M4+:** onboard apps without embedding provider credentials, plugin paths, or runner addresses in application contracts.

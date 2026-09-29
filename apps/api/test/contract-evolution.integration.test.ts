@@ -570,6 +570,16 @@ async function runnerFixture(name: string) {
 
 test('runner heartbeat is registration-fenced and never writes periodic PostgreSQL heartbeats', async () => {
   const f = await runnerFixture('heartbeat');
+  const protocol = await request(
+    'GET',
+    '/api/runner/v1/protocol',
+    undefined,
+    undefined,
+    runnerToken,
+  );
+  assert.equal(protocol.statusCode, 200, protocol.body);
+  assert.equal(protocol.json().executionDispatch, true);
+  assert.equal(protocol.json().automaticReassignment, false);
   const before = await db.runnerNode.findUniqueOrThrow({
     where: { id: f.runnerId },
   });
@@ -602,6 +612,20 @@ test('runner heartbeat is registration-fenced and never writes periodic PostgreS
     before.lastHeartbeatAt.toISOString(),
   );
   assert.equal(after.revision, before.revision);
+
+  const dispatchClaim = await request(
+    'POST',
+    '/api/runner/v1/dispatches/claim',
+    {
+      runnerId: f.runnerId,
+      bootId,
+      registrationRevision: f.registrationRevision,
+    },
+    undefined,
+    runnerToken,
+  );
+  assert.equal(dispatchClaim.statusCode, 200, dispatchClaim.body);
+  assert.deepEqual(dispatchClaim.json(), { grant: null });
 
   const registration = await request(
     'POST',

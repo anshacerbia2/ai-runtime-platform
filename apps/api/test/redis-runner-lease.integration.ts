@@ -90,6 +90,11 @@ test('runner presence is shared and registration-fenced across coordinators', as
     await admin.connect();
     await owner.heartbeat(proof, 15_000);
     assert.equal(await peer.inspect(registration), 'CURRENT');
+    assert.equal(await peer.inspect(proof), 'CURRENT');
+    assert.equal(
+      await peer.inspect({ ...proof, bootId: randomUUID() }),
+      'MISMATCH',
+    );
     assert.equal(
       await peer.inspect({ ...registration, registrationRevision: 10 }),
       'MISMATCH',

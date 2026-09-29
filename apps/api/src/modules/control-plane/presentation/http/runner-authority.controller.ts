@@ -12,11 +12,13 @@ import { CurrentPrincipal } from '../../../identity/presentation/http/current-pr
 import type { Principal } from '../../../identity/domain/principal.js';
 import { RunnerAuthorityService } from '../../application/runner-authority.service.js';
 import { RunnerLivenessService } from '../../application/runner-liveness.service.js';
+import { RunnerDispatchService } from '../../application/runner-dispatch.service.js';
 @Controller()
 export class RunnerAuthorityController {
   constructor(
     private readonly service: RunnerAuthorityService,
     private readonly liveness: RunnerLivenessService,
+    private readonly dispatch: RunnerDispatchService,
   ) {}
   @ContractRoute(apiContract.runner.protocol)
   protocol(@CurrentPrincipal() p: Principal) {
@@ -26,6 +28,11 @@ export class RunnerAuthorityController {
   @HttpCode(200)
   heartbeat(@CurrentPrincipal() p: Principal, @Body() body: unknown) {
     return this.liveness.heartbeat(p, RunnerHeartbeat.parse(body));
+  }
+  @ContractRoute(apiContract.runner.claimDispatch)
+  @HttpCode(200)
+  claimDispatch(@CurrentPrincipal() p: Principal, @Body() body: unknown) {
+    return this.dispatch.claim(p, RunnerHeartbeat.parse(body));
   }
   @ContractRoute(apiContract.assignments.grant)
   @HttpCode(200)

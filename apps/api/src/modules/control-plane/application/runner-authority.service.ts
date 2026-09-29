@@ -34,7 +34,7 @@ export class RunnerAuthorityService {
       binding: 'bounded-http-json',
       authority: 'durable-generation',
       maxMessageBytes: 65536,
-      executionDispatch: false,
+      executionDispatch: true,
       automaticReassignment: false,
       heartbeatIntervalMs: 5000,
       presenceTtlMs: 15000,

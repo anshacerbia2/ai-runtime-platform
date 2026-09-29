@@ -6,7 +6,7 @@
 
 ## Implementation reconciliation — 24 September 2026
 
-The Next.js/BFF and modular API run separately with PostgreSQL. Durable outbox/inbox and manual assignment exist; there is no autonomous dispatcher or separately managed agent execution pool. See [current source state](../implementation/CURRENT-STATE.md), [active HTTP operations](../implementation/HTTP-API.md), and [verification scope](../reviews/CONTRACT-EXECUTION.md). This note updates implementation status only; it does not create new reviewer approval or erase the original decision history.
+The Next.js/BFF and modular API run separately with PostgreSQL. Durable outbox/inbox, manual assignment, exact-process presence, and autonomous initial pull placement exist; there is no payload delivery, automatic reassignment, or separately managed agent execution pool. See [current source state](../implementation/CURRENT-STATE.md), [active HTTP operations](../implementation/HTTP-API.md), and [verification scope](../reviews/CONTRACT-EXECUTION.md). This note updates implementation status only; it does not create new reviewer approval or erase the original decision history.
 
 ## Context
 
