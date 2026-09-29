@@ -18,7 +18,7 @@ PostgreSQL remains placement and assignment authority. In one Read Committed tra
 
 Candidate order is oldest creation time then ID, with a bounded scan. `FOR UPDATE SKIP LOCKED` lets concurrent coordinators make progress without issuing two grants for one execution. The runner row lock serializes capacity decisions for that node. A successful initial placement atomically increments execution generation, owns the attempt, creates `RunnerAssignment`, audit metadata, and a sanitized outbox event.
 
-`RunnerAssignment` is the scoped durable delivery authority. The claim response adds only envelope ID, input digest, plaintext byte count, and envelope expiry to the assignment identity. It does not return object key, wrapped/plaintext data key, input, provider credential, or broad storage access. Repeated claims replay the runner's oldest still-valid `GRANTED` assignment. Existing invalid/stale grants fail closed for reconciliation rather than silently moving work.
+`RunnerAssignment` is the scoped durable delivery authority. The claim response adds only envelope ID, input digest, plaintext byte count, and envelope expiry to the assignment identity. It does not return object key, wrapped/plaintext data key, input, provider credential, or broad storage access. An autonomous grant persists the claiming process boot UUID. Repeated claims replay the runner's oldest still-valid `GRANTED` assignment only to that same current boot. The coordinator checks presence again after placement and withholds a grant if another boot superseded it during the transaction. A replacement boot cannot obtain that grant through claim; it remains for explicit reconciliation. This is a claim boundary, not process fencing for reports or payload delivery; those still need lease and recovery integration. Existing invalid/stale grants fail closed rather than silently moving work.
 
 Only initial generation-zero placement is automatic. `automaticReassignment` remains false. Redis presence is a liveness projection; losing it cannot create, revoke, or transfer durable authority. The future coordinator delivery path must recheck the assignment and envelope, read/decrypt through production KMS, and send payload over a bounded scoped channel without giving the runner object-store credentials.
 
@@ -34,7 +34,7 @@ One runner-local credential test proves that a live otherwise-compatible runner 
 
 ## Verification
 
-Unit tests cover exact process boot and fail-closed coordination access. PostgreSQL integration covers no-heartbeat and wrong-boot rejection, runner-local credential exclusion, binding revocation, two concurrent claims producing one durable assignment, idempotent grant replay, capacity ownership, and sanitized outbox/grant fields. HTTP integration covers the registered machine-only route and protocol flags. Real Redis conformance checks exact boot mismatch across two clients.
+Unit tests cover exact process boot, fail-closed coordination access, and a boot replacement during placement. PostgreSQL integration covers no-heartbeat and wrong-boot rejection, replacement-boot replay denial, runner-local credential exclusion, binding revocation, two concurrent claims producing one durable assignment, idempotent same-boot replay, capacity ownership, and sanitized outbox/grant fields. HTTP integration covers the registered machine-only route and protocol flags. Real Redis conformance checks exact boot mismatch across two clients.
 
 ## Revisit trigger
 

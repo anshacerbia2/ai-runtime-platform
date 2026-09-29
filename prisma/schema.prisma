@@ -597,6 +597,7 @@ model RunnerAssignment {
   attemptId       String           @map("attempt_id") @db.Uuid
   runnerId        String           @map("runner_id")
   ownerSubject    String           @map("owner_subject")
+  claimBootId     String?          @map("claim_boot_id") @db.Uuid
   generation      Int
   epoch           Int
   state           String

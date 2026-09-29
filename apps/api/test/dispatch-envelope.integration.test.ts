@@ -387,6 +387,25 @@ test('current runner presence autonomously claims one policy-scoped dispatch gra
   const replay = await dispatch.claim(runnerPrincipal, claim);
   assert.equal(replay.grant?.assignmentId, grant.assignmentId);
   assert.equal(
+    (
+      await database.runnerAssignment.findUniqueOrThrow({
+        where: { id: grant.assignmentId },
+      })
+    ).claimBootId,
+    bootId,
+  );
+  const replacementBoot = { ...claim, bootId: randomUUID() };
+  await liveness.heartbeat(runnerPrincipal, replacementBoot);
+  assert.deepEqual(await dispatch.claim(runnerPrincipal, replacementBoot), {
+    grant: null,
+  });
+  await assert.rejects(
+    dispatch.claim(runnerPrincipal, claim),
+    (error) =>
+      error instanceof ApplicationError &&
+      error.code === 'STALE_RUNNER_REGISTRATION',
+  );
+  assert.equal(
     await database.runnerAssignment.count({
       where: { executionId: nextExecutionId },
     }),

@@ -26,11 +26,27 @@ export class RunnerDispatchService {
       input.runnerId,
       input.registrationRevision,
     );
+    await this.requireCurrentPresence(registration, input.bootId);
+    const grant = await this.repository.claim(registration, input.bootId);
+    if (grant) {
+      // A replacement heartbeat may have superseded this boot while PostgreSQL
+      // was assigning the work. Leave the durable grant for reconciliation.
+      await this.requireCurrentPresence(registration, input.bootId);
+    }
+    return { grant };
+  }
+
+  private async requireCurrentPresence(
+    registration: Awaited<
+      ReturnType<RunnerLivenessRegistry['authorizeHeartbeat']>
+    >,
+    bootId: string,
+  ): Promise<void> {
     let current;
     try {
       current = await this.presence.inspect({
         ...registration,
-        bootId: input.bootId,
+        bootId,
       });
     } catch {
       throw new ApplicationError(
@@ -44,6 +60,5 @@ export class RunnerDispatchService {
         'Runner process must publish a current heartbeat before claiming work.',
       );
     }
-    return { grant: await this.repository.claim(registration) };
   }
 }

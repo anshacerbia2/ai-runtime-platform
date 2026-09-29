@@ -62,6 +62,7 @@ export class PrismaRunnerDispatchRepository implements RunnerDispatchRepository 
     tx: Prisma.TransactionClient,
     executionId: string,
     registration: RunnerRegistrationIdentity,
+    bootId: string,
     existingAssignmentId?: string,
   ): Promise<LockedDispatch | null> {
     const locked = await tx.$queryRaw<Array<{ id: string }>>`
@@ -194,6 +195,7 @@ export class PrismaRunnerDispatchRepository implements RunnerDispatchRepository 
         !current ||
         current.runnerId !== runner.id ||
         current.ownerSubject !== runner.ownerSubject ||
+        current.claimBootId !== bootId ||
         current.executionId !== execution.id ||
         current.generation !== execution.assignmentGeneration ||
         current.epoch !== execution.coordinationEpoch ||
@@ -247,6 +249,7 @@ export class PrismaRunnerDispatchRepository implements RunnerDispatchRepository 
     tx: Prisma.TransactionClient,
     dispatch: LockedDispatch,
     registration: RunnerRegistrationIdentity,
+    bootId: string,
   ): Promise<RunnerAssignment> {
     const id = randomUUID();
     const generation = 1;
@@ -261,6 +264,7 @@ export class PrismaRunnerDispatchRepository implements RunnerDispatchRepository 
         attemptId: dispatch.attemptId,
         runnerId: registration.runnerId,
         ownerSubject: registration.ownerSubject,
+        claimBootId: bootId,
         generation,
         epoch: dispatch.coordinationEpoch,
         state: 'GRANTED',
@@ -303,6 +307,7 @@ export class PrismaRunnerDispatchRepository implements RunnerDispatchRepository 
 
   async claim(
     registration: RunnerRegistrationIdentity,
+    bootId: string,
   ): Promise<RunnerDispatchGrant | null> {
     return this.db.$transaction(
       async (tx) => {
@@ -333,6 +338,7 @@ export class PrismaRunnerDispatchRepository implements RunnerDispatchRepository 
             tx,
             existing.executionId,
             registration,
+            bootId,
             existing.id,
           );
           return dispatch
@@ -371,11 +377,12 @@ export class PrismaRunnerDispatchRepository implements RunnerDispatchRepository 
             tx,
             candidate.id,
             registration,
+            bootId,
           );
           if (!dispatch) {
             continue;
           }
-          const created = await this.grant(tx, dispatch, registration);
+          const created = await this.grant(tx, dispatch, registration, bootId);
           return RunnerDispatchGrant.parse({
             ...assignment(created),
             envelopeId: dispatch.envelopeId,

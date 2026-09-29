@@ -86,3 +86,44 @@ test('dispatch claim fails closed when coordination presence cannot be read', as
   );
   assert.equal(repository.calls, 0);
 });
+
+test('dispatch claim withholds a committed grant when the boot changes during placement', async () => {
+  const presence = new InMemoryRunnerPresenceStore();
+  await presence.heartbeat({ ...registration, bootId }, 15_000);
+  const grant: RunnerDispatchGrant = {
+    assignmentId: randomUUID(),
+    executionId: randomUUID(),
+    attemptId: randomUUID(),
+    runnerId: registration.runnerId,
+    ownerSubject: registration.ownerSubject,
+    generation: 1,
+    epoch: 1,
+    state: 'GRANTED',
+    protocolVersion: '1',
+    envelopeId: randomUUID(),
+    inputDigest: 'a'.repeat(64),
+    plaintextBytes: 1,
+    expiresAt: new Date(Date.now() + 60_000).toISOString(),
+  };
+  const repository: RunnerDispatchRepository = {
+    async claim() {
+      await presence.heartbeat(
+        { ...registration, bootId: randomUUID() },
+        15_000,
+      );
+      return grant;
+    },
+  };
+  const service = new RunnerDispatchService(
+    new Registry(),
+    presence,
+    repository,
+  );
+
+  await assert.rejects(
+    service.claim(principal, input),
+    (error: unknown) =>
+      error instanceof ApplicationError &&
+      error.code === 'STALE_RUNNER_REGISTRATION',
+  );
+});
