@@ -627,6 +627,27 @@ test('runner heartbeat is registration-fenced and never writes periodic PostgreS
   assert.equal(dispatchClaim.statusCode, 200, dispatchClaim.body);
   assert.deepEqual(dispatchClaim.json(), { grant: null });
 
+  const unknownLease = await request(
+    'POST',
+    '/api/runner/v1/leases/activate',
+    {
+      token: {
+        assignmentId: randomUUID(),
+        executionId: randomUUID(),
+        attemptId: randomUUID(),
+        runnerId: f.runnerId,
+        generation: 1,
+        epoch: 1,
+      },
+      bootId,
+      registrationRevision: f.registrationRevision,
+      nonce: 'abcdefghijklmnopqrstuvwxyzABCDEF',
+    },
+    undefined,
+    runnerToken,
+  );
+  assert.equal(unknownLease.statusCode, 409, unknownLease.body);
+
   const registration = await request(
     'POST',
     '/api/m1/runners/register',

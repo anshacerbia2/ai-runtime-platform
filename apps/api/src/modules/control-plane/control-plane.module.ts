@@ -43,6 +43,19 @@ import {
 } from './application/runner-dispatch.port.js';
 import { RunnerDispatchService } from './application/runner-dispatch.service.js';
 import { PrismaRunnerDispatchRepository } from './infrastructure/prisma-runner-dispatch.repository.js';
+import {
+  RUNNER_LEASE_STORE,
+  type RunnerLeaseStore,
+} from './application/runner-lease-store.port.js';
+import {
+  RUNNER_LEASE_AUTHORITY,
+  type RunnerLeaseAuthority,
+} from './application/runner-lease-authority.port.js';
+import { RunnerLeaseService } from './application/runner-lease.service.js';
+import { PrismaRunnerLeaseAuthority } from './infrastructure/prisma-runner-lease.authority.js';
+import { InMemoryRunnerLeaseStore } from './infrastructure/in-memory-runner-lease.store.js';
+import { RedisRunnerLeaseStore } from './infrastructure/redis-runner-lease.store.js';
+import { UnavailableRunnerLeaseStore } from './infrastructure/unavailable-runner-lease.store.js';
 
 @Module({
   imports: [DatabaseModule],
@@ -59,9 +72,9 @@ import { PrismaRunnerDispatchRepository } from './infrastructure/prisma-runner-d
     },
     {
       provide: RunnerAuthorityService,
-      inject: [RUNNER_AUTHORITY],
-      useFactory: (authority: RunnerAuthority) =>
-        new RunnerAuthorityService(authority),
+      inject: [RUNNER_AUTHORITY, RunnerLeaseService],
+      useFactory: (authority: RunnerAuthority, leases: RunnerLeaseService) =>
+        new RunnerAuthorityService(authority, leases),
     },
     {
       provide: RUNNER_LIVENESS_REGISTRY,
@@ -78,6 +91,37 @@ import { PrismaRunnerDispatchRepository } from './infrastructure/prisma-runner-d
           : config.runtimeMode === 'm0-local'
             ? new InMemoryRunnerPresenceStore()
             : new UnavailableRunnerPresenceStore(),
+    },
+    {
+      provide: RUNNER_LEASE_STORE,
+      inject: [RUNTIME_CONFIG],
+      useFactory: (config: RuntimeConfig) =>
+        config.runner.coordinationRedisUrl
+          ? RedisRunnerLeaseStore.connect(config.runner.coordinationRedisUrl)
+          : config.runtimeMode === 'm0-local'
+            ? new InMemoryRunnerLeaseStore()
+            : new UnavailableRunnerLeaseStore(),
+    },
+    {
+      provide: RUNNER_LEASE_AUTHORITY,
+      inject: [DatabaseService],
+      useFactory: (database: DatabaseService) =>
+        new PrismaRunnerLeaseAuthority(database),
+    },
+    {
+      provide: RunnerLeaseService,
+      inject: [
+        RUNNER_LIVENESS_REGISTRY,
+        RUNNER_PRESENCE_STORE,
+        RUNNER_LEASE_STORE,
+        RUNNER_LEASE_AUTHORITY,
+      ],
+      useFactory: (
+        registry: RunnerLivenessRegistry,
+        presence: RunnerPresenceStore,
+        leases: RunnerLeaseStore,
+        authority: RunnerLeaseAuthority,
+      ) => new RunnerLeaseService(registry, presence, leases, authority),
     },
     {
       provide: RunnerLivenessService,

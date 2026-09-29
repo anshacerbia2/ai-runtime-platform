@@ -44,6 +44,26 @@ export const RevokeCommand = z
   })
   .strict();
 export type RevokeCommand = z.infer<typeof RevokeCommand>;
+export const RunnerLeaseIdentity = z
+  .object({
+    bootId: z.uuid(),
+    registrationRevision,
+    nonce: z.string().regex(/^[A-Za-z0-9_-]{32,128}$/),
+  })
+  .strict();
+export type RunnerLeaseIdentity = z.infer<typeof RunnerLeaseIdentity>;
+export const RunnerLeaseCommand = RunnerLeaseIdentity.extend({
+  token: AssignmentToken,
+}).strict();
+export type RunnerLeaseCommand = z.infer<typeof RunnerLeaseCommand>;
+export const RunnerLeaseAck = z
+  .object({
+    state: z.literal('ACTIVE'),
+    leaseTtlMs: z.literal(15000),
+    renewIntervalMs: z.literal(5000),
+  })
+  .strict();
+export type RunnerLeaseAck = z.infer<typeof RunnerLeaseAck>;
 const ResultProposal = z
   .object({
     outcome: z.enum(['completed', 'failed', 'cancelled']),
@@ -53,12 +73,19 @@ const ResultProposal = z
   })
   .strict();
 export const RunnerReport = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('started'), token: AssignmentToken }).strict(),
+  z
+    .object({
+      type: z.literal('started'),
+      token: AssignmentToken,
+      lease: RunnerLeaseIdentity.optional(),
+    })
+    .strict(),
   z
     .object({
       type: z.literal('result.proposed'),
       token: AssignmentToken,
       proposal: ResultProposal,
+      lease: RunnerLeaseIdentity.optional(),
     })
     .strict(),
 ]);
@@ -150,6 +177,16 @@ export const runnerContract = c.router({
       behavior: { replay: 'none', maxAttempts: 1, maxResponseBytes: 65_536 },
     },
     responses: { 200: RunnerDispatchClaimResult },
+  },
+  activateLease: {
+    method: 'POST',
+    path: '/api/runner/v1/leases/activate',
+    headers: z.object({ 'x-runner-protocol': z.literal('1') }),
+    body: RunnerLeaseCommand,
+    metadata: {
+      behavior: { replay: 'none', maxAttempts: 1, maxResponseBytes: 65_536 },
+    },
+    responses: { 200: RunnerLeaseAck },
   },
   report: {
     method: 'POST',

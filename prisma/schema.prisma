@@ -588,24 +588,25 @@ model ManagementReceipt {
 }
 
 model RunnerAssignment {
-  execution       Execution        @relation(fields: [executionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  attempt         Attempt          @relation(fields: [attemptId, executionId], references: [id, executionId], onDelete: Restrict, onUpdate: Cascade)
-  runner          RunnerNode       @relation(fields: [runnerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  evidence        RunnerEvidence[]
-  id              String           @id @db.Uuid
-  executionId     String           @map("execution_id") @db.Uuid
-  attemptId       String           @map("attempt_id") @db.Uuid
-  runnerId        String           @map("runner_id")
-  ownerSubject    String           @map("owner_subject")
-  claimBootId     String?          @map("claim_boot_id") @db.Uuid
-  generation      Int
-  epoch           Int
-  state           String
-  protocolVersion String           @map("protocol_version")
-  proposal        Json?
-  proposalDigest  String?          @map("proposal_digest") @db.Char(64)
-  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt       DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  execution        Execution        @relation(fields: [executionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  attempt          Attempt          @relation(fields: [attemptId, executionId], references: [id, executionId], onDelete: Restrict, onUpdate: Cascade)
+  runner           RunnerNode       @relation(fields: [runnerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  evidence         RunnerEvidence[]
+  id               String           @id @db.Uuid
+  executionId      String           @map("execution_id") @db.Uuid
+  attemptId        String           @map("attempt_id") @db.Uuid
+  runnerId         String           @map("runner_id")
+  ownerSubject     String           @map("owner_subject")
+  claimBootId      String?          @map("claim_boot_id") @db.Uuid
+  leaseNonceDigest String?          @map("lease_nonce_digest") @db.Char(64)
+  generation       Int
+  epoch            Int
+  state            String
+  protocolVersion  String           @map("protocol_version")
+  proposal         Json?
+  proposalDigest   String?          @map("proposal_digest") @db.Char(64)
+  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@unique([id, executionId, attemptId])
   @@unique([executionId, generation])

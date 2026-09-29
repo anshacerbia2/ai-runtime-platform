@@ -1,6 +1,6 @@
 import test, { after, before } from 'node:test';
 import assert from 'node:assert/strict';
-import { randomBytes, randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { createDatabaseClient } from '../src/infrastructure/database/client.js';
 import { loadConfig } from '../src/infrastructure/config/environment-config.js';
 import type { DatabaseService } from '../src/infrastructure/database/database.service.js';
@@ -16,6 +16,10 @@ import { RunnerLivenessService } from '../src/modules/control-plane/application/
 import { PrismaRunnerLivenessRegistry } from '../src/modules/control-plane/infrastructure/prisma-runner-liveness.registry.js';
 import { InMemoryRunnerPresenceStore } from '../src/modules/control-plane/infrastructure/in-memory-runner-presence.store.js';
 import { PrismaRunnerAuthority } from '../src/modules/control-plane/infrastructure/prisma-runner-authority.js';
+import { PrismaRunnerLeaseAuthority } from '../src/modules/control-plane/infrastructure/prisma-runner-lease.authority.js';
+import { InMemoryRunnerLeaseStore } from '../src/modules/control-plane/infrastructure/in-memory-runner-lease.store.js';
+import { RunnerLeaseService } from '../src/modules/control-plane/application/runner-lease.service.js';
+import { RunnerAuthorityService } from '../src/modules/control-plane/application/runner-authority.service.js';
 
 const config = loadConfig();
 const database = createDatabaseClient(config);
@@ -34,6 +38,8 @@ let repository: PrismaDispatchEnvelopeRepository;
 let control: M1ControlPlaneService;
 let dispatch: RunnerDispatchService;
 let liveness: RunnerLivenessService;
+let leaseService: RunnerLeaseService;
+const leaseStore = new InMemoryRunnerLeaseStore();
 const presence = new InMemoryRunnerPresenceStore();
 const principal: Principal = {
   subject: applicationId,
@@ -176,6 +182,12 @@ before(async () => {
     registry,
     presence,
     new PrismaRunnerDispatchRepository(database as unknown as DatabaseService),
+  );
+  leaseService = new RunnerLeaseService(
+    registry,
+    presence,
+    leaseStore,
+    new PrismaRunnerLeaseAuthority(database as unknown as DatabaseService),
   );
 });
 
@@ -390,17 +402,18 @@ test('current runner presence autonomously claims one policy-scoped dispatch gra
   const authority = new PrismaRunnerAuthority(
     database as unknown as DatabaseService,
   );
+  const token = {
+    assignmentId: grant.assignmentId,
+    executionId: grant.executionId,
+    attemptId: grant.attemptId,
+    runnerId: grant.runnerId,
+    generation: grant.generation,
+    epoch: grant.epoch,
+  };
   await assert.rejects(
     authority.report(runnerPrincipal, {
       type: 'started',
-      token: {
-        assignmentId: grant.assignmentId,
-        executionId: grant.executionId,
-        attemptId: grant.attemptId,
-        runnerId: grant.runnerId,
-        generation: grant.generation,
-        epoch: grant.epoch,
-      },
+      token,
     }),
     (error) =>
       error instanceof ApplicationError && error.code === 'POLICY_DENIED',
@@ -459,4 +472,104 @@ test('current runner presence autonomously claims one policy-scoped dispatch gra
   assert.equal(payload.includes('object_key'), false);
   assert.equal(payload.includes('wrapped_data_key'), false);
   assert.equal(payload.includes('plaintext'), false);
+
+  // Restore the original boot in the reference presence store to exercise its
+  // still-current durable grant after the replacement-boot rejection above.
+  await liveness.heartbeat(runnerPrincipal, claim);
+  const firstNonce = randomBytes(32).toString('base64url');
+  const secondNonce = randomBytes(32).toString('base64url');
+  const activations = await Promise.allSettled([
+    leaseService.activate(runnerPrincipal, {
+      bootId,
+      registrationRevision: runner.revision,
+      nonce: firstNonce,
+      token,
+    }),
+    leaseService.activate(runnerPrincipal, {
+      bootId,
+      registrationRevision: runner.revision,
+      nonce: secondNonce,
+      token,
+    }),
+  ]);
+  assert.equal(
+    activations.filter((activation) => activation.status === 'fulfilled')
+      .length,
+    1,
+  );
+  const nonce =
+    activations[0]!.status === 'fulfilled' ? firstNonce : secondNonce;
+  const lease = { bootId, registrationRevision: runner.revision, nonce };
+  const leaseCommand = { ...lease, token };
+  assert.deepEqual(await leaseService.activate(runnerPrincipal, leaseCommand), {
+    state: 'ACTIVE',
+    leaseTtlMs: 15_000,
+    renewIntervalMs: 5_000,
+  });
+  assert.equal(
+    (
+      await database.runnerAssignment.findUniqueOrThrow({
+        where: { id: grant.assignmentId },
+      })
+    ).leaseNonceDigest?.trim(),
+    createHash('sha256').update(nonce).digest('hex'),
+  );
+  await leaseService.activate(runnerPrincipal, leaseCommand);
+  await assert.rejects(
+    leaseService.activate(runnerPrincipal, {
+      ...leaseCommand,
+      nonce: randomBytes(32).toString('base64url'),
+    }),
+    (error) =>
+      error instanceof ApplicationError && error.code === 'STALE_ASSIGNMENT',
+  );
+  const reports = new RunnerAuthorityService(authority, leaseService);
+  await assert.rejects(
+    reports.report(runnerPrincipal, {
+      type: 'started',
+      token,
+      lease: { ...lease, nonce: randomBytes(32).toString('base64url') },
+    }),
+    (error) =>
+      error instanceof ApplicationError && error.code === 'STALE_ASSIGNMENT',
+  );
+  assert.equal(
+    (await reports.report(runnerPrincipal, { type: 'started', token, lease }))
+      .state,
+    'STARTED',
+  );
+  const proof = {
+    ...token,
+    ownerSubject: runnerPrincipal.subject,
+    nonce,
+  };
+  assert.equal(await leaseStore.release(proof), 'RELEASED');
+  await assert.rejects(
+    leaseService.activate(runnerPrincipal, leaseCommand),
+    (error) =>
+      error instanceof ApplicationError && error.code === 'STALE_ASSIGNMENT',
+  );
+  await assert.rejects(
+    reports.report(runnerPrincipal, {
+      type: 'result.proposed',
+      token,
+      lease,
+      proposal: {
+        outcome: 'completed',
+        digest: 'a'.repeat(64),
+        artifactIds: [],
+        summary: '',
+      },
+    }),
+    (error) =>
+      error instanceof ApplicationError && error.code === 'STALE_ASSIGNMENT',
+  );
+  assert.equal(
+    (
+      await database.runnerAssignment.findUniqueOrThrow({
+        where: { id: grant.assignmentId },
+      })
+    ).state,
+    'STARTED',
+  );
 });

@@ -343,10 +343,21 @@ export class PrismaRunnerAuthority implements RunnerAuthority {
         stale();
       }
       if (execution.admissionSource === 'AGENT') {
-        throw new ApplicationError(
-          'POLICY_DENIED',
-          'Agent runner reports require an active assignment lease.',
-        );
+        if (!report.lease) {
+          throw new ApplicationError(
+            'POLICY_DENIED',
+            'Agent runner reports require an active assignment lease.',
+          );
+        }
+        const digest = createHash('sha256')
+          .update(report.lease.nonce)
+          .digest('hex');
+        if (
+          row.claimBootId !== report.lease.bootId ||
+          row.leaseNonceDigest?.trim() !== digest
+        ) {
+          stale();
+        }
       }
       await tx.$queryRaw`SELECT id FROM control.runner_nodes WHERE id=${row.runnerId} FOR SHARE`;
       const runner = await tx.runnerNode.findUnique({
@@ -355,7 +366,9 @@ export class PrismaRunnerAuthority implements RunnerAuthority {
       if (
         !runner ||
         runner.ownerSubject !== p.subject ||
-        runner.status === 'DISABLED'
+        runner.status === 'DISABLED' ||
+        (execution.admissionSource === 'AGENT' &&
+          runner.revision !== report.lease?.registrationRevision)
       ) {
         stale();
       }

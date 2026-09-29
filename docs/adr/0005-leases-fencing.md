@@ -6,7 +6,7 @@
 
 ## Implementation reconciliation — 24 September 2026
 
-Durable manual assignment, exact generation/epoch/owner checking, revocation and quarantined evidence are implemented under ADR-0029. Redis lease renewal, expiry detection, epoch rebuild and runtime recovery are not implemented. See [current source state](../implementation/CURRENT-STATE.md), [active HTTP operations](../implementation/HTTP-API.md), and [verification scope](../reviews/CONTRACT-EXECUTION.md). This note updates implementation status only; it does not create new reviewer approval or erase the original decision history.
+Durable manual assignment, exact generation/epoch/owner checking, revocation and quarantined evidence are implemented under ADR-0029. Automatic `AGENT` grants now support first-install and exact renewal of a Redis lease; missing leases cannot be recreated after the nonce digest is durable, and reports require current lease plus PostgreSQL authority. Expiry detection/reaper, epoch rebuild, process termination, and runtime recovery remain unimplemented. See [current source state](../implementation/CURRENT-STATE.md), [active HTTP operations](../implementation/HTTP-API.md), and [verification scope](../reviews/CONTRACT-EXECUTION.md). This note updates implementation status only; it does not create new reviewer approval or erase the original decision history.
 
 ## Context
 

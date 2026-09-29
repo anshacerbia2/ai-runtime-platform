@@ -1,6 +1,6 @@
 # AI Runtime Platform — Implementation Plan
 
-**Arsitektur baseline 0.2; M0 technical slice tersedia dalam 0.3.0-m0.** P0 formal reviewer closure tetap IN PROGRESS. P1 dan P2 sekarang LOCAL IMPLEMENTATION COMPLETE dengan evidence lokal; external/nonlocal integration, authorized live provider smoke, dan production readiness tetap pending. Deliverable runtime P3–P7 belum selesai; fondasi P3 sekarang mencakup registry/manual fencing, exact Redis lease dan process presence, encrypted durable dispatch envelope, serta autonomous initial pull placement dengan scoped durable grant melalui ADR-0029–ADR-0031. [M0 evidence](milestones/M0.md), [M1 evidence](milestones/M1.md), [current state](implementation/CURRENT-STATE.md), dan [panduan lokal](development/M0.md).
+**Arsitektur baseline 0.2; M0 technical slice tersedia dalam 0.3.0-m0.** P0 formal reviewer closure tetap IN PROGRESS. P1 dan P2 sekarang LOCAL IMPLEMENTATION COMPLETE dengan evidence lokal; external/nonlocal integration, authorized live provider smoke, dan production readiness tetap pending. Deliverable runtime P3–P7 belum selesai; fondasi P3 sekarang mencakup registry/manual fencing, exact Redis lease dan process presence, encrypted durable dispatch envelope, autonomous initial pull placement, serta lease-gated runner reports melalui ADR-0029–ADR-0031. [M0 evidence](milestones/M0.md), [M1 evidence](milestones/M1.md), [current state](implementation/CURRENT-STATE.md), dan [panduan lokal](development/M0.md).
 
 Dokumen ini menjelaskan urutan kerja, dependency, deliverable, dan gate. M0 menambahkan Contract Lab FE/BE/DB sesuai [ADR-0015](adr/0015-testable-milestone-slices.md); ini bukan implementasi gateway/agent/ledger produksi. Deliverable di bawah tetap dibedakan dari demonstrasi lokal. Rujukan keputusan: [ADR](adr/README.md). Gambaran sistem: [Architecture](architecture/ARCHITECTURE.md). Pemetaan keputusan ke spesifikasi/gate: [decision traceability](reviews/RECONCILIATION.md).
 
@@ -62,7 +62,7 @@ Tambahkan per-app/pool concurrency, rate limits, token/output bounds, deadline, 
 
 ### P3 — Claude Agent Runtime MVP
 
-**Status:** IN PROGRESS — coordination lease/presence, encrypted dispatch envelope, dan connection-locality-aware initial pull placement dengan scoped durable grant tersedia lokal; payload delivery, automatic reassignment, sandbox, tool broker, artifact promotion, production KMS, dan retention approval masih pending.
+**Status:** IN PROGRESS — coordination lease/presence, encrypted dispatch envelope, connection-locality-aware initial pull placement, dan lease-gated start/result reports tersedia lokal; payload delivery, lease-loss reaper, epoch recovery, automatic reassignment, sandbox, tool broker, artifact promotion, production KMS, dan retention approval masih pending.
 
 **Dependency:** P1; P2 common contracts. **Owner roles:** runtime + security + Scribe owner.
 
