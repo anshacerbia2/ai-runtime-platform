@@ -16,6 +16,8 @@ export interface GatewayRoute {
 
 export interface GatewayClaim {
   executionId: string;
+  connectionId: string;
+  ownerInstanceId: string;
   attemptId: string;
   invocationId: string;
   applicationId: string;
@@ -38,10 +40,12 @@ export type ClaimResult =
       errorCode: string | null;
     };
 export interface GatewayRepository {
+  ownerState(claim: GatewayClaim): Promise<'active' | 'cancelled' | 'fenced'>;
   claim(
     applicationId: string,
     executionId: string,
     inputDigest: string,
+    ownerInstanceId: string,
   ): Promise<ClaimResult>;
   beginFallback(claim: GatewayClaim, reason: string): Promise<GatewayClaim>;
   complete(
@@ -59,7 +63,11 @@ export interface GatewayRepository {
     usage?: GatewayUsage,
     providerRequestId?: string | null,
     providerCompleted?: boolean,
-  ): Promise<void>;
+  ): Promise<boolean>;
+  cancelOwner(
+    applicationId: string,
+    executionId: string,
+  ): Promise<string | null>;
   read(
     applicationId: string,
     executionId: string,

@@ -15,7 +15,9 @@ import type { DatabaseService } from '../../../infrastructure/database/database.
 import { ApplicationError } from '../../../shared/domain/application-error.js';
 import type { Principal } from '../../identity/domain/principal.js';
 import type {
+  AdmissionSource,
   AdmissionResult,
+  DispatchEnvelopeAdmission,
   ExecutionView,
   M1Repository,
   UsageResult,
@@ -26,6 +28,16 @@ const digest = (value: string) =>
   createHash('sha256').update(value).digest('hex');
 const jsonDigest = (value: unknown) => digest(canonicalJson(value));
 const positive = (value: bigint) => (value > 0n ? value : 0n);
+
+function connectionAdmissionScope(connection: {
+  id: string;
+  sharingMode: 'DEDICATED' | 'SHARED';
+  quotaGroupRef: string | null;
+}) {
+  return connection.sharingMode === 'SHARED'
+    ? 'quota:' + connection.quotaGroupRef
+    : 'connection:' + connection.id;
+}
 
 function requireApplication(principal: Principal) {
   if (principal.kind !== 'application' || !principal.applicationId) {
@@ -608,14 +620,43 @@ export class PrismaM1Repository implements M1Repository {
     }
 
     if (command.kind === 'connection') {
+      // Lock the connection before its old/new route scopes. Admission takes
+      // the same row-before-advisory order, so a quota-group move has one
+      // database-enforced ordering point with every affected route.
+      await tx.$queryRaw`SELECT id FROM control.ai_connections WHERE id = ${command.id} FOR UPDATE`;
       const current = await tx.aiConnection.findUnique({
         where: { id: command.id },
       });
+      if (command.expectedRevision === 0) {
+        if (current) {
+          conflict('Connection already exists.');
+        }
+      } else {
+        if (!current) {
+          notFound();
+        }
+        if (current.revision !== command.expectedRevision) {
+          conflict('Connection revision changed.');
+        }
+      }
       if (command.sharingMode === 'SHARED' && !command.quotaGroupRef) {
         throw new ApplicationError(
           'INVALID_REQUEST',
           'Shared connection requires quotaGroupRef.',
         );
+      }
+      const routeScopes = new Set<string>([
+        connectionAdmissionScope({
+          id: command.id,
+          sharingMode: command.sharingMode,
+          quotaGroupRef: command.quotaGroupRef,
+        }),
+      ]);
+      if (current) {
+        routeScopes.add(connectionAdmissionScope(current));
+      }
+      for (const scope of [...routeScopes].sort()) {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${scope}, 0))`;
       }
       if (command.sharingMode === 'DEDICATED') {
         const owners = await tx.credentialBinding.findMany({
@@ -673,20 +714,11 @@ export class PrismaM1Repository implements M1Repository {
         status: command.status,
       };
       if (command.expectedRevision === 0) {
-        if (current) {
-          conflict('Connection already exists.');
-        }
         const created = await tx.aiConnection.create({
           data: { id: command.id, ...data },
         });
         await audited('connection.created', created.id, created.revision);
         return created;
-      }
-      if (!current) {
-        notFound();
-      }
-      if (current.revision !== command.expectedRevision) {
-        conflict('Connection revision changed.');
       }
       const updated = await tx.aiConnection.update({
         where: { id: command.id },
@@ -832,6 +864,10 @@ export class PrismaM1Repository implements M1Repository {
           'Budget must scope exactly one application or quota group.',
         );
       }
+      // Admission also locks budget rows before checking exposure. Re-read
+      // after this lock so a limit update cannot validate stale held/posted
+      // values while an admission is committing a reservation.
+      await tx.$queryRaw`SELECT id FROM control.budget_accounts WHERE id = ${command.id} FOR UPDATE`;
       const current = await tx.budgetAccount.findUnique({
         where: { id: command.id },
       });
@@ -1277,6 +1313,8 @@ export class PrismaM1Repository implements M1Repository {
     principal: Principal,
     command: AdmissionCommand,
     idempotencyKey: string,
+    source: AdmissionSource = 'CONTROL_PLANE',
+    envelope?: DispatchEnvelopeAdmission,
     serializationRetry = 0,
   ): Promise<AdmissionResult> {
     const applicationId = requireApplication(principal);
@@ -1289,8 +1327,27 @@ export class PrismaM1Repository implements M1Repository {
       },
     });
     if (existing) {
-      if (existing.requestDigest !== requestDigest) {
+      if (
+        existing.requestDigest !== requestDigest ||
+        existing.admissionSource !== source
+      ) {
         conflict('Idempotency key belongs to a different request.');
+      }
+      if (envelope) {
+        const committed = await this.database.dispatchEnvelope.findFirst({
+          where: {
+            id: envelope.envelopeId,
+            applicationId,
+            executionBindingId: envelope.executionId,
+            executionId: existing.id,
+            inputDigest: command.inputDigest,
+            state: 'COMMITTED',
+          },
+          select: { id: true },
+        });
+        if (!committed || envelope.executionId !== existing.id) {
+          conflict('Idempotency key belongs to a different dispatch envelope.');
+        }
       }
       return {
         execution: await this.admissionView(existing.id, applicationId),
@@ -1298,10 +1355,13 @@ export class PrismaM1Repository implements M1Repository {
       };
     }
 
-    const executionId = randomUUID();
+    const executionId = envelope?.executionId ?? randomUUID();
     try {
       await this.database.$transaction(
         async (tx) => {
+          // Policy updates acquire an exclusive row lock. Hold a compatible
+          // reader lock through commit so a disable cannot overtake admission.
+          await tx.$queryRaw`SELECT id FROM control.applications WHERE id = ${applicationId} FOR SHARE`;
           const application = await tx.controlApplication.findUnique({
             where: { id: applicationId },
           });
@@ -1311,14 +1371,12 @@ export class PrismaM1Repository implements M1Repository {
               'Application is not enabled.',
             );
           }
-          const alias = await tx.profileAlias.findUnique({
-            where: {
-              applicationId_profileRef: {
-                applicationId,
-                profileRef: command.profileRef,
-              },
-            },
-          });
+          const [alias] = await tx.$queryRaw<
+            Array<{ revision: number; enabled: boolean }>
+          >`SELECT revision, enabled FROM control.profile_aliases
+              WHERE application_id = ${applicationId}
+                AND profile_ref = ${command.profileRef}
+              FOR SHARE`;
           if (!alias?.enabled) {
             notFound('Published profile not found.');
           }
@@ -1334,6 +1392,36 @@ export class PrismaM1Repository implements M1Repository {
           if (!profile) {
             notFound('Published profile revision not found.');
           }
+          let lockedEnvelope: { id: string; revision: number } | undefined;
+          if (envelope) {
+            if (profile.capability !== 'agent_execute') {
+              throw new ApplicationError(
+                'POLICY_DENIED',
+                'Dispatch envelopes require an agent_execute profile.',
+              );
+            }
+            const rows = await tx.$queryRaw<
+              Array<{
+                id: string;
+                revision: number;
+              }>
+            >`SELECT id, revision
+                FROM control.dispatch_envelopes
+                WHERE id = ${envelope.envelopeId}
+                  AND application_id = ${applicationId}
+                  AND state = 'STAGED'::control."DispatchEnvelopeState"
+                  AND expires_at > clock_timestamp()
+                  AND execution_binding_id = ${executionId}::uuid
+                  AND profile_revision_id = ${profile.id}::uuid
+                  AND input_digest = ${command.inputDigest}::char(64)
+                FOR UPDATE`;
+            const candidate = rows[0];
+            if (!candidate) {
+              conflict('Dispatch envelope admission precondition failed.');
+            }
+            lockedEnvelope = candidate;
+          }
+          await tx.$queryRaw`SELECT id FROM control.ai_connections WHERE id = ${profile.connectionId} FOR SHARE`;
           const connection = await tx.aiConnection.findUnique({
             where: { id: profile.connectionId },
           });
@@ -1343,25 +1431,21 @@ export class PrismaM1Repository implements M1Repository {
               'Profile connection is not enabled.',
             );
           }
-          const binding = await tx.credentialBinding.findFirst({
-            where: {
-              applicationId,
-              connectionId: profile.connectionId,
-              status: 'ENABLED',
-              OR: [{ profileRef: null }, { profileRef: profile.profileRef }],
-            },
-          });
-          if (!binding) {
+          const binding = await tx.$queryRaw<Array<{ id: string }>>`
+            SELECT id FROM control.credential_bindings
+            WHERE application_id = ${applicationId}
+              AND connection_id = ${profile.connectionId}
+              AND status = 'ENABLED'
+              AND (profile_ref IS NULL OR profile_ref = ${profile.profileRef})
+            ORDER BY id LIMIT 1 FOR SHARE`;
+          if (binding.length === 0) {
             throw new ApplicationError(
               'POLICY_DENIED',
               'Connection is not bound to this application/profile.',
             );
           }
 
-          const routeScope =
-            connection.sharingMode === 'SHARED'
-              ? 'quota:' + connection.quotaGroupRef
-              : 'connection:' + connection.id;
+          const routeScope = connectionAdmissionScope(connection);
           const admissionScopes = [
             'application:' + applicationId,
             routeScope,
@@ -1505,10 +1589,26 @@ export class PrismaM1Repository implements M1Repository {
               applicationId,
               idempotencyKey,
               requestDigest,
+              admissionSource: source,
               profileRevisionId: profile.id,
               profileSnapshot: snapshot,
             },
           });
+          if (envelope && lockedEnvelope) {
+            const promoted = await tx.$executeRaw`
+              UPDATE control.dispatch_envelopes
+              SET execution_id = ${executionId}::uuid,
+                  state = 'COMMITTED'::control."DispatchEnvelopeState",
+                  committed_at = clock_timestamp(),
+                  revision = revision + 1
+              WHERE id = ${envelope.envelopeId}::uuid
+                AND application_id = ${applicationId}
+                AND state = 'STAGED'::control."DispatchEnvelopeState"
+                AND revision = ${lockedEnvelope.revision}`;
+            if (promoted !== 1) {
+              conflict('Dispatch envelope lost its admission race.');
+            }
+          }
           await tx.attempt.create({
             data: { id: randomUUID(), executionId, number: 1 },
           });
@@ -1556,11 +1656,19 @@ export class PrismaM1Repository implements M1Repository {
                 application_id: applicationId,
                 profile_ref: profile.profileRef,
                 profile_revision: profile.revision,
+                ...(envelope
+                  ? { dispatch_envelope_id: envelope.envelopeId }
+                  : {}),
               },
             },
           });
         },
-        { isolationLevel: 'Serializable' },
+        // Every admission invariant is protected by an explicit ordered lock:
+        // policy rows, an optional staged envelope, application/route advisory
+        // scopes, then budget rows.
+        // Read Committed avoids broad Serializable predicate-lock retries while
+        // preserving those database-enforced linearization points.
+        { isolationLevel: 'ReadCommitted' },
       );
       return {
         execution: await this.admissionView(executionId, applicationId),
@@ -1573,6 +1681,8 @@ export class PrismaM1Repository implements M1Repository {
           principal,
           command,
           idempotencyKey,
+          source,
+          envelope,
           serializationRetry + 1,
         );
       }
@@ -1583,8 +1693,29 @@ export class PrismaM1Repository implements M1Repository {
           },
         });
         if (raced) {
-          if (raced.requestDigest !== requestDigest) {
+          if (
+            raced.requestDigest !== requestDigest ||
+            raced.admissionSource !== source
+          ) {
             conflict('Idempotency key belongs to a different request.');
+          }
+          if (envelope) {
+            const committed = await this.database.dispatchEnvelope.findFirst({
+              where: {
+                id: envelope.envelopeId,
+                applicationId,
+                executionBindingId: envelope.executionId,
+                executionId: raced.id,
+                inputDigest: command.inputDigest,
+                state: 'COMMITTED',
+              },
+              select: { id: true },
+            });
+            if (!committed || envelope.executionId !== raced.id) {
+              conflict(
+                'Idempotency key belongs to a different dispatch envelope.',
+              );
+            }
           }
           return {
             execution: await this.admissionView(raced.id, applicationId),

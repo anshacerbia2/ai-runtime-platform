@@ -122,6 +122,46 @@ jobs:
       - run: npm ci
       - run: npm run setup
       - run: npm run verify
+      - run: npm run test:gateway:redis
+        env:
+          M2_REPLAY_REDIS_URL: redis://127.0.0.1:6379/14
+      - run: npm run test:runner:redis
+        env:
+          M3_COORDINATION_REDIS_URL: redis://127.0.0.1:6379/13
+      - name: Start pinned MinIO dispatch conformance service
+        run: |
+          MINIO_BINARY="$RUNNER_TEMP/minio.RELEASE.2025-09-07T16-13-09Z"
+          curl --fail --location --silent --show-error \
+            --output "$MINIO_BINARY" \
+            https://github.com/minio/minio/releases/download/RELEASE.2025-09-07T16-13-09Z/minio.linux-amd64.RELEASE.2025-09-07T16-13-09Z
+          echo "7c5bd8512c6e966455b1d198209358b2d191c77a83ab377c4073281065fb855f  $MINIO_BINARY" \
+            | sha256sum --check -
+          chmod +x "$MINIO_BINARY"
+          mkdir -p "$RUNNER_TEMP/dispatch-minio-data"
+          MINIO_ROOT_USER=minio_ci_access \
+          MINIO_ROOT_PASSWORD=minio_ci_secret_0000000000000000 \
+            "$MINIO_BINARY" server "$RUNNER_TEMP/dispatch-minio-data" \
+              --address :9000 >"$RUNNER_TEMP/dispatch-minio.log" 2>&1 &
+          echo "$!" >"$RUNNER_TEMP/dispatch-minio.pid"
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:9000/minio/health/ready >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/dispatch-minio.log"
+          exit 1
+      - run: npm run test:dispatch:s3
+        env:
+          M3_TEST_OBJECT_STORE_ENDPOINT: http://127.0.0.1:9000
+          M3_TEST_OBJECT_STORE_ACCESS_KEY_ID: minio_ci_access
+          M3_TEST_OBJECT_STORE_SECRET_ACCESS_KEY: minio_ci_secret_0000000000000000
+      - name: Stop isolated MinIO dispatch conformance service
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/dispatch-minio.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/dispatch-minio.pid")" || true
+          fi
       - run: npm run cdc:broker-proof
         env:
           PACT_BROKER_BASE_URL: http://127.0.0.1:9292

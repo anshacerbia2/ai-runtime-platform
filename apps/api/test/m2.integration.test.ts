@@ -16,6 +16,7 @@ import {
 import { ControlPlaneGatewayAdapter } from '../src/modules/gateway/infrastructure/control-plane-gateway.adapter.js';
 import { PrismaGatewayRepository } from '../src/modules/gateway/infrastructure/prisma-gateway.repository.js';
 import { InMemoryReplayStore } from '../src/modules/gateway/infrastructure/in-memory-replay.store.js';
+import { InMemoryGatewayCircuit } from '../src/modules/gateway/infrastructure/in-memory-gateway.circuit.js';
 import { Sha256RequestFingerprint } from '../src/modules/gateway/infrastructure/sha256-request-fingerprint.js';
 import { BoundedStructuredOutputValidator } from '../src/modules/gateway/infrastructure/structured-output.validator.js';
 
@@ -86,6 +87,8 @@ function gateway(...providers: ProviderAdapter[]) {
     new InMemoryReplayStore(),
     new Sha256RequestFingerprint(),
     new BoundedStructuredOutputValidator(),
+    randomUUID(),
+    new InMemoryGatewayCircuit(),
   );
 }
 
@@ -336,6 +339,176 @@ test('M2 gateway commits result, provider evidence, settlement and exact replay'
   assert.equal(calls, 1);
 });
 
+test('gateway claim rechecks application, connection and binding revocation before invocation', async () => {
+  const executionIds: string[] = [];
+  try {
+    const appAdmission = await control.admit(
+      principal,
+      profileRef,
+      'e'.repeat(64),
+      `${prefix}-revoked-application`,
+    );
+    executionIds.push(appAdmission.execution.id);
+    await db.controlApplication.update({
+      where: { id: application.id },
+      data: { status: 'DISABLED' },
+    });
+    await assert.rejects(
+      repository.claim(
+        application.id,
+        appAdmission.execution.id,
+        'e'.repeat(64),
+        randomUUID(),
+      ),
+      { code: 'POLICY_DENIED' },
+    );
+    await db.controlApplication.update({
+      where: { id: application.id },
+      data: { status: 'ENABLED' },
+    });
+
+    const connectionAdmission = await control.admit(
+      principal,
+      profileRef,
+      'e'.repeat(64),
+      `${prefix}-revoked-connection`,
+    );
+    executionIds.push(connectionAdmission.execution.id);
+    await db.aiConnection.update({
+      where: { id: connectionId },
+      data: { status: 'DISABLED' },
+    });
+    await assert.rejects(
+      repository.claim(
+        application.id,
+        connectionAdmission.execution.id,
+        'e'.repeat(64),
+        randomUUID(),
+      ),
+      { code: 'POLICY_DENIED' },
+    );
+    await db.aiConnection.update({
+      where: { id: connectionId },
+      data: { status: 'ENABLED' },
+    });
+
+    const bindingAdmission = await control.admit(
+      principal,
+      profileRef,
+      'e'.repeat(64),
+      `${prefix}-revoked-binding`,
+    );
+    executionIds.push(bindingAdmission.execution.id);
+    await db.credentialBinding.update({
+      where: { id: bindingId },
+      data: { status: 'DISABLED' },
+    });
+    await assert.rejects(
+      repository.claim(
+        application.id,
+        bindingAdmission.execution.id,
+        'e'.repeat(64),
+        randomUUID(),
+      ),
+      { code: 'POLICY_DENIED' },
+    );
+  } finally {
+    await db.controlApplication.update({
+      where: { id: application.id },
+      data: { status: 'ENABLED' },
+    });
+    await db.aiConnection.update({
+      where: { id: connectionId },
+      data: { status: 'ENABLED' },
+    });
+    await db.credentialBinding.update({
+      where: { id: bindingId },
+      data: { status: 'ENABLED' },
+    });
+  }
+  assert.equal(
+    await db.providerInvocation.count({
+      where: { executionId: { in: executionIds } },
+    }),
+    0,
+  );
+});
+
+test('fallback attempt rechecks revocation after the primary claim', async () => {
+  const inputDigest = 'f'.repeat(64);
+  const admission = await control.admit(
+    principal,
+    profileRef,
+    inputDigest,
+    `${prefix}-fallback-revoked`,
+  );
+  const claimed = await repository.claim(
+    application.id,
+    admission.execution.id,
+    inputDigest,
+    randomUUID(),
+  );
+  assert.equal(claimed.state, 'claimed');
+  if (claimed.state !== 'claimed') {
+    return;
+  }
+  try {
+    await db.controlApplication.update({
+      where: { id: application.id },
+      data: { status: 'DISABLED' },
+    });
+    await assert.rejects(
+      repository.beginFallback(claimed.claim, 'PRIMARY_NOT_SENT'),
+      { code: 'POLICY_DENIED' },
+    );
+    await db.controlApplication.update({
+      where: { id: application.id },
+      data: { status: 'ENABLED' },
+    });
+
+    await db.aiConnection.update({
+      where: { id: fallbackConnectionId },
+      data: { status: 'DISABLED' },
+    });
+    await assert.rejects(
+      repository.beginFallback(claimed.claim, 'PRIMARY_NOT_SENT'),
+      { code: 'DEPENDENCY_UNAVAILABLE' },
+    );
+    await db.aiConnection.update({
+      where: { id: fallbackConnectionId },
+      data: { status: 'ENABLED' },
+    });
+
+    await db.credentialBinding.update({
+      where: { id: fallbackBindingId },
+      data: { status: 'DISABLED' },
+    });
+    await assert.rejects(
+      repository.beginFallback(claimed.claim, 'PRIMARY_NOT_SENT'),
+      { code: 'POLICY_DENIED' },
+    );
+  } finally {
+    await db.controlApplication.update({
+      where: { id: application.id },
+      data: { status: 'ENABLED' },
+    });
+    await db.aiConnection.update({
+      where: { id: fallbackConnectionId },
+      data: { status: 'ENABLED' },
+    });
+    await db.credentialBinding.update({
+      where: { id: fallbackBindingId },
+      data: { status: 'ENABLED' },
+    });
+  }
+  assert.equal(
+    await db.providerInvocation.count({
+      where: { executionId: admission.execution.id },
+    }),
+    1,
+  );
+});
+
 test('G17 not-sent primary failure uses one policy-approved durable fallback attempt', async () => {
   let primaryCalls = 0;
   let fallbackCalls = 0;
@@ -561,4 +734,425 @@ test('concurrent same-key replay observes RUNNING without a second provider call
   const completed = await first;
   assert.equal(completed.status, 'COMPLETED');
   assert.equal(providerCalls, 1);
+});
+
+test('a former provider owner cannot commit after attempt authority moves', async () => {
+  let started!: () => void;
+  let release!: () => void;
+  const providerStarted = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  const providerRelease = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const provider: ProviderAdapter = {
+    id: 'openrouter',
+    async *stream() {
+      yield { type: 'started', requestId: 'provider-stale-owner' };
+      started();
+      await providerRelease;
+      yield {
+        type: 'done',
+        requestId: 'provider-stale-owner',
+        finishReason: 'stop',
+      };
+    },
+  };
+  const key = prefix + '-stale-owner';
+  const running = gateway(provider).execute(principal, command('stale'), key);
+  await providerStarted;
+  const execution = await db.execution.findUniqueOrThrow({
+    where: {
+      applicationId_idempotencyKey: {
+        applicationId: application.id,
+        idempotencyKey: key,
+      },
+    },
+    include: { attempts: true },
+  });
+  const attempt = execution.attempts[0]!;
+  assert.ok(attempt.ownerInstanceId);
+  assert.equal(
+    await repository.cancelOwner(application.id, execution.id),
+    attempt.ownerInstanceId,
+  );
+  assert.equal(await repository.cancelOwner('other-app', execution.id), null);
+  await db.attempt.update({
+    where: { id: attempt.id },
+    data: { ownerInstanceId: randomUUID() },
+  });
+  release();
+  await assert.rejects(running);
+  const fenced = await db.execution.findUniqueOrThrow({
+    where: { id: execution.id },
+    include: { result: true, providerInvocations: true, observations: true },
+  });
+  assert.equal(fenced.result, null);
+  assert.equal(fenced.status, 'RUNNING');
+  assert.equal(fenced.providerInvocations[0]?.status, 'RUNNING');
+  assert.equal(fenced.observations.length, 0);
+});
+
+test('cancel on a second API instance wins over an in-flight provider', async () => {
+  let started!: () => void;
+  const ready = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  const provider: ProviderAdapter = {
+    id: 'openrouter',
+    async *stream(_request, signal) {
+      yield { type: 'started', requestId: 'provider-cross-pod-cancel' };
+      started();
+      await new Promise<never>((_resolve, reject) => {
+        signal.addEventListener('abort', () => reject(signal.reason), {
+          once: true,
+        });
+      });
+    },
+  };
+  const key = prefix + '-cross-pod-cancel';
+  const owner = gateway(provider);
+  const other = gateway(provider);
+  const running = owner.execute(principal, command('cancel cross pod'), key);
+  await ready;
+  const beforeCancel = await db.execution.findUniqueOrThrow({
+    where: {
+      applicationId_idempotencyKey: {
+        applicationId: application.id,
+        idempotencyKey: key,
+      },
+    },
+  });
+  await other.cancel(principal, beforeCancel.id, 'cancel elsewhere');
+  await assert.rejects(running);
+  const cancelled = await db.execution.findUniqueOrThrow({
+    where: { id: beforeCancel.id },
+    include: {
+      result: true,
+      attempts: true,
+      providerInvocations: true,
+      reservations: true,
+      observations: true,
+    },
+  });
+  assert.equal(cancelled.status, 'CANCELLED');
+  assert.equal(cancelled.result, null);
+  assert.equal(cancelled.attempts[0]?.status, 'CANCELLED');
+  assert.equal(cancelled.providerInvocations[0]?.status, 'UNKNOWN');
+  assert.equal(cancelled.reservations[0]?.state, 'PENDING_RECONCILIATION');
+  assert.equal(cancelled.observations[0]?.completeness, 'unknown');
+});
+
+test('expired provider work is fenced once and retained for reconciliation', async () => {
+  let providerCalls = 0;
+  let started!: () => void;
+  let release!: () => void;
+  const ready = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  const providerRelease = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const provider: ProviderAdapter = {
+    id: 'openrouter',
+    async *stream() {
+      providerCalls++;
+      yield { type: 'started', requestId: 'provider-expired-owner' };
+      started();
+      await providerRelease;
+      yield {
+        type: 'done',
+        requestId: 'provider-expired-owner',
+        finishReason: 'stop',
+      };
+    },
+  };
+  const key = prefix + '-expired-provider';
+  const running = gateway(provider).execute(principal, command('expired'), key);
+  await ready;
+  try {
+    const execution = await db.execution.findUniqueOrThrow({
+      where: {
+        applicationId_idempotencyKey: {
+          applicationId: application.id,
+          idempotencyKey: key,
+        },
+      },
+      include: { providerInvocations: true, reservations: true },
+    });
+    await repository.recoverExpiredInvocations();
+    assert.equal(
+      (await db.execution.findUniqueOrThrow({ where: { id: execution.id } }))
+        .status,
+      'RUNNING',
+    );
+    await db.providerInvocation.update({
+      where: { id: execution.providerInvocations[0]!.id },
+      data: { startedAt: new Date(Date.now() - 65_000) },
+    });
+    let recovered: number;
+    try {
+      const [first, second] = await Promise.all([
+        repository.recoverExpiredInvocations(),
+        repository.recoverExpiredInvocations(),
+      ]);
+      recovered = first + second;
+    } finally {
+      release();
+    }
+    assert.ok(recovered >= 1);
+    await assert.rejects(running);
+    await assert.rejects(
+      gateway(provider).execute(principal, command('expired'), key),
+    );
+    assert.equal(providerCalls, 1);
+    const fenced = await db.execution.findUniqueOrThrow({
+      where: { id: execution.id },
+      include: {
+        result: true,
+        attempts: true,
+        providerInvocations: true,
+        reservations: true,
+        observations: true,
+      },
+    });
+    assert.equal(fenced.status, 'RECONCILING');
+    assert.equal(fenced.statusReason, 'PROVIDER_OWNER_DEADLINE_EXCEEDED');
+    assert.equal(fenced.result, null);
+    assert.equal(fenced.attempts[0]?.authority, 'FENCED');
+    assert.equal(fenced.attempts[0]?.external, 'UNKNOWN');
+    assert.equal(fenced.providerInvocations[0]?.status, 'UNKNOWN');
+    assert.equal(fenced.reservations[0]?.state, 'PENDING_RECONCILIATION');
+    assert.equal(
+      fenced.reservations[0]?.heldUnits,
+      execution.reservations[0]?.heldUnits,
+    );
+    assert.equal(fenced.observations.length, 0);
+    assert.equal(
+      await db.outboxEvent.count({
+        where: { aggregateId: execution.id, topic: 'execution.reconciling' },
+      }),
+      1,
+    );
+    await repository.recoverExpiredInvocations();
+    assert.equal(
+      await db.outboxEvent.count({
+        where: { aggregateId: execution.id, topic: 'execution.reconciling' },
+      }),
+      1,
+    );
+  } finally {
+    release();
+    await running.catch(() => {});
+  }
+});
+
+test('expired owner with durable cancel intent closes without releasing unknown spend', async () => {
+  const digest = 'e'.repeat(64);
+  const admitted = await control.admit(
+    principal,
+    profileRef,
+    digest,
+    prefix + '-expired-cancel',
+  );
+  const claimed = await repository.claim(
+    application.id,
+    admitted.execution.id,
+    digest,
+    randomUUID(),
+  );
+  assert.equal(claimed.state, 'claimed');
+  await control.cancel(principal, admitted.execution.id, 'owner vanished');
+  await db.providerInvocation.updateMany({
+    where: { executionId: admitted.execution.id },
+    data: { startedAt: new Date(Date.now() - 65_000) },
+  });
+  assert.equal(await repository.recoverExpiredInvocations(), 1);
+  const execution = await db.execution.findUniqueOrThrow({
+    where: { id: admitted.execution.id },
+    include: { result: true, attempts: true, reservations: true },
+  });
+  assert.equal(execution.status, 'CANCELLED');
+  assert.equal(execution.result, null);
+  assert.equal(execution.attempts[0]?.authority, 'FENCED');
+  assert.equal(execution.reservations[0]?.state, 'PENDING_RECONCILIATION');
+  assert.ok(execution.reservations[0]?.heldUnits > 0n);
+});
+
+test('provider owner stops after the recovery fence is committed', async () => {
+  let started!: () => void;
+  let release!: () => void;
+  const ready = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  const forceRelease = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const provider: ProviderAdapter = {
+    id: 'openrouter',
+    async *stream(_request, signal) {
+      yield { type: 'started', requestId: 'provider-fenced-owner' };
+      started();
+      await Promise.race([
+        forceRelease,
+        new Promise<never>((_resolve, reject) => {
+          signal.addEventListener('abort', () => reject(signal.reason), {
+            once: true,
+          });
+        }),
+      ]);
+    },
+  };
+  const key = prefix + '-fenced-owner-poll';
+  const running = gateway(provider).execute(principal, command('fence'), key);
+  await ready;
+  try {
+    const execution = await db.execution.findUniqueOrThrow({
+      where: {
+        applicationId_idempotencyKey: {
+          applicationId: application.id,
+          idempotencyKey: key,
+        },
+      },
+      include: { providerInvocations: true },
+    });
+    await db.providerInvocation.update({
+      where: { id: execution.providerInvocations[0]!.id },
+      data: { startedAt: new Date(Date.now() - 65_000) },
+    });
+    await repository.recoverExpiredInvocations();
+    let timeout!: ReturnType<typeof setTimeout>;
+    try {
+      await assert.rejects(
+        Promise.race([
+          running,
+          new Promise((_resolve, reject) => {
+            timeout = setTimeout(
+              () => reject(new Error('Owner did not stop.')),
+              4_000,
+            );
+          }),
+        ]),
+        (error: unknown) =>
+          error instanceof Error && !error.message.includes('did not stop'),
+      );
+    } finally {
+      clearTimeout(timeout);
+    }
+    assert.equal(
+      (await db.execution.findUniqueOrThrow({ where: { id: execution.id } }))
+        .status,
+      'RECONCILING',
+    );
+  } finally {
+    release();
+    await running.catch(() => {});
+  }
+});
+
+test('only expired gateway admissions release an unclaimed hold', async () => {
+  const before = await db.budgetAccount.findUniqueOrThrow({
+    where: { id: budgetId },
+  });
+  const digest = 'f'.repeat(64);
+  const gatewayKey = prefix + '-unclaimed-gateway';
+  const gatewayAdmission = await control.admit(
+    principal,
+    profileRef,
+    digest,
+    gatewayKey,
+  );
+  const m1 = new PrismaM1Repository(db as unknown as DatabaseService);
+  const directAdmission = await m1.admit(
+    principal,
+    { profileRef, inputDigest: digest },
+    prefix + '-unclaimed-control',
+  );
+  await assert.rejects(
+    m1.admit(principal, { profileRef, inputDigest: digest }, gatewayKey),
+    /different request/i,
+  );
+  await db.execution.updateMany({
+    where: {
+      id: {
+        in: [gatewayAdmission.execution.id, directAdmission.execution.id],
+      },
+    },
+    data: { createdAt: new Date(Date.now() - 65_000) },
+  });
+  assert.ok((await repository.recoverExpiredAdmissions()) >= 1);
+  const gatewayExecution = await db.execution.findUniqueOrThrow({
+    where: { id: gatewayAdmission.execution.id },
+    include: { attempts: true, reservations: true, providerInvocations: true },
+  });
+  const directExecution = await db.execution.findUniqueOrThrow({
+    where: { id: directAdmission.execution.id },
+    include: { reservations: true },
+  });
+  const account = await db.budgetAccount.findUniqueOrThrow({
+    where: { id: budgetId },
+  });
+  assert.equal(gatewayExecution.admissionSource, 'GATEWAY');
+  assert.equal(gatewayExecution.status, 'FAILED');
+  assert.equal(
+    gatewayExecution.statusReason,
+    'GATEWAY_CLAIM_DEADLINE_EXCEEDED',
+  );
+  assert.equal(gatewayExecution.attempts[0]?.external, 'NONE');
+  assert.equal(gatewayExecution.providerInvocations.length, 0);
+  assert.equal(gatewayExecution.reservations[0]?.heldUnits, 0n);
+  assert.equal(gatewayExecution.reservations[0]?.postedUnits, 0n);
+  assert.equal(gatewayExecution.reservations[0]?.state, 'SETTLED');
+  assert.equal(directExecution.admissionSource, 'CONTROL_PLANE');
+  assert.equal(directExecution.status, 'ACCEPTED');
+  assert.equal(directExecution.reservations[0]?.heldUnits, 100n);
+  assert.equal(account.heldUnits, before.heldUnits + 100n);
+  await repository.recoverExpiredAdmissions();
+  assert.equal(
+    await db.outboxEvent.count({
+      where: {
+        aggregateId: gatewayExecution.id,
+        topic: 'execution.failed',
+      },
+    }),
+    1,
+  );
+});
+
+test('claim and orphan release serialize before any provider invocation', async () => {
+  const digest = '1'.repeat(64);
+  const admitted = await control.admit(
+    principal,
+    profileRef,
+    digest,
+    prefix + '-claim-recovery-race',
+  );
+  await db.execution.update({
+    where: { id: admitted.execution.id },
+    data: { createdAt: new Date(Date.now() - 65_000) },
+  });
+  const [, claimed] = await Promise.all([
+    repository.recoverExpiredAdmissions(),
+    repository.claim(
+      application.id,
+      admitted.execution.id,
+      digest,
+      randomUUID(),
+    ),
+  ]);
+  const execution = await db.execution.findUniqueOrThrow({
+    where: { id: admitted.execution.id },
+    include: { reservations: true, providerInvocations: true },
+  });
+  if (claimed.state === 'claimed') {
+    assert.equal(execution.status, 'RUNNING');
+    assert.equal(execution.providerInvocations.length, 1);
+    assert.equal(execution.reservations[0]?.state, 'RESERVED');
+    assert.ok(execution.reservations[0]?.heldUnits > 0n);
+  } else {
+    assert.equal(execution.status, 'FAILED');
+    assert.equal(execution.providerInvocations.length, 0);
+    assert.equal(execution.reservations[0]?.heldUnits, 0n);
+    assert.equal(execution.reservations[0]?.state, 'SETTLED');
+  }
 });

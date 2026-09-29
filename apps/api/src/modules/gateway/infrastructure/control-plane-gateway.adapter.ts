@@ -28,6 +28,7 @@ export class ControlPlaneGatewayAdapter implements GatewayControl {
       principal,
       { profileRef, inputDigest },
       idempotencyKey,
+      'GATEWAY',
     );
   }
   async cancel(

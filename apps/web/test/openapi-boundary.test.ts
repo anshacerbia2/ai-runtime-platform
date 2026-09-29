@@ -25,6 +25,7 @@ test('OpenAPI distinguishes provider bearer authority from browser-owned session
   assert.equal(session.name, '__Host-fixture-session');
   assert.equal('PlatformBearer' in schemes, false);
   assert.equal('/api/runner/v1/reports' in browser.paths, false);
+  assert.equal('/api/runner/v1/heartbeat' in browser.paths, false);
 });
 
 test('exported response readers permit additive properties while retaining required known fields', () => {

@@ -575,6 +575,57 @@ test('BFF passes gateway SSE through incrementally without whole-response buffer
   assert.match(new TextDecoder().decode(second.value), /model\.delta/);
   assert.equal((await reader.read()).done, true);
 });
+
+test('BFF forwards only execution-event replay cursors to the API', async () => {
+  const { runtime, cookie } = await fixture();
+  const id = '00000000-0000-4000-8000-000000000301';
+  const cursor = `${id}:7`;
+  const events = ['v1', 'executions', id, 'events'];
+  const replay = await forward(
+    new Request(`https://console.invalid/api/${events.join('/')}`, {
+      headers: {
+        Cookie: cookie,
+        Accept: 'text/event-stream',
+        'Last-Event-ID': cursor,
+      },
+    }),
+    events,
+    runtime,
+    async (_input, init) => {
+      const headers = new Headers(init?.headers);
+      assert.equal(headers.get('Last-Event-ID'), cursor);
+      assert.equal(headers.get('Authorization'), 'Bearer server-access');
+      return new Response('event: execution.completed\ndata: {}\n\n', {
+        headers: { 'Content-Type': 'text/event-stream' },
+      });
+    },
+  );
+  assert.equal(replay.status, 200);
+  await replay.text();
+
+  const unrelated = await forward(
+    new Request('https://console.invalid/api/m1/control-plane', {
+      headers: { Cookie: cookie, 'Last-Event-ID': cursor },
+    }),
+    ['m1', 'control-plane'],
+    runtime,
+    async (_input, init) => {
+      assert.equal(new Headers(init?.headers).get('Last-Event-ID'), null);
+      return Response.json({
+        applications: [],
+        connections: [],
+        credentials: [],
+        bindings: [],
+        aliases: [],
+        profiles: [],
+        budgets: [],
+        pools: [],
+        runners: [],
+      });
+    },
+  );
+  assert.equal(unrelated.status, 200);
+});
 test('BFF maps generic browser execution submission to the public runtime route', async () => {
   const { runtime, cookie } = await fixture();
   const response = await forward(

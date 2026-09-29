@@ -1,6 +1,6 @@
-# I01–I05 — Implementasi HTTP, Receipt, Resources, Runner Authority, dan M2 Gateway
+# I01–I06 — Implementasi HTTP, Receipt, Resources, Runner Authority, M2 Gateway, dan Initial Dispatch
 
-**As-built source view, 26 September 2026.** Diagram ini menggambarkan jalur yang terdaftar pada source sekarang, termasuk M2 local model gateway. Authorized live vendor smoke dan topology produksi tetap di luar bukti ini. [Kondisi aktual](../implementation/CURRENT-STATE.md), [operasi HTTP](../implementation/HTTP-API.md), dan [ADR-0029](../adr/0029-replay-resources-runner-authority.md) menjelaskan detail yang disederhanakan oleh gambar.
+**As-built source view, 29 September 2026.** Diagram ini menggambarkan jalur yang terdaftar pada source sekarang, termasuk M2 local model gateway dan initial M3 pull dispatch. Authorized live vendor/runtime smoke dan topology produksi tetap di luar bukti ini. [Kondisi aktual](../implementation/CURRENT-STATE.md), [operasi HTTP](../implementation/HTTP-API.md), [ADR-0029](../adr/0029-replay-resources-runner-authority.md), dan [ADR-0031](../adr/0031-pull-dispatch-and-scoped-runner-grants.md) menjelaskan detail yang disederhanakan oleh gambar.
 
 ## I01 — Boundary proses dan HTTP aktif
 
@@ -16,13 +16,13 @@ flowchart LR
     R --> PG[(PostgreSQL m0 and control)]
     R2 --> PG
     O[Authorized operator machine client] -->|Resource and assignment operations| A
-    W[Authenticated runner protocol client] -->|Registration reports and evidence| A
+    W[Authenticated runner protocol client] -->|Heartbeat claim reports and evidence| A
     N -.->|Nonlocal adapter implemented| IDP[Configured OIDC issuer]
     N -.->|Nonlocal adapter implemented| S[Redis session store]
     B --> U[Independent lab and query UI state]
 ```
 
-Local mode memakai fixture identity/session credentials di server dan tidak menghubungi issuer/Redis. Garis putus-putus adalah kode integrasi nonlocal, bukan bukti bahwa layanan eksternal telah dideploy. M2 Model Gateway aktif secara lokal; sandbox launcher, autonomous agent runner, dan Redis runner-lease coordinator belum ada.
+Local mode memakai fixture identity/session credentials di server dan tidak menghubungi issuer/Redis. Garis putus-putus adalah kode integrasi nonlocal, bukan bukti bahwa layanan eksternal telah dideploy. M2 Model Gateway dan initial runner pull placement aktif secara lokal; payload delivery, sandbox launcher, autonomous agent process, dan lease recovery coordinator belum ada.
 
 ## I02 — Management receipt dan lost acknowledgement
 
@@ -103,7 +103,7 @@ sequenceDiagram
     Note over API,DB: No direct ledger posting or execution completion
 ```
 
-A fresh authorized result.proposed stores a proposal and one outbox event but does not finalize an AI result or free capacity. Fencing checks protect platform state only; an already accepted provider/tool effect is not undone. Redis heartbeat/lease recovery, automatic reassignment, process supervision and evidence verification remain target work.
+A fresh authorized result.proposed stores a proposal and one outbox event but does not finalize an AI result or free capacity. Fencing checks protect platform state only; an already accepted provider/tool effect is not undone. Exact-process Redis heartbeat is active; lease recovery, automatic reassignment, process supervision and evidence verification remain target work.
 
 ## I05 — M2 gateway, safe fallback, dan durable accounting
 
@@ -134,14 +134,40 @@ sequenceDiagram
 
 Fallback tidak dipilih bebas oleh caller dan tidak dilakukan setelah partial/unknown output. OpenRouter harus mencapai `[DONE]`; Direct Anthropic harus mencapai `message_stop`. EOF tanpa terminal marker bukan success. Admission capacity/rate limits menggunakan PostgreSQL authority sebelum execution/hold dibuat; rejection tidak meninggalkan reservation. Live provider smoke terotorisasi belum menjadi bukti lokal.
 
+## I06 — Exact-process pull claim dan scoped grant
+
+```mermaid
+sequenceDiagram
+    participant W as Runner process
+    participant API as Runner dispatch API
+    participant R as Presence store
+    participant DB as PostgreSQL authority
+    W->>API: heartbeat runnerId bootId registrationRevision
+    API->>DB: verify owner revision lifecycle
+    API->>R: publish exact process presence with TTL
+    W->>API: claim dispatch with same process identity
+    API->>R: require exact current boot
+    API->>DB: lock oldest eligible AGENT execution and runner
+    API->>DB: recheck policy locality credential capacity envelope
+    API->>DB: commit generation 1 assignment attempt ownership audit outbox
+    API-->>W: assignment plus envelope id digest size expiry
+    Note over API,W: No payload object key wrapped key or credential
+    W->>API: duplicate claim
+    API->>DB: validate existing GRANTED authority
+    API-->>W: same scoped grant
+```
+
+Redis/in-memory presence only gates whether the exact process may ask for work; it cannot create or transfer assignment authority. PostgreSQL row locks prevent two concurrent claims from granting one execution twice and serialize capacity for one runner. Initial placement excludes a live otherwise-compatible node when the required credential is local to another runner. Automatic reassignment, payload decrypt/delivery, lease installation, and process launch are not part of this slice.
+
 ## Source mapping
 
-| View | Source                                                                                                                                                                                                                                                       |
-| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| I01  | [BFF](../../apps/web/src/server/api-gateway/forward.ts), [API composition](../../apps/api/src/app.module.ts)                                                                                                                                                 |
-| I02  | [manageReceipted](../../apps/api/src/modules/control-plane/infrastructure/prisma-m1.repository.ts), [receipt migration](../../prisma/migrations/0005_contract_receipts/migration.sql)                                                                        |
-| I03  | [Resource reader](../../apps/api/src/modules/control-plane/infrastructure/prisma-resource-reader.ts), [console](../../apps/web/src/features/control-plane/control-plane-page.tsx)                                                                            |
-| I04  | [Runner authority](../../apps/api/src/modules/control-plane/infrastructure/prisma-runner-authority.ts), [runner schema](../../packages/contracts/src/http/runner.ts)                                                                                         |
-| I05  | [Gateway service](../../apps/api/src/modules/gateway/application/gateway.service.ts), [gateway repository](../../apps/api/src/modules/gateway/infrastructure/prisma-gateway.repository.ts), [gateway contract](../../packages/contracts/src/http/gateway.ts) |
+| View | Source                                                                                                                                                                                                                                                                                    |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| I01  | [BFF](../../apps/web/src/server/api-gateway/forward.ts), [API composition](../../apps/api/src/app.module.ts)                                                                                                                                                                              |
+| I02  | [manageReceipted](../../apps/api/src/modules/control-plane/infrastructure/prisma-m1.repository.ts), [receipt migration](../../prisma/migrations/0005_contract_receipts/migration.sql)                                                                                                     |
+| I03  | [Resource reader](../../apps/api/src/modules/control-plane/infrastructure/prisma-resource-reader.ts), [console](../../apps/web/src/features/control-plane/control-plane-page.tsx)                                                                                                         |
+| I04  | [Runner authority](../../apps/api/src/modules/control-plane/infrastructure/prisma-runner-authority.ts), [runner schema](../../packages/contracts/src/http/runner.ts)                                                                                                                      |
+| I05  | [Gateway service](../../apps/api/src/modules/gateway/application/gateway.service.ts), [gateway repository](../../apps/api/src/modules/gateway/infrastructure/prisma-gateway.repository.ts), [gateway contract](../../packages/contracts/src/http/gateway.ts)                              |
+| I06  | [Dispatch service](../../apps/api/src/modules/control-plane/application/runner-dispatch.service.ts), [placement repository](../../apps/api/src/modules/control-plane/infrastructure/prisma-runner-dispatch.repository.ts), [runner contract](../../packages/contracts/src/http/runner.ts) |
 
 These diagrams are source documentation; checks of Markdown/Mermaid syntax do not establish distributed-system correctness. Runtime/fault evidence stays in [verification records](../reviews/CONTRACT-EXECUTION.md).

@@ -2,7 +2,7 @@
 
 **Target execution state model baseline 0.2, dengan pemetaan physical implementation di bawah.** Mengadopsi pemisahan dimensi pada [rekonsiliasi](../reviews/RECONCILIATION.md). Target enum tidak boleh diperlakukan sebagai enum yang seluruh transisinya sudah dijalankan M1.
 
-## Vocabulary dan transisi aktual — 24 September 2026
+## Vocabulary dan transisi aktual — 29 September 2026
 
 Sumber: [schema Prisma](../../prisma/schema.prisma), [CHECK constraints 0004](../../prisma/migrations/0004_m1_integrity/migration.sql), [runner authority](../../apps/api/src/modules/control-plane/infrastructure/prisma-runner-authority.ts), [runner contract](../../packages/contracts/src/http/runner.ts).
 
@@ -20,7 +20,7 @@ M1 ExecutionView memiliki beberapa status string terbuka; schema target Snapshot
 
 Cancel intent sekarang disimpan pada cancelRequestedAt dan outbox, bukan langsung mengganti status menjadi CANCEL_REQUESTED/CANCELLED. Result.proposed menyimpan proposal, bukan completion atau budget settlement. Fenced runner tidak boleh melaporkan perubahan state, tetapi evidence dari known old assignment tetap dapat dikarantina.
 
-Grant/revoke manual dapat menggunakan attempt yang sudah ada dengan generation baru. Itu tidak membuktikan rencana runtime retry yang harus mengelola attempt baru, process termination, remote outcome, dan remaining budget. Lihat [kondisi aktual](../implementation/CURRENT-STATE.md) dan [as-built flow](../diagrams/10-implemented-contracts.md).
+Grant/revoke manual dapat menggunakan attempt yang sudah ada dengan generation baru. Initial pull placement sekarang hanya mengambil admission `AGENT` generation zero dengan prepared unassigned attempt dan membuat generation 1. Itu tidak membuktikan rencana runtime retry yang harus mengelola attempt baru, process termination, remote outcome, dan remaining budget. Lihat [kondisi aktual](../implementation/CURRENT-STATE.md) dan [as-built flow](../diagrams/10-implemented-contracts.md).
 
 ## 1. Execution tidak sama dengan business job
 
@@ -100,5 +100,7 @@ Diagram: [state and recovery flows](../diagrams/04-recovery-cancellation.md). Te
 ## Placement and connection resolution before dispatch
 
 Admission yang durable selesai sebelum placement. Sebelum attempt mendapat authority, control plane resolve authenticated application, profile revision, allowed AI Connection, credential instance/locality, eligible runner pool/node, dan quota group. Tidak ada candidate yang valid berarti request tetap ditolak/queued sesuai policy; platform tidak boleh fallback ke credential atau runner yang tidak authorized.
+
+Implementasi awal menjalankan placement sebagai pull claim oleh exact runner process. PostgreSQL memilih bounded oldest eligible `AGENT` execution, mengunci execution/runner dan current policy, lalu atomically membuat assignment, owns attempt, audit, dan sanitized outbox. Runner harus RUNNING pada pool ENABLED, environment/version/capability/connection harus cocok, capacity tersedia, dan credential harus central atau runner-local pada node itu. Duplicate/concurrent claim tidak membuat generation kedua. Claim hanya mengembalikan scoped assignment dan envelope metadata; payload, key, object-store access, dan provider credential belum dikirim. [ADR-0031](../adr/0031-pull-dispatch-and-scoped-runner-grants.md) menetapkan boundary ini.
 
 Runner availability bukan execution authority. Setelah dispatch, attempt tetap memakai generation/fencing semantics yang sama walaupun runner registry berubah. Re-placement setelah node loss mengikuti recovery policy dan tidak mengasumsikan provider/tool side effect attempt lama telah berhenti.

@@ -39,9 +39,13 @@ export interface RuntimeEnvironment {
   readonly gateway: {
     readonly openrouterApiKey?: string;
     readonly anthropicApiKey?: string;
+    readonly replayRedisUrl?: string;
     /** Programmatic test override; environment loader intentionally uses official endpoints. */
     readonly openrouterEndpoint?: string;
     readonly anthropicEndpoint?: string;
+  };
+  readonly runner: {
+    readonly coordinationRedisUrl?: string;
   };
   readonly telemetry: {
     readonly tracesEndpoint?: string;
@@ -106,10 +110,17 @@ export interface DatabaseEnvironment {
   readonly databaseUrl: string;
 }
 
+export interface DispatchObjectStoreTestEnvironment {
+  readonly endpoint: string;
+  readonly accessKeyId: string;
+  readonly secretAccessKey: string;
+}
+
 export function loadApiEnvironment(): ApiEnvironment;
 export function loadDevEnvironment(): DevEnvironment;
 export function loadE2EEnvironment(): E2EEnvironment;
 export function loadDatabaseEnvironment(): DatabaseEnvironment;
+export function loadDispatchObjectStoreTestEnvironment(): DispatchObjectStoreTestEnvironment;
 export const projectRoot: string;
 
 export interface WebEnvironment {

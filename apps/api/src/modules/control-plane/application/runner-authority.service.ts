@@ -8,8 +8,12 @@ import type { Principal } from '../../identity/domain/principal.js';
 import { requireAuthority } from '../../identity/domain/principal.js';
 import { ApplicationError } from '../../../shared/domain/application-error.js';
 import type { RunnerAuthority } from './runner-authority.port.js';
+import type { RunnerLeaseService } from './runner-lease.service.js';
 export class RunnerAuthorityService {
-  constructor(private readonly authority: RunnerAuthority) {}
+  constructor(
+    private readonly authority: RunnerAuthority,
+    private readonly leases?: RunnerLeaseService,
+  ) {}
   private key(key: string) {
     if (!/^[A-Za-z0-9._:-]{1,160}$/.test(key)) {
       throw new ApplicationError(
@@ -34,12 +38,23 @@ export class RunnerAuthorityService {
       binding: 'bounded-http-json',
       authority: 'durable-generation',
       maxMessageBytes: 65536,
-      executionDispatch: false,
+      executionDispatch: true,
       automaticReassignment: false,
+      heartbeatIntervalMs: 5000,
+      presenceTtlMs: 15000,
     } as const;
   }
-  report(p: Principal, r: RunnerReport) {
+  async report(p: Principal, r: RunnerReport) {
     requireAuthority(p, 'runner:report');
+    if (r.lease) {
+      if (!this.leases) {
+        throw new ApplicationError(
+          'DEPENDENCY_UNAVAILABLE',
+          'Runner lease coordination is unavailable.',
+        );
+      }
+      await this.leases.validateReport(p, r);
+    }
     return this.authority.report(p, r);
   }
   evidence(p: Principal, e: LateEvidence) {

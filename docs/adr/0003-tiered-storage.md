@@ -6,7 +6,7 @@
 
 ## Implementation reconciliation — 24 September 2026
 
-PostgreSQL durable control/accounting/receipts/assignments are implemented. Redis web-session code is separate; runner hot-state/replay and object storage remain planned. See [current source state](../implementation/CURRENT-STATE.md), [active HTTP operations](../implementation/HTTP-API.md), and [verification scope](../reviews/CONTRACT-EXECUTION.md). This note updates implementation status only; it does not create new reviewer approval or erase the original decision history.
+PostgreSQL durable control/accounting/receipts/assignments are implemented. Redis web-session code is separate; bounded gateway replay plus runner lease/presence now have Redis adapters. [ADR-0030](0030-encrypted-dispatch-envelope.md) adds a local S3-compatible ciphertext-store and PostgreSQL metadata/lifecycle foundation; [ADR-0031](0031-pull-dispatch-and-scoped-runner-grants.md) adds PostgreSQL-authoritative initial pull placement. Production KMS, retention approval, scheduled cleanup, payload delivery, and automatic reassignment remain pending. See [current source state](../implementation/CURRENT-STATE.md), [active HTTP operations](../implementation/HTTP-API.md), and [verification scope](../reviews/CONTRACT-EXECUTION.md). This note updates implementation status only; it does not create new reviewer approval or erase the original decision history.
 
 ## Context
 

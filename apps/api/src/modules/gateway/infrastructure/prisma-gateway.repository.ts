@@ -14,6 +14,10 @@ import type {
 } from '../application/gateway-repository.port.js';
 import type { ProviderId } from '../application/provider-adapter.port.js';
 
+const PROVIDER_RECOVERY_GRACE_MS = 30_000;
+const ADMISSION_CLAIM_GRACE_MS = 60_000;
+const RECOVERY_BATCH = 32;
+
 const provider = (value: string): ProviderId => {
   if (value === 'openrouter' || value === 'direct-anthropic') {
     return value;
@@ -27,10 +31,38 @@ const provider = (value: string): ProviderId => {
 export class PrismaGatewayRepository implements GatewayRepository {
   constructor(private readonly db: DatabaseService) {}
 
+  async ownerState(
+    claim: GatewayClaim,
+  ): Promise<'active' | 'cancelled' | 'fenced'> {
+    const execution = await this.db.execution.findFirst({
+      where: { id: claim.executionId, applicationId: claim.applicationId },
+      select: {
+        status: true,
+        cancelRequestedAt: true,
+        attempts: {
+          where: { id: claim.attemptId },
+          select: { status: true, ownerInstanceId: true },
+        },
+      },
+    });
+    if (execution?.cancelRequestedAt) {
+      return 'cancelled';
+    }
+    if (
+      execution?.status !== 'RUNNING' ||
+      execution.attempts[0]?.status !== 'RUNNING' ||
+      execution.attempts[0]?.ownerInstanceId !== claim.ownerInstanceId
+    ) {
+      return 'fenced';
+    }
+    return 'active';
+  }
+
   async claim(
     applicationId: string,
     executionId: string,
     inputDigest: string,
+    ownerInstanceId: string,
   ): Promise<ClaimResult> {
     return this.db.$transaction(
       async (tx) => {
@@ -47,6 +79,15 @@ export class PrismaGatewayRepository implements GatewayRepository {
         if (!execution) {
           throw new ApplicationError('NOT_FOUND', 'Execution not found.');
         }
+        if (execution.admissionSource !== 'GATEWAY') {
+          throw new ApplicationError(
+            'IDEMPOTENCY_CONFLICT',
+            'Execution was not admitted through the gateway.',
+            executionId,
+          );
+        }
+        const application = await tx.$queryRaw<Array<{ status: string }>>`
+          SELECT status FROM control.applications WHERE id = ${applicationId} FOR SHARE`;
         const configuredProvider = provider(execution.profile.providerAdapter);
         if (
           execution.profile.model === 'UNCONFIGURED' ||
@@ -69,6 +110,7 @@ export class PrismaGatewayRepository implements GatewayRepository {
             executionId,
           );
         }
+        await tx.$queryRaw`SELECT id FROM control.ai_connections WHERE id = ${execution.profile.connectionId} FOR SHARE`;
         const connection = await tx.aiConnection.findUnique({
           where: { id: execution.profile.connectionId },
         });
@@ -83,14 +125,12 @@ export class PrismaGatewayRepository implements GatewayRepository {
             executionId,
           );
         }
-        const credential = await tx.credentialInstance.findFirst({
-          where: {
-            connectionId: connection.id,
-            residency: 'CENTRAL',
-            status: 'ENABLED',
-          },
-          select: { id: true, secretRef: true },
-        });
+        const [credential] = await tx.$queryRaw<
+          Array<{ id: string; secretRef: string | null }>
+        >`SELECT id, secret_ref AS "secretRef" FROM control.credential_instances
+          WHERE connection_id = ${connection.id} AND residency = 'CENTRAL'
+            AND status = 'ENABLED' AND secret_ref IS NOT NULL
+          ORDER BY id LIMIT 1 FOR SHARE`;
         if (!credential?.secretRef) {
           throw new ApplicationError(
             'POLICY_DENIED',
@@ -107,40 +147,34 @@ export class PrismaGatewayRepository implements GatewayRepository {
           const fallbackProvider = provider(
             execution.profile.fallbackProviderAdapter,
           );
+          await tx.$queryRaw`SELECT id FROM control.ai_connections WHERE id = ${execution.profile.fallbackConnectionId} FOR SHARE`;
           const fallbackConnection = await tx.aiConnection.findUnique({
             where: { id: execution.profile.fallbackConnectionId },
           });
           const fallbackBinding = fallbackConnection
-            ? await tx.credentialBinding.findFirst({
-                where: {
-                  applicationId,
-                  connectionId: fallbackConnection.id,
-                  status: 'ENABLED',
-                  OR: [
-                    { profileRef: null },
-                    { profileRef: execution.profile.profileRef },
-                  ],
-                },
-              })
-            : null;
+            ? await tx.$queryRaw<Array<{ id: string }>>`
+                SELECT id FROM control.credential_bindings
+                WHERE application_id = ${applicationId}
+                  AND connection_id = ${fallbackConnection.id}
+                  AND status = 'ENABLED'
+                  AND (profile_ref IS NULL OR profile_ref = ${execution.profile.profileRef})
+                ORDER BY id LIMIT 1 FOR SHARE`
+            : [];
           const fallbackCredential = fallbackConnection
-            ? await tx.credentialInstance.findFirst({
-                where: {
-                  connectionId: fallbackConnection.id,
-                  residency: 'CENTRAL',
-                  status: 'ENABLED',
-                  secretRef: { not: null },
-                },
-                select: { secretRef: true },
-              })
-            : null;
+            ? await tx.$queryRaw<Array<{ secretRef: string }>>`
+                SELECT secret_ref AS "secretRef" FROM control.credential_instances
+                WHERE connection_id = ${fallbackConnection.id}
+                  AND residency = 'CENTRAL' AND status = 'ENABLED'
+                  AND secret_ref IS NOT NULL
+                ORDER BY id LIMIT 1 FOR SHARE`
+            : [];
           if (
             !fallbackConnection ||
             fallbackConnection.status !== 'ENABLED' ||
             fallbackConnection.sharingMode !== 'DEDICATED' ||
             fallbackConnection.provider !== fallbackProvider ||
-            !fallbackBinding ||
-            !fallbackCredential?.secretRef
+            fallbackBinding.length === 0 ||
+            !fallbackCredential[0]?.secretRef
           ) {
             throw new ApplicationError(
               'POLICY_DENIED',
@@ -151,7 +185,7 @@ export class PrismaGatewayRepository implements GatewayRepository {
           fallback = {
             connectionId: fallbackConnection.id,
             provider: fallbackProvider,
-            credentialRef: fallbackCredential.secretRef,
+            credentialRef: fallbackCredential[0].secretRef,
             model: execution.profile.fallbackModel,
           };
         }
@@ -268,6 +302,27 @@ export class PrismaGatewayRepository implements GatewayRepository {
             executionId,
           );
         }
+        if (application[0]?.status !== 'ENABLED') {
+          throw new ApplicationError(
+            'POLICY_DENIED',
+            'Application is not enabled.',
+            executionId,
+          );
+        }
+        const primaryBinding = await tx.$queryRaw<Array<{ id: string }>>`
+          SELECT id FROM control.credential_bindings
+          WHERE application_id = ${applicationId}
+            AND connection_id = ${connection.id}
+            AND status = 'ENABLED'
+            AND (profile_ref IS NULL OR profile_ref = ${execution.profile.profileRef})
+          ORDER BY id LIMIT 1 FOR SHARE`;
+        if (primaryBinding.length === 0) {
+          throw new ApplicationError(
+            'POLICY_DENIED',
+            'Connection is no longer bound to this application/profile.',
+            executionId,
+          );
+        }
         const invocationId = randomUUID();
         await tx.providerInvocation.create({
           data: {
@@ -285,6 +340,7 @@ export class PrismaGatewayRepository implements GatewayRepository {
           where: { id: attempt.id },
           data: {
             status: 'RUNNING',
+            ownerInstanceId,
             authority: 'OWNED',
             compute: 'NOT_APPLICABLE',
             external: 'NONE',
@@ -312,6 +368,8 @@ export class PrismaGatewayRepository implements GatewayRepository {
           state: 'claimed',
           claim: {
             executionId,
+            connectionId: connection.id,
+            ownerInstanceId,
             attemptId: attempt.id,
             invocationId,
             applicationId,
@@ -352,6 +410,7 @@ export class PrismaGatewayRepository implements GatewayRepository {
             applicationId: claim.applicationId,
           },
           include: {
+            profile: { select: { profileRef: true } },
             attempts: { orderBy: { number: 'desc' }, take: 1 },
             result: true,
           },
@@ -368,17 +427,50 @@ export class PrismaGatewayRepository implements GatewayRepository {
             claim.executionId,
           );
         }
+        const application = await tx.$queryRaw<Array<{ status: string }>>`
+          SELECT status FROM control.applications
+          WHERE id = ${claim.applicationId} FOR SHARE`;
+        if (application[0]?.status !== 'ENABLED') {
+          throw new ApplicationError(
+            'POLICY_DENIED',
+            'Application is not enabled for a new provider attempt.',
+            claim.executionId,
+          );
+        }
+        await tx.$queryRaw`SELECT id FROM control.ai_connections WHERE id = ${fallback.connectionId} FOR SHARE`;
         const fallbackConnection = await tx.aiConnection.findUnique({
           where: { id: fallback.connectionId },
         });
         if (
           !fallbackConnection ||
           fallbackConnection.status !== 'ENABLED' ||
-          fallbackConnection.sharingMode !== 'DEDICATED'
+          fallbackConnection.sharingMode !== 'DEDICATED' ||
+          fallbackConnection.provider !== fallback.provider
         ) {
           throw new ApplicationError(
             'DEPENDENCY_UNAVAILABLE',
             'Fallback connection is no longer eligible.',
+            claim.executionId,
+          );
+        }
+        const fallbackBinding = await tx.$queryRaw<Array<{ id: string }>>`
+          SELECT id FROM control.credential_bindings
+          WHERE application_id = ${claim.applicationId}
+            AND connection_id = ${fallback.connectionId}
+            AND status = 'ENABLED'
+            AND (profile_ref IS NULL OR profile_ref = ${execution.profile.profileRef})
+          ORDER BY id LIMIT 1 FOR SHARE`;
+        const [fallbackCredential] = await tx.$queryRaw<
+          Array<{ secretRef: string }>
+        >`SELECT secret_ref AS "secretRef" FROM control.credential_instances
+          WHERE connection_id = ${fallback.connectionId}
+            AND residency = 'CENTRAL' AND status = 'ENABLED'
+            AND secret_ref IS NOT NULL
+          ORDER BY id LIMIT 1 FOR SHARE`;
+        if (fallbackBinding.length === 0 || !fallbackCredential?.secretRef) {
+          throw new ApplicationError(
+            'POLICY_DENIED',
+            'Fallback route authorization was revoked.',
             claim.executionId,
           );
         }
@@ -415,10 +507,15 @@ export class PrismaGatewayRepository implements GatewayRepository {
         const currentInvocation = await tx.providerInvocation.findUnique({
           where: { id: claim.invocationId },
         });
+        const currentAttempt = await tx.attempt.findUnique({
+          where: { id: claim.attemptId },
+        });
         if (
           !currentInvocation ||
           currentInvocation.status !== 'RUNNING' ||
-          currentInvocation.attemptId !== claim.attemptId
+          currentInvocation.attemptId !== claim.attemptId ||
+          currentAttempt?.status !== 'RUNNING' ||
+          currentAttempt.ownerInstanceId !== claim.ownerInstanceId
         ) {
           throw new ApplicationError(
             'IDEMPOTENCY_CONFLICT',
@@ -452,6 +549,7 @@ export class PrismaGatewayRepository implements GatewayRepository {
             executionId: claim.executionId,
             number: nextNumber,
             status: 'RUNNING',
+            ownerInstanceId: claim.ownerInstanceId,
             authority: 'OWNED',
             compute: 'NOT_APPLICABLE',
             external: 'NONE',
@@ -496,8 +594,9 @@ export class PrismaGatewayRepository implements GatewayRepository {
           ...claim,
           attemptId,
           invocationId,
+          connectionId: fallback.connectionId,
           provider: fallback.provider,
-          credentialRef: fallback.credentialRef,
+          credentialRef: fallbackCredential.secretRef,
           model: fallback.model,
           fallback: null,
         };
@@ -523,12 +622,34 @@ export class PrismaGatewayRepository implements GatewayRepository {
         throw new ApplicationError('NOT_FOUND', 'Execution not found.');
       }
       if (execution.result) {
-        return;
+        throw new ApplicationError(
+          'IDEMPOTENCY_CONFLICT',
+          'Execution already has a committed provider result.',
+          claim.executionId,
+        );
       }
       if (execution.status !== 'RUNNING' || execution.cancelRequestedAt) {
         throw new ApplicationError(
           'IDEMPOTENCY_CONFLICT',
           'Execution cannot accept a provider result.',
+          claim.executionId,
+        );
+      }
+      const attempt = await tx.attempt.findUnique({
+        where: { id: claim.attemptId },
+      });
+      const invocation = await tx.providerInvocation.findUnique({
+        where: { id: claim.invocationId },
+      });
+      if (
+        attempt?.status !== 'RUNNING' ||
+        attempt.ownerInstanceId !== claim.ownerInstanceId ||
+        invocation?.status !== 'RUNNING' ||
+        invocation.attemptId !== claim.attemptId
+      ) {
+        throw new ApplicationError(
+          'IDEMPOTENCY_CONFLICT',
+          'Provider attempt has lost completion authority.',
           claim.executionId,
         );
       }
@@ -599,8 +720,8 @@ export class PrismaGatewayRepository implements GatewayRepository {
     usage?: GatewayUsage,
     providerRequestId: string | null = null,
     providerCompleted = false,
-  ) {
-    await this.db.$transaction(async (tx) => {
+  ): Promise<boolean> {
+    return this.db.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM control.executions WHERE id=${claim.executionId}::uuid FOR UPDATE`;
       const execution = await tx.execution.findFirst({
         where: { id: claim.executionId, applicationId: claim.applicationId },
@@ -617,7 +738,21 @@ export class PrismaGatewayRepository implements GatewayRepository {
           'RECONCILING',
         ].includes(execution.status)
       ) {
-        return;
+        return false;
+      }
+      const attempt = await tx.attempt.findUnique({
+        where: { id: claim.attemptId },
+      });
+      const invocation = await tx.providerInvocation.findUnique({
+        where: { id: claim.invocationId },
+      });
+      if (
+        attempt?.status !== 'RUNNING' ||
+        attempt.ownerInstanceId !== claim.ownerInstanceId ||
+        invocation?.status !== 'RUNNING' ||
+        invocation.attemptId !== claim.attemptId
+      ) {
+        return false;
       }
       const status = cancelled
         ? 'CANCELLED'
@@ -682,7 +817,286 @@ export class PrismaGatewayRepository implements GatewayRepository {
           payload: { execution_id: claim.executionId, code },
         },
       });
+      return true;
     });
+  }
+
+  private async recoveryClock(): Promise<Date> {
+    const epoch = (
+      await this.db.$queryRaw<Array<{ epoch_ms: bigint }>>`
+        SELECT (extract(epoch FROM clock_timestamp()) * 1000)::bigint AS epoch_ms
+      `
+    )[0]?.epoch_ms;
+    if (epoch === undefined) {
+      throw new Error('PostgreSQL did not return a recovery clock.');
+    }
+    return new Date(Number(epoch));
+  }
+
+  /** No provider invocation exists, so the original financial hold can close at zero. */
+  async recoverExpiredAdmissions(): Promise<number> {
+    const databaseNow = await this.recoveryClock();
+    const cutoff = new Date(databaseNow.getTime() - ADMISSION_CLAIM_GRACE_MS);
+    const candidates = await this.db.execution.findMany({
+      where: {
+        admissionSource: 'GATEWAY',
+        status: 'ACCEPTED',
+        createdAt: { lte: cutoff },
+      },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      take: RECOVERY_BATCH,
+      select: { id: true },
+    });
+    let recovered = 0;
+    for (const candidate of candidates) {
+      const changed = await this.db.$transaction(
+        async (tx) => {
+          await tx.$queryRaw`SELECT id FROM control.executions WHERE id=${candidate.id}::uuid FOR UPDATE`;
+          const execution = await tx.execution.findUnique({
+            where: { id: candidate.id },
+            include: {
+              attempts: { orderBy: { number: 'asc' }, take: 1 },
+              reservations: true,
+              providerInvocations: { take: 1 },
+              result: true,
+            },
+          });
+          const attempt = execution?.attempts[0];
+          if (
+            !execution ||
+            execution.admissionSource !== 'GATEWAY' ||
+            execution.status !== 'ACCEPTED' ||
+            execution.createdAt.getTime() > cutoff.getTime() ||
+            execution.result ||
+            execution.providerInvocations.length ||
+            attempt?.status !== 'PREPARED' ||
+            execution.reservations.some(
+              (item) => item.state !== 'RESERVED' || item.postedUnits !== 0n,
+            )
+          ) {
+            return false;
+          }
+          const cancelled = Boolean(execution.cancelRequestedAt);
+          const code = cancelled
+            ? 'CANCELLED_BEFORE_PROVIDER_DISPATCH'
+            : 'GATEWAY_CLAIM_DEADLINE_EXCEEDED';
+          for (const reservation of [...execution.reservations].sort((a, b) =>
+            a.accountId.localeCompare(b.accountId),
+          )) {
+            await tx.$queryRaw`SELECT id FROM control.budget_accounts WHERE id=${reservation.accountId} FOR UPDATE`;
+            const account = await tx.budgetAccount.findUniqueOrThrow({
+              where: { id: reservation.accountId },
+            });
+            if (account.heldUnits < reservation.heldUnits) {
+              throw new Error(
+                'Gateway admission hold exceeds account exposure.',
+              );
+            }
+            const updated = await tx.budgetAccount.update({
+              where: { id: account.id },
+              data: {
+                heldUnits: { decrement: reservation.heldUnits },
+                revision: { increment: 1 },
+              },
+            });
+            await tx.reservation.update({
+              where: {
+                executionId_accountId: {
+                  executionId: execution.id,
+                  accountId: reservation.accountId,
+                },
+              },
+              data: {
+                heldUnits: 0n,
+                state: 'SETTLED',
+                revision: { increment: 1 },
+              },
+            });
+            await tx.outboxEvent.create({
+              data: {
+                id: randomUUID(),
+                applicationId: execution.applicationId,
+                topic: 'budget.updated',
+                aggregateId: account.id,
+                revision: updated.revision,
+                payload: {
+                  account_id: account.id,
+                  revision: updated.revision,
+                  held_units: updated.heldUnits.toString(),
+                  posted_units: updated.postedUnits.toString(),
+                },
+              },
+            });
+          }
+          await tx.attempt.update({
+            where: { id: attempt.id },
+            data: {
+              status: cancelled ? 'CANCELLED' : 'FAILED',
+              authority: 'RELEASED',
+              external: 'NONE',
+            },
+          });
+          await tx.execution.update({
+            where: { id: execution.id },
+            data: {
+              status: cancelled ? 'CANCELLED' : 'FAILED',
+              statusReason: code,
+              completedAt: databaseNow,
+              revision: { increment: 1 },
+            },
+          });
+          await tx.outboxEvent.create({
+            data: {
+              id: randomUUID(),
+              applicationId: execution.applicationId,
+              topic: cancelled ? 'execution.cancelled' : 'execution.failed',
+              aggregateId: execution.id,
+              revision: execution.revision + 1,
+              payload: { execution_id: execution.id, code },
+            },
+          });
+          return true;
+        },
+        { isolationLevel: 'ReadCommitted', maxWait: 2000, timeout: 5000 },
+      );
+      if (changed) {
+        recovered++;
+      }
+    }
+    return recovered;
+  }
+
+  /** Fence provider work that outlived its profile deadline and grace period.
+   * An old owner may still receive a late upstream response, but cannot commit it.
+   */
+  async recoverExpiredInvocations(): Promise<number> {
+    // Use the PostgreSQL clock so an API pod with skew cannot fence a healthy
+    // owner earlier than its stored provider deadline.
+    const databaseNow = await this.recoveryClock();
+    const candidates = await this.db.$queryRaw<
+      Array<{ id: string; execution_id: string }>
+    >`
+      SELECT invocation.id, invocation.execution_id
+      FROM control.provider_invocations AS invocation
+      JOIN control.executions AS execution ON execution.id = invocation.execution_id
+      JOIN control.profile_revisions AS profile ON profile.id = execution.profile_revision_id
+      WHERE invocation.status = 'RUNNING'
+        AND execution.status = 'RUNNING'
+        AND invocation.started_at +
+          (profile.timeout_ms + ${PROVIDER_RECOVERY_GRACE_MS}) * interval '1 millisecond' <= ${databaseNow}
+      ORDER BY invocation.started_at, invocation.id
+      LIMIT ${RECOVERY_BATCH}
+    `;
+    let recovered = 0;
+    for (const candidate of candidates) {
+      const changed = await this.db.$transaction(
+        async (tx) => {
+          await tx.$queryRaw`SELECT id FROM control.executions WHERE id=${candidate.execution_id}::uuid FOR UPDATE`;
+          const execution = await tx.execution.findUnique({
+            where: { id: candidate.execution_id },
+            include: { profile: true, result: true },
+          });
+          const invocation = await tx.providerInvocation.findUnique({
+            where: { id: candidate.id },
+          });
+          if (
+            !execution ||
+            execution.status !== 'RUNNING' ||
+            execution.result ||
+            !invocation ||
+            invocation.status !== 'RUNNING' ||
+            invocation.executionId !== execution.id ||
+            invocation.startedAt.getTime() +
+              execution.profile.timeoutMs +
+              PROVIDER_RECOVERY_GRACE_MS >
+              databaseNow.getTime()
+          ) {
+            return false;
+          }
+          const attempt = await tx.attempt.findUnique({
+            where: { id: invocation.attemptId },
+          });
+          if (
+            attempt?.status !== 'RUNNING' ||
+            attempt.executionId !== execution.id ||
+            !attempt.ownerInstanceId
+          ) {
+            return false;
+          }
+          const cancelled = Boolean(execution.cancelRequestedAt);
+          const code = cancelled
+            ? 'CANCELLED_OWNER_DEADLINE'
+            : 'PROVIDER_OWNER_DEADLINE_EXCEEDED';
+          const status = cancelled ? 'CANCELLED' : 'RECONCILING';
+          await tx.providerInvocation.update({
+            where: { id: invocation.id },
+            data: {
+              status: 'UNKNOWN',
+              errorCode: code,
+              completedAt: databaseNow,
+            },
+          });
+          await tx.attempt.update({
+            where: { id: attempt.id },
+            data: {
+              status: cancelled ? 'CANCELLED' : 'FAILED',
+              authority: 'FENCED',
+              external: 'UNKNOWN',
+            },
+          });
+          await tx.reservation.updateMany({
+            where: { executionId: execution.id, state: 'RESERVED' },
+            data: {
+              state: 'PENDING_RECONCILIATION',
+              revision: { increment: 1 },
+            },
+          });
+          await tx.execution.update({
+            where: { id: execution.id },
+            data: {
+              status,
+              statusReason: code,
+              completedAt: cancelled ? databaseNow : null,
+              revision: { increment: 1 },
+            },
+          });
+          await tx.outboxEvent.create({
+            data: {
+              id: randomUUID(),
+              applicationId: execution.applicationId,
+              topic: cancelled
+                ? 'execution.cancelled'
+                : 'execution.reconciling',
+              aggregateId: execution.id,
+              revision: execution.revision + 1,
+              payload: { execution_id: execution.id, code },
+            },
+          });
+          return true;
+        },
+        { isolationLevel: 'ReadCommitted', maxWait: 2000, timeout: 5000 },
+      );
+      if (changed) {
+        recovered++;
+      }
+    }
+    return recovered;
+  }
+
+  async cancelOwner(
+    applicationId: string,
+    executionId: string,
+  ): Promise<string | null> {
+    const attempt = await this.db.attempt.findFirst({
+      where: {
+        executionId,
+        execution: { applicationId },
+        status: 'RUNNING',
+      },
+      orderBy: { number: 'desc' },
+      select: { ownerInstanceId: true },
+    });
+    return attempt?.ownerInstanceId ?? null;
   }
 
   async read(

@@ -5,6 +5,7 @@ import { resolve, relative } from 'node:path';
 import {
   loadApiEnvironment,
   loadDevEnvironment,
+  loadDispatchObjectStoreTestEnvironment,
   loadE2EEnvironment,
 } from '../../config/environment.mjs';
 
@@ -54,6 +55,114 @@ test('nonlocal API requires an explicit deployment role', () => {
       delete process.env.DEPLOYMENT_ROLE;
     } else {
       process.env.DEPLOYMENT_ROLE = priorRole;
+    }
+  }
+});
+
+test('gateway replay Redis endpoint uses a Redis URL and stays in the API projection', () => {
+  const prior = process.env.M2_REPLAY_REDIS_URL;
+  try {
+    process.env.M2_REPLAY_REDIS_URL = 'https://example.invalid/replay';
+    assert.throws(
+      () => loadApiEnvironment(),
+      /M2_REPLAY_REDIS_URL must use the Redis protocol/,
+    );
+    process.env.M2_REPLAY_REDIS_URL = 'redis://127.0.0.1:6379';
+    assert.equal(
+      loadApiEnvironment().gateway.replayRedisUrl,
+      'redis://127.0.0.1:6379',
+    );
+  } finally {
+    if (prior === undefined) {
+      delete process.env.M2_REPLAY_REDIS_URL;
+    } else {
+      process.env.M2_REPLAY_REDIS_URL = prior;
+    }
+  }
+});
+
+test('runner coordination Redis has a distinct validated API projection', () => {
+  const prior = process.env.M3_COORDINATION_REDIS_URL;
+  try {
+    process.env.M3_COORDINATION_REDIS_URL =
+      'https://example.invalid/coordination';
+    assert.throws(
+      () => loadApiEnvironment(),
+      /M3_COORDINATION_REDIS_URL must use the Redis protocol/,
+    );
+    process.env.M3_COORDINATION_REDIS_URL = 'redis://127.0.0.1:6379/13';
+    assert.equal(
+      loadApiEnvironment().runner.coordinationRedisUrl,
+      'redis://127.0.0.1:6379/13',
+    );
+  } finally {
+    if (prior === undefined) {
+      delete process.env.M3_COORDINATION_REDIS_URL;
+    } else {
+      process.env.M3_COORDINATION_REDIS_URL = prior;
+    }
+  }
+});
+
+test('dispatch object-store credentials stay in an isolated test projection', () => {
+  const keys = [
+    'M3_TEST_OBJECT_STORE_ENDPOINT',
+    'M3_TEST_OBJECT_STORE_ACCESS_KEY_ID',
+    'M3_TEST_OBJECT_STORE_SECRET_ACCESS_KEY',
+  ];
+  const prior = new Map(keys.map((key) => [key, process.env[key]]));
+  try {
+    process.env.M3_TEST_OBJECT_STORE_ENDPOINT = 'redis://127.0.0.1:9000';
+    process.env.M3_TEST_OBJECT_STORE_ACCESS_KEY_ID = 'test-access';
+    process.env.M3_TEST_OBJECT_STORE_SECRET_ACCESS_KEY = 'test-secret';
+    assert.throws(
+      () => loadDispatchObjectStoreTestEnvironment(),
+      /must use the HTTP or HTTPS protocol/,
+    );
+    process.env.M3_TEST_OBJECT_STORE_ENDPOINT = 'http://127.0.0.1:9000';
+    assert.deepEqual(loadDispatchObjectStoreTestEnvironment(), {
+      endpoint: 'http://127.0.0.1:9000/',
+      accessKeyId: 'test-access',
+      secretAccessKey: 'test-secret',
+    });
+    assert.equal('objectStore' in loadApiEnvironment().runner, false);
+  } finally {
+    for (const key of keys) {
+      const value = prior.get(key);
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
+    }
+  }
+});
+
+test('nonlocal API cannot silently use process-local replay', () => {
+  const prior = {
+    mode: process.env.M0_RUNTIME_MODE,
+    role: process.env.DEPLOYMENT_ROLE,
+    replay: process.env.M2_REPLAY_REDIS_URL,
+  };
+  try {
+    process.env.M0_RUNTIME_MODE = 'm1-oidc';
+    process.env.DEPLOYMENT_ROLE = 'api-production';
+    delete process.env.M2_REPLAY_REDIS_URL;
+    assert.throws(
+      () => loadApiEnvironment(),
+      /M2_REPLAY_REDIS_URL is required outside m0-local mode/,
+    );
+  } finally {
+    for (const [key, value] of [
+      ['M0_RUNTIME_MODE', prior.mode],
+      ['DEPLOYMENT_ROLE', prior.role],
+      ['M2_REPLAY_REDIS_URL', prior.replay],
+    ]) {
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
     }
   }
 });

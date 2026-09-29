@@ -144,6 +144,15 @@ export async function forward(
     if (key) {
       headers.set('Idempotency-Key', key);
     }
+    if (endpoint.path === browserContract.gateway.events.path) {
+      const cursor = request.headers.get('last-event-id');
+      if (cursor !== null) {
+        if (cursor.length > 512) {
+          throw new HttpFailure(400, 'INVALID_REQUEST');
+        }
+        headers.set('Last-Event-ID', cursor);
+      }
+    }
     scope.check();
     dispatched = true;
     const response = await scope.wait(

@@ -1,6 +1,6 @@
 # AI Runtime Platform — Implementation Plan
 
-**Arsitektur baseline 0.2; M0 technical slice tersedia dalam 0.3.0-m0.** P0 formal reviewer closure tetap IN PROGRESS. P1 dan P2 sekarang LOCAL IMPLEMENTATION COMPLETE dengan evidence lokal; external/nonlocal integration, authorized live provider smoke, dan production readiness tetap pending. Deliverable runtime P3–P7 belum selesai; sebagian fondasi P3 (registrasi, manual assignment/fencing dan quarantine evidence) sudah diimplementasikan melalui ADR-0029. [M0 evidence](milestones/M0.md), [M1 evidence](milestones/M1.md), [current state](implementation/CURRENT-STATE.md), dan [panduan lokal](development/M0.md).
+**Arsitektur baseline 0.2; M0 technical slice tersedia dalam 0.3.0-m0.** P0 formal reviewer closure tetap IN PROGRESS. P1 dan P2 sekarang LOCAL IMPLEMENTATION COMPLETE dengan evidence lokal; external/nonlocal integration, authorized live provider smoke, dan production readiness tetap pending. Deliverable runtime P3–P7 belum selesai; fondasi P3 sekarang mencakup registry/manual fencing, exact Redis lease dan process presence, encrypted durable dispatch envelope, autonomous initial pull placement, serta lease-gated runner reports melalui ADR-0029–ADR-0031. [M0 evidence](milestones/M0.md), [M1 evidence](milestones/M1.md), [current state](implementation/CURRENT-STATE.md), dan [panduan lokal](development/M0.md).
 
 Dokumen ini menjelaskan urutan kerja, dependency, deliverable, dan gate. M0 menambahkan Contract Lab FE/BE/DB sesuai [ADR-0015](adr/0015-testable-milestone-slices.md); ini bukan implementasi gateway/agent/ledger produksi. Deliverable di bawah tetap dibedakan dari demonstrasi lokal. Rujukan keputusan: [ADR](adr/README.md). Gambaran sistem: [Architecture](architecture/ARCHITECTURE.md). Pemetaan keputusan ke spesifikasi/gate: [decision traceability](reviews/RECONCILIATION.md).
 
@@ -12,7 +12,7 @@ NestJS + Fastify + Prisma + PostgreSQL, React/Next.js App Router + BFF, TypeScri
 
 M0–M2 local closure sekarang mencakup HTTP/UI hardening, /api/v1 resource APIs, count overview, receipt atomik, retry per operasi, explicit mappers/AST gate, /api/runner/v1 authority messages, serta gateway executable untuk chat/generate/structured_generate dengan OpenRouter + Direct Anthropic adapters, bounded SSE/replay, structured-output validation, database-backed admission capacity/rate limits, safe not-sent fallback, durable provider invocation/result, dan accounting evidence. Migration 0005–0010 sudah applied lokal. [Source status](implementation/CURRENT-STATE.md) dan [test evidence](reviews/CONTRACT-EXECUTION.md) memisahkan implementasi lokal dari deployment/production approval.
 
-Sisa P3 tetap autonomous dispatch/reassignment, Redis lease/epoch recovery, runtime/sandbox, provider/tool effect safety dan streaming. Tidak perlu mengimplementasikan ulang registry/fencing kernel yang sudah ada; perluas kernel tersebut dan buktikan integrasi runtime-nya. P0 governance dan P3.5 sign-off tidak ditutup hanya oleh pembaruan dokumentasi.
+Sisa P3 tetap payload delivery, automatic reassignment, Redis epoch recovery, runtime/sandbox, provider/tool effect safety dan streaming. Bounded lease-loss suspension sudah tersedia, tetapi belum menghentikan proses atau mengotorisasi retry. Tidak perlu mengimplementasikan ulang registry/fencing/initial-placement kernel yang sudah ada; perluas kernel tersebut dan buktikan integrasi runtime-nya. P0 governance dan P3.5 sign-off tidak ditutup hanya oleh pembaruan dokumentasi.
 
 ## 1. Batas pekerjaan
 
@@ -62,9 +62,11 @@ Tambahkan per-app/pool concurrency, rate limits, token/output bounds, deadline, 
 
 ### P3 — Claude Agent Runtime MVP
 
+**Status:** IN PROGRESS — coordination lease/presence, encrypted dispatch envelope, connection-locality-aware initial pull placement, lease-gated start/result reports, dan bounded lease-loss suspension tersedia lokal; payload delivery, epoch recovery, automatic reassignment, sandbox, tool broker, artifact promotion, production KMS, dan retention approval masih pending.
+
 **Dependency:** P1; P2 common contracts. **Owner roles:** runtime + security + Scribe owner.
 
-Ekstrak boundary Claude runner, bukan memindahkan workflow Scribe. Perluas registry/pools, capability advertisement, lifecycle dan durable manual assignment/generation yang sudah tersedia. Implementasikan **automatic connection-locality-aware placement dan derived OFFLINE**, worker supervisor, compare-and-renew Redis lease, Redis recovery epoch, bounded dispatch, sandbox, scoped credential injection, **Plugin Registry materialization**, package digest validation, optional workspace contract, tool broker, artifact manifest, runtime session scope, cancellation propagation, late usage ingestion, serta orphan quarantine.
+Ekstrak boundary Claude runner, bukan memindahkan workflow Scribe. Perluas registry/pools, capability advertisement, lifecycle dan durable assignment/generation yang sudah tersedia. Initial connection-locality-aware pull placement dan exact-process presence sudah ada; lanjutkan dengan **derived OFFLINE dan safe reassignment**, worker supervisor, compare-and-renew Redis lease pada grant, Redis recovery epoch, bounded payload delivery, sandbox, scoped credential injection, **Plugin Registry materialization**, package digest validation, optional workspace contract, tool broker, artifact manifest, runtime session scope, cancellation propagation, late usage ingestion, serta orphan quarantine.
 
 Stateful tool hanya tersedia jika receiver idempotency/status contract tervalidasi. Remote capability boleh MCP atau typed HTTP/RPC; MCP bukan kewajiban aplikasi. Workspace `none|ephemeral|artifact_workspace` dipilih profile, sehingga direct chat tidak membawa filesystem/plugin contract palsu. Prototype read-only/script artifact path terlebih dahulu; final publish tetap di app. Budget multi-turn memakai envelope penuh atau authorized tranche, tidak hanya satu output-token limit.
 

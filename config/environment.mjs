@@ -140,6 +140,8 @@ export const runtimeEnvironmentSchema = z.object({
   M0_TEST_APP_TOKEN: reqStr('M0_TEST_APP_TOKEN'),
   M2_OPENROUTER_API_KEY: optStr(),
   M2_ANTHROPIC_API_KEY: optStr(),
+  M2_REPLAY_REDIS_URL: optStr(),
+  M3_COORDINATION_REDIS_URL: optStr(),
   OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: optStr(),
   PLAYWRIGHT_BROWSER_NAME: reqStr('PLAYWRIGHT_BROWSER_NAME'),
   PLAYWRIGHT_CHANNEL: reqStr('PLAYWRIGHT_CHANNEL'),
@@ -190,6 +192,8 @@ const apiEnvironmentSchema = runtimeEnvironmentSchema.pick({
   M0_TEST_APP_TOKEN: true,
   M2_OPENROUTER_API_KEY: true,
   M2_ANTHROPIC_API_KEY: true,
+  M2_REPLAY_REDIS_URL: true,
+  M3_COORDINATION_REDIS_URL: true,
   OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: true,
   M1_LOCAL_OPERATOR_TOKEN: true,
   M1_LOCAL_RUNNER_TOKEN: true,
@@ -244,10 +248,34 @@ const databaseEnvironmentSchema = runtimeEnvironmentSchema.pick({
   M0_DB_CONNECTION_TIMEOUT_MS: true,
 });
 
+const dispatchObjectStoreTestEnvironmentSchema = z.object({
+  M3_TEST_OBJECT_STORE_ENDPOINT: reqStr('M3_TEST_OBJECT_STORE_ENDPOINT'),
+  M3_TEST_OBJECT_STORE_ACCESS_KEY_ID: reqStr(
+    'M3_TEST_OBJECT_STORE_ACCESS_KEY_ID',
+  ),
+  M3_TEST_OBJECT_STORE_SECRET_ACCESS_KEY: reqStr(
+    'M3_TEST_OBJECT_STORE_SECRET_ACCESS_KEY',
+  ),
+});
+
 function buildApiEnvironment(raw) {
   const deploymentRole = raw.DEPLOYMENT_ROLE ?? 'api-local';
   if (raw.M0_RUNTIME_MODE !== 'm0-local' && !raw.DEPLOYMENT_ROLE) {
     throw new Error('DEPLOYMENT_ROLE must be explicit outside m0-local mode.');
+  }
+  if (raw.M2_REPLAY_REDIS_URL) {
+    const replayEndpoint = new URL(raw.M2_REPLAY_REDIS_URL);
+    if (!['redis:', 'rediss:'].includes(replayEndpoint.protocol)) {
+      throw new Error('M2_REPLAY_REDIS_URL must use the Redis protocol.');
+    }
+  } else if (raw.M0_RUNTIME_MODE !== 'm0-local') {
+    throw new Error('M2_REPLAY_REDIS_URL is required outside m0-local mode.');
+  }
+  if (raw.M3_COORDINATION_REDIS_URL) {
+    const coordinationEndpoint = new URL(raw.M3_COORDINATION_REDIS_URL);
+    if (!['redis:', 'rediss:'].includes(coordinationEndpoint.protocol)) {
+      throw new Error('M3_COORDINATION_REDIS_URL must use the Redis protocol.');
+    }
   }
 
   const config = {
@@ -288,7 +316,11 @@ function buildApiEnvironment(raw) {
     gateway: {
       openrouterApiKey: raw.M2_OPENROUTER_API_KEY,
       anthropicApiKey: raw.M2_ANTHROPIC_API_KEY,
+      replayRedisUrl: raw.M2_REPLAY_REDIS_URL,
     },
+    runner: Object.freeze({
+      coordinationRedisUrl: raw.M3_COORDINATION_REDIS_URL,
+    }),
     telemetry: Object.freeze({
       tracesEndpoint: raw.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
     }),
@@ -437,6 +469,25 @@ export function loadDatabaseEnvironment() {
     connectionTimeoutMs: raw.M0_DB_CONNECTION_TIMEOUT_MS,
   });
   return Object.freeze({ database, databaseUrl: databaseUrl(database) });
+}
+
+export function loadDispatchObjectStoreTestEnvironment() {
+  loadDotEnv();
+  const raw = parseWithSchema(
+    dispatchObjectStoreTestEnvironmentSchema,
+    process.env,
+  );
+  const endpoint = new URL(raw.M3_TEST_OBJECT_STORE_ENDPOINT);
+  if (!['http:', 'https:'].includes(endpoint.protocol)) {
+    throw new Error(
+      'M3_TEST_OBJECT_STORE_ENDPOINT must use the HTTP or HTTPS protocol.',
+    );
+  }
+  return Object.freeze({
+    endpoint: endpoint.toString(),
+    accessKeyId: raw.M3_TEST_OBJECT_STORE_ACCESS_KEY_ID,
+    secretAccessKey: raw.M3_TEST_OBJECT_STORE_SECRET_ACCESS_KEY,
+  });
 }
 
 export const projectRoot = root;
