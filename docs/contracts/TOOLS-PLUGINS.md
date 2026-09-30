@@ -4,7 +4,7 @@
 
 ## Implementation boundary
 
-Tool broker, plugin registry/package materialization, workspace, MCP adapter dan receiver-supported tool execution belum diimplementasikan. Interface dan flow di bawah adalah kontrak target. Management receipts dan runner result/evidence messages yang sudah berjalan tidak boleh disebut sebagai implementasi tool invocation atau plugin execution.
+Fondasi internal `control.tool_effects` sudah menyimpan intent/digest dan state `PREPARED`, `DISPATCHING`, `UNKNOWN`, `COMMITTED`, atau `NO_EFFECT`. Repository memeriksa assignment/generation/epoch saat menerima operasi baru; service memakai status lookup bila invoke sebelumnya ambigu. Test PostgreSQL mencakup crash sesudah receiver commit sebelum receipt tersimpan, concurrent duplicate, changed-input conflict, retention kedaluwarsa, dan stale assignment. Ini belum menjadi tool broker aktif: belum ada grant tool/plugin, validasi lease Redis pada invocation, receiver produksi, authenticated status API, atau runner integration. Plugin registry/package materialization, workspace, dan MCP adapter juga belum ada. Management receipts dan runner result/evidence messages bukan implementasi tool invocation atau plugin execution.
 
 [Source state](../implementation/CURRENT-STATE.md) dan [active routes](../implementation/HTTP-API.md) memisahkan fondasi control plane dari pekerjaan P2/P3 ini.
 

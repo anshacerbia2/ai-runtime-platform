@@ -250,6 +250,7 @@ model BudgetAccount {
 model Execution {
   runnerAssignments    RunnerAssignment[]
   runnerEvidence       RunnerEvidence[]
+  toolEffects          ToolEffect[]
   assignmentGeneration Int                  @default(0) @map("assignment_generation")
   coordinationEpoch    Int                  @default(1) @map("coordination_epoch")
   id                   String               @id @db.Uuid
@@ -592,6 +593,7 @@ model RunnerAssignment {
   attempt          Attempt          @relation(fields: [attemptId, executionId], references: [id, executionId], onDelete: Restrict, onUpdate: Cascade)
   runner           RunnerNode       @relation(fields: [runnerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   evidence         RunnerEvidence[]
+  toolEffects      ToolEffect[]
   id               String           @id @db.Uuid
   executionId      String           @map("execution_id") @db.Uuid
   attemptId        String           @map("attempt_id") @db.Uuid
@@ -645,5 +647,30 @@ model RunnerCoordination {
   updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
 
   @@map("runner_coordination")
+  @@schema("control")
+}
+
+model ToolEffect {
+  operationId            String           @map("operation_id") @db.Uuid
+  applicationId          String           @map("application_id") @db.Text
+  executionId            String           @map("execution_id") @db.Uuid
+  assignmentId           String           @map("assignment_id") @db.Uuid
+  attemptId              String           @map("attempt_id") @db.Uuid
+  generation             Int
+  epoch                  Int
+  toolRef                String           @map("tool_ref") @db.Text
+  requestDigest          String           @map("request_digest") @db.Char(64)
+  state                  String           @db.Text
+  receiptRef             String?          @map("receipt_ref") @db.Text
+  receiptDigest          String?          @map("receipt_digest") @db.Char(64)
+  receiverRetentionUntil DateTime         @map("receiver_retention_until") @db.Timestamptz(6)
+  createdAt              DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime         @default(now()) @map("updated_at") @db.Timestamptz(6)
+  execution              Execution        @relation(fields: [executionId, applicationId], references: [id, applicationId], onDelete: Restrict)
+  assignment             RunnerAssignment @relation(fields: [assignmentId, executionId, attemptId], references: [id, executionId, attemptId], onDelete: Restrict)
+
+  @@id([applicationId, operationId])
+  @@index([executionId, state], map: "tool_effects_execution_state")
+  @@map("tool_effects")
   @@schema("control")
 }
