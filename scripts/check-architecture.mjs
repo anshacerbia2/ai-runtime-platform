@@ -20,6 +20,7 @@ function walk(directory) {
 }
 for (const directory of [
   'apps/api/src',
+  'apps/runner/src',
   'apps/web/src',
   'packages/contracts/src',
 ]) {
