@@ -797,6 +797,7 @@ test('tool-effect recovery avoids duplicate mutation before epoch fences a live 
   };
   let invoked = 0;
   let statusChecks = 0;
+  let statusAvailable = false;
   const receiver = {
     async invoke() {
       invoked += 1;
@@ -804,7 +805,7 @@ test('tool-effect recovery avoids duplicate mutation before epoch fences a live 
     },
     async checkStatus() {
       statusChecks += 1;
-      return committed;
+      return statusAvailable ? committed : { state: 'UNKNOWN' as const };
     },
   };
   let loseReceipt = true;
@@ -831,6 +832,12 @@ test('tool-effect recovery avoids duplicate mutation before epoch fences a live 
   const broker = new ToolEffectService(effects, digester);
   assert.equal(
     (await broker.execute(intent, input, receiver)).state,
+    'UNKNOWN',
+  );
+  assert.equal(invoked, 1);
+  statusAvailable = true;
+  assert.equal(
+    (await broker.execute(intent, input, receiver)).state,
     'COMMITTED',
   );
   assert.equal(
@@ -838,7 +845,7 @@ test('tool-effect recovery avoids duplicate mutation before epoch fences a live 
     'COMMITTED',
   );
   assert.equal(invoked, 1);
-  assert.equal(statusChecks, 1);
+  assert.equal(statusChecks, 2);
   const concurrentIntent = { ...intent, operationId: randomUUID() };
   let concurrentInvokes = 0;
   const concurrentReceiver = {
@@ -874,6 +881,15 @@ test('tool-effect recovery avoids duplicate mutation before epoch fences a live 
     (error) =>
       error instanceof ApplicationError &&
       error.code === 'IDEMPOTENCY_CONFLICT',
+  );
+  await assert.rejects(
+    broker.execute(
+      { ...intent, applicationId: `${applicationId}-other` },
+      input,
+      receiver,
+    ),
+    (error) =>
+      error instanceof ApplicationError && error.code === 'STALE_ASSIGNMENT',
   );
   await assert.rejects(
     broker.execute(
