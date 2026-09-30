@@ -110,3 +110,13 @@ export interface DispatchEnvelopeRepository {
   markExpired(id: string, expectedRevision: number): Promise<boolean>;
   existingObjectKeys(keys: string[]): Promise<Set<string>>;
 }
+
+export interface DispatchPayloadAuthorization {
+  assertCurrent(
+    principal: Principal,
+    command: RunnerLeaseCommand,
+    envelopeId: string,
+  ): Promise<{ applicationId: string }>;
+}
+import type { RunnerLeaseCommand } from '@ai-runtime/contracts/http';
+import type { Principal } from '../../identity/domain/principal.js';

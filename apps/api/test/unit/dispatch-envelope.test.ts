@@ -4,6 +4,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { AesGcmDispatchEnvelopeCipher } from '../../src/modules/dispatch-envelope/infrastructure/aes-gcm-dispatch-envelope.cipher.js';
 import { DispatchEnvelopeError } from '../../src/modules/dispatch-envelope/application/dispatch-envelope.service.js';
 import { DispatchEnvelopeService } from '../../src/modules/dispatch-envelope/application/dispatch-envelope.service.js';
+import { DispatchPayloadDeliveryService } from '../../src/modules/dispatch-envelope/application/dispatch-payload-delivery.service.js';
 import type {
   DispatchEnvelopeBlobStore,
   DispatchEnvelopeRepository,
@@ -165,4 +166,53 @@ test('object-first staging leaves a discoverable orphan when PostgreSQL is unava
     1,
   );
   assert.equal(blobs.entries.size, 0);
+});
+
+test('payload delivery clears decrypted bytes when the lease is lost during download', async () => {
+  const bytes = Buffer.from('sensitive synthetic payload');
+  let checks = 0;
+  const delivery = new DispatchPayloadDeliveryService(
+    {
+      async assertCurrent() {
+        checks += 1;
+        if (checks === 2) {
+          throw new Error('lease lost during decrypt');
+        }
+        return { applicationId: 'fixture-app' };
+      },
+    },
+    {
+      async readCommitted() {
+        return bytes;
+      },
+    } as unknown as DispatchEnvelopeService,
+  );
+  const token = {
+    assignmentId: randomUUID(),
+    executionId: randomUUID(),
+    attemptId: randomUUID(),
+    runnerId: 'fixture-runner',
+    generation: 1,
+    epoch: 1,
+  };
+  await assert.rejects(
+    delivery.read(
+      {
+        subject: 'runner-owner',
+        kind: 'runner',
+        roles: ['runtime-runner'],
+        scopes: ['runner:report'],
+      },
+      {
+        token,
+        bootId: randomUUID(),
+        registrationRevision: 1,
+        nonce: randomBytes(32).toString('base64url'),
+      },
+      randomUUID(),
+    ),
+    /lease lost during decrypt/,
+  );
+  assert.equal(checks, 2);
+  assert.ok(bytes.every((byte) => byte === 0));
 });

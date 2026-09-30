@@ -20,7 +20,7 @@ Lifecycle authority adalah `STAGED -> COMMITTED -> CONSUMED -> DELETE_PENDING ->
 
 Caller memilih UUID envelope dan intended execution sebelum upload. Admission mengunci staged envelope, memvalidasi application, `agent_execute` profile revision, canonical input digest, intended execution, state, dan expiry. Execution, attempt, reservations/outbox, dan promosi envelope ke `COMMITTED` terjadi dalam transaksi PostgreSQL yang sama. Rollback admission meninggalkan envelope `STAGED`; dispatcher kelak hanya boleh memilih `COMMITTED`. Semua expiry/CAS menggunakan clock PostgreSQL agar coordinator dengan clock berbeda tidak mengubah authority.
 
-Implementasi menerima retention duration antara satu detik dan tujuh hari sebagai safety ceiling, bukan default atau persetujuan retention produksi. O06 tetap menentukan duration, legal hold, deletion, region, backup, dan ZDR untuk workload nyata. Runner tidak menerima object-store credential. Pull placement dan scoped metadata grant sekarang mengikuti [ADR-0031](0031-pull-dispatch-and-scoped-runner-grants.md); coordinator masih harus membaca, memverifikasi, membuka envelope dengan production KMS, dan meneruskan input melalui channel yang scoped.
+Implementasi menerima retention duration antara satu detik dan tujuh hari sebagai safety ceiling, bukan default atau persetujuan retention produksi. O06 tetap menentukan duration, legal hold, deletion, region, backup, dan ZDR untuk workload nyata. Runner tidak menerima object-store credential. Pull placement dan scoped metadata grant sekarang mengikuti [ADR-0031](0031-pull-dispatch-and-scoped-runner-grants.md). Internal payload-delivery service memeriksa live boot/lease dan durable assignment/envelope binding sebelum dan setelah decrypt, lalu menghapus buffer plaintext jika pemeriksaan kedua gagal. HTTP delivery, production KMS, dan runner handoff masih harus dibangun.
 
 ## Alternatives considered
 
@@ -30,7 +30,7 @@ Raw prompt pada execution/outbox ditolak karena memperluas persistence dan obser
 
 Ada explicit cross-store repair path dan dua jenis sampah: object tanpa row serta row `DELETE_PENDING`. Ciphertext availability tidak memberi dispatch authority; row metadata tanpa object adalah corruption dan harus fail closed. KMS outage akan menghentikan dispatch baru/read, bukan membuka plaintext fallback. Object-store/KMS latency menjadi bagian dispatch SLO dan perlu circuit, retry, serta load evidence sebelum production.
 
-Implementasi saat ini menyediakan migration 0014, cipher/ports, S3-compatible adapter, atomic admission promotion, lifecycle CAS, expiry/orphan GC primitive, unit/PostgreSQL tests, isolated MinIO conformance CI, serta autonomous initial placement dan scoped metadata grant. Belum ada public `agent_execute` route, payload delivery/decryption path, automatic reassignment, production KMS adapter, deletion worker scheduling, atau approved retention policy.
+Implementasi saat ini menyediakan migration 0014, cipher/ports, S3-compatible adapter, atomic admission promotion, lifecycle CAS, expiry/orphan GC primitive, unit/PostgreSQL tests, isolated MinIO conformance CI, autonomous initial placement, scoped metadata grant, dan internal scoped read/decrypt service. Belum ada public `agent_execute` route, authenticated payload delivery endpoint dan runner handoff, automatic reassignment, production KMS adapter, deletion worker scheduling, atau approved retention policy.
 
 ## Verification
 

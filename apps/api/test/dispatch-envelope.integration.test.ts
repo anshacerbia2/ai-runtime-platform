@@ -29,6 +29,7 @@ import type {
 } from '../src/modules/tool-effects/application/tool-effect.port.js';
 import { PrismaToolEffectRepository } from '../src/modules/tool-effects/infrastructure/prisma-tool-effect.repository.js';
 import { Sha256ToolEffectDigester } from '../src/modules/tool-effects/infrastructure/sha256-tool-effect.digester.js';
+import { PrismaDispatchPayloadAuthorization } from '../src/modules/dispatch-envelope/infrastructure/prisma-dispatch-payload.authorization.js';
 
 const config = loadConfig();
 const database = createDatabaseClient(config);
@@ -528,6 +529,27 @@ test('current runner presence autonomously claims one policy-scoped dispatch gra
     leaseTtlMs: 15_000,
     renewIntervalMs: 5_000,
   });
+  const payloadAuthorization = new PrismaDispatchPayloadAuthorization(
+    database as unknown as DatabaseService,
+    leaseService,
+  );
+  assert.deepEqual(
+    await payloadAuthorization.assertCurrent(
+      runnerPrincipal,
+      leaseCommand,
+      nextEnvelopeId,
+    ),
+    { applicationId },
+  );
+  await assert.rejects(
+    payloadAuthorization.assertCurrent(
+      runnerPrincipal,
+      leaseCommand,
+      envelopeId,
+    ),
+    (error) =>
+      error instanceof ApplicationError && error.code === 'STALE_ASSIGNMENT',
+  );
   assert.equal(
     (
       await database.runnerAssignment.findUniqueOrThrow({
@@ -639,6 +661,15 @@ test('current runner presence autonomously claims one policy-scoped dispatch gra
       })
     ).state,
     'FENCED',
+  );
+  await assert.rejects(
+    payloadAuthorization.assertCurrent(
+      runnerPrincipal,
+      leaseCommand,
+      nextEnvelopeId,
+    ),
+    (error) =>
+      error instanceof ApplicationError && error.code === 'STALE_ASSIGNMENT',
   );
   assert.deepEqual(
     (
