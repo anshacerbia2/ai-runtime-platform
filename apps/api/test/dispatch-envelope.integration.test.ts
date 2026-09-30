@@ -798,12 +798,15 @@ test('tool-effect recovery avoids duplicate mutation before epoch fences a live 
   let invoked = 0;
   let statusChecks = 0;
   let statusAvailable = false;
+  const receiverKeys: string[] = [];
   const receiver = {
-    async invoke() {
+    async invoke(key: string) {
+      receiverKeys.push(key);
       invoked += 1;
       return committed;
     },
-    async checkStatus() {
+    async checkStatus(key: string) {
+      receiverKeys.push(key);
       statusChecks += 1;
       return statusAvailable ? committed : { state: 'UNKNOWN' as const };
     },
@@ -846,6 +849,8 @@ test('tool-effect recovery avoids duplicate mutation before epoch fences a live 
   );
   assert.equal(invoked, 1);
   assert.equal(statusChecks, 2);
+  assert.equal(new Set(receiverKeys).size, 1);
+  assert.notEqual(receiverKeys[0], intent.operationId);
   const concurrentIntent = { ...intent, operationId: randomUUID() };
   let concurrentInvokes = 0;
   const concurrentReceiver = {

@@ -14,6 +14,14 @@ export class ToolEffectService {
     private readonly digester: ToolEffectDigester,
   ) {}
 
+  private receiverKey(intent: ToolEffectIntent): string {
+    return this.digester.digest(
+      new TextEncoder().encode(
+        `tool-operation/v1\n${intent.applicationId}\n${intent.operationId}`,
+      ),
+    );
+  }
+
   async execute(
     intent: ToolEffectIntent,
     input: Uint8Array,
@@ -26,6 +34,7 @@ export class ToolEffectService {
       throw new Error('Tool effect input does not match its durable digest.');
     }
     const current = await this.repository.prepare(intent);
+    const receiverKey = this.receiverKey(intent);
     if (current.state === 'COMMITTED' || current.state === 'NO_EFFECT') {
       return current;
     }
@@ -33,7 +42,7 @@ export class ToolEffectService {
       let outcome: ToolReceiverOutcome;
       try {
         outcome = await receiver.invoke(
-          intent.operationId,
+          receiverKey,
           intent.requestDigest,
           input,
         );
@@ -44,7 +53,7 @@ export class ToolEffectService {
     }
     let outcome: ToolReceiverOutcome;
     try {
-      outcome = await receiver.checkStatus(intent.operationId);
+      outcome = await receiver.checkStatus(receiverKey);
     } catch {
       outcome = { state: 'UNKNOWN' };
     }

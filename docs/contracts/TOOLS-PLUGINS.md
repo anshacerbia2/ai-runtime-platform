@@ -4,7 +4,7 @@
 
 ## Implementation boundary
 
-Fondasi internal `control.tool_effects` sudah menyimpan intent/digest dan state `PREPARED`, `DISPATCHING`, `UNKNOWN`, `COMMITTED`, atau `NO_EFFECT`. Repository memeriksa assignment/generation/epoch saat menerima operasi baru; service memakai status lookup bila invoke sebelumnya ambigu. Test PostgreSQL mencakup crash sesudah receiver commit sebelum receipt tersimpan, concurrent duplicate, changed-input conflict, retention kedaluwarsa, dan stale assignment. Ini belum menjadi tool broker aktif: belum ada grant tool/plugin, validasi lease Redis pada invocation, receiver produksi, authenticated status API, atau runner integration. Plugin registry/package materialization, workspace, dan MCP adapter juga belum ada. Management receipts dan runner result/evidence messages bukan implementasi tool invocation atau plugin execution.
+Fondasi internal `control.tool_effects` sudah menyimpan intent/digest dan state `PREPARED`, `DISPATCHING`, `UNKNOWN`, `COMMITTED`, atau `NO_EFFECT`. Repository memeriksa assignment/generation/epoch saat menerima operasi baru; service memakai status lookup bila invoke sebelumnya ambigu. Test PostgreSQL mencakup crash sesudah receiver commit sebelum receipt tersimpan, concurrent duplicate, changed-input conflict, retention kedaluwarsa, dan stale assignment. Adapter HTTP internal memakai origin terkonfigurasi, HTTPS (kecuali loopback fixture), no-redirect, bounded timeout/response, serta credential callback; fixture membuktikan invoke/status dan penolakan receipt invalid. Ini belum menjadi tool broker aktif: belum ada grant tool/plugin, validasi lease Redis pada invocation, receiver produksi dengan atomic dedup/retention, authenticated status API untuk aplikasi, atau runner integration. Plugin registry/package materialization, workspace, dan MCP adapter juga belum ada. Management receipts dan runner result/evidence messages bukan implementasi tool invocation atau plugin execution.
 
 [Source state](../implementation/CURRENT-STATE.md) dan [active routes](../implementation/HTTP-API.md) memisahkan fondasi control plane dari pekerjaan P2/P3 ini.
 
@@ -30,6 +30,8 @@ Filesystem/workspace-only script masih bisa exfiltrate lewat network; klasifikas
 ## 3. Stable logical operation identity
 
 `operation_id` dihasilkan/dipersist platform sebelum dispatch. `idempotency_key` diturunkan dari application + logical business operation reference + tool/action + version + input digest, atau assigned opaque key yang disimpan durable. Key tidak diturunkan hanya dari attempt ID, karena retry attempt harus menggunakan key yang sama untuk operasi logis yang sama.
+
+Fondasi internal saat ini menurunkan receiver key SHA-256 dari version tag, application ID, dan durable operation UUID. Scope aplikasi tidak dikirim sebagai plaintext ke receiver. Ini identitas retry teknis untuk intent yang sudah ada, bukan inferensi bahwa dua execution bisnis berbeda adalah operasi yang sama.
 
 Business operation reference dari app dipakai bila aksi harus tetap sama lintas execution/retry bisnis. Tanpa referensi itu, platform tidak boleh menebak bahwa dua arbitrary agent tool calls merupakan operasi yang sama. Mutasi baru dengan maksud berbeda membutuhkan operation identity baru dan authority aplikasi.
 
@@ -57,6 +59,8 @@ interface StatefulTool {
 ```
 
 Ini sketch kontrak, bukan TypeScript yang sudah diimplementasikan. JsonValue/ToolResult harus didefinisikan pada P0. UNKNOWN mencakup sedang berjalan atau status tidak tersedia; adapter boleh memiliki internal state lebih rinci. FAILED hanya berarti aman retry jika receiver menjamin tidak ada effect atau same-key replay aman. Timeout/HTTP 500 sendiri tidak membuktikan no effect.
+
+Adapter HTTP internal memakai `POST /v1/effects` dengan JSON `{idempotency_key, request_digest, input_base64}` dan `GET /v1/effects/{idempotency_key}`. Kedua respons harus `{state:"UNKNOWN"}` atau `{state:"COMMITTED"|"NO_EFFECT",receipt_ref,receipt_digest}`. Ini kontrak receiver opt-in yang harus diuji terhadap implementasi nyata; HTTP response sukses tanpa atomic same-key dedup/status guarantee tidak memenuhi G13/G14. URL berasal dari konfigurasi tepercaya dan egress sandbox tetap harus dibatasi secara terpisah.
 
 ## 5. Invocation protocol
 
