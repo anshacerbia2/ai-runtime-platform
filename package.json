@@ -26,6 +26,7 @@
     "docs:check": "node scripts/check-docs.mjs",
     "test": "npm run build -w @ai-runtime/contracts && tsx --test packages/contracts/test/contracts.test.ts",
     "test:integration": "npm run build -w @ai-runtime/api && tsx --test apps/api/test/*.test.ts",
+    "test:m3:foundation": "npm run build -w @ai-runtime/api && tsx --test apps/api/test/dispatch-envelope.integration.test.ts apps/api/test/unit/dispatch-envelope.test.ts apps/api/test/unit/runner-coordination.test.ts apps/api/test/unit/runner-dispatch.test.ts apps/api/test/unit/runner-lease-activation.test.ts",
     "test:gateway:redis": "npm run build -w @ai-runtime/api && tsx --test apps/api/test/redis-gateway.integration.ts apps/api/test/redis-gateway-multi-instance.integration.ts apps/api/test/redis-gateway-http-multi-instance.integration.ts",
     "test:runner:redis": "npm run build -w @ai-runtime/api && tsx --test apps/api/test/redis-runner-lease.integration.ts",
     "test:dispatch:s3": "npm run build -w @ai-runtime/api && tsx --test apps/api/test/s3-dispatch-envelope.integration.ts",
