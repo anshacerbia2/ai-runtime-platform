@@ -37,6 +37,7 @@ const prefix = `dispatch-${randomUUID()}`;
 const applicationId = `${prefix}-app`;
 const connectionId = `${prefix}-connection`;
 const profileRevisionId = randomUUID();
+const pluginDigest = randomBytes(32).toString('hex');
 const executionId = randomUUID();
 const envelopeId = randomUUID();
 const bindingId = randomUUID();
@@ -105,6 +106,20 @@ before(async () => {
       sharingMode: 'DEDICATED',
     },
   });
+  await database.pluginPackage.create({
+    data: {
+      applicationId,
+      packageId: 'agent-fixture',
+      version: '1.0.0',
+      bundleDigest: pluginDigest,
+      objectKey: `plugins/v1/${randomUUID()}`,
+      bundleBytes: 2048,
+      compatibleRuntimeVersions: ['claude-agent-sdk:0.3'],
+      requiredPermissions: ['artifact:write'],
+      state: 'ACTIVE',
+      attestationRef: 'fixture:verified',
+    },
+  });
   await database.profileRevision.create({
     data: {
       id: profileRevisionId,
@@ -120,6 +135,10 @@ before(async () => {
       streaming: true,
       holdUnits: 0n,
       accountIds: [],
+      pluginPackageId: 'agent-fixture',
+      pluginVersion: '1.0.0',
+      pluginDigest,
+      pluginRuntimeVersion: 'claude-agent-sdk:0.3',
       digest: randomBytes(32).toString('hex'),
     },
   });
@@ -220,11 +239,12 @@ after(async () => {
     where: { scopeKey: { contains: prefix } },
   });
   await database.credentialInstance.deleteMany({
-    where: { id: credentialId },
+    where: { runnerRef: { in: [runnerId, ineligibleRunnerId] } },
   });
   await database.credentialBinding.deleteMany({ where: { id: bindingId } });
   await database.profileAlias.deleteMany({ where: { applicationId } });
   await database.profileRevision.deleteMany({ where: { applicationId } });
+  await database.pluginPackage.deleteMany({ where: { applicationId } });
   await database.aiConnection.deleteMany({ where: { id: connectionId } });
   await database.runnerNode.deleteMany({
     where: { id: { in: [runnerId, ineligibleRunnerId] } },
@@ -941,6 +961,138 @@ test('tool-effect recovery avoids duplicate mutation before epoch fences a live 
       ...token,
       ownerSubject: runnerPrincipal.subject,
       nonce,
+    }),
+    'RELEASED',
+  );
+});
+
+test('revoked pinned plugin blocks lease activation and new dispatch grants', async () => {
+  const executions = await Promise.all(
+    Array.from({ length: 2 }, async (_, index) => {
+      const nextEnvelopeId = randomUUID();
+      const nextExecutionId = randomUUID();
+      const nextDigest = randomBytes(32).toString('hex');
+      await repository.createStaged({
+        ...staged,
+        envelopeId: nextEnvelopeId,
+        executionBindingId: nextExecutionId,
+        inputDigest: nextDigest,
+        objectKey: `dispatch-envelopes/v1/${nextEnvelopeId}`,
+      });
+      await control.admitDispatchEnvelope(
+        principal,
+        { profileRef: `${prefix}-agent`, inputDigest: nextDigest },
+        `${prefix}-revoked-plugin-${index}`,
+        { envelopeId: nextEnvelopeId, executionId: nextExecutionId },
+      );
+      return nextExecutionId;
+    }),
+  );
+  const runner = await database.runnerNode.findUniqueOrThrow({
+    where: { id: runnerId },
+  });
+  const claim = {
+    runnerId,
+    bootId: randomUUID(),
+    registrationRevision: runner.revision,
+  };
+  await liveness.heartbeat(runnerPrincipal, claim);
+  const grant = (await dispatch.claim(runnerPrincipal, claim)).grant;
+  assert.ok(grant);
+  assert.ok(executions.some((id) => id === grant.executionId));
+  const remainingExecutionId = executions.find(
+    (id) => id !== grant.executionId,
+  )!;
+  await database.credentialInstance.create({
+    data: {
+      id: `${prefix}-second-credential`,
+      connectionId,
+      residency: 'RUNNER_LOCAL',
+      runnerRef: ineligibleRunnerId,
+    },
+  });
+  const secondRunner = await database.runnerNode.findUniqueOrThrow({
+    where: { id: ineligibleRunnerId },
+  });
+  const secondClaim = {
+    runnerId: ineligibleRunnerId,
+    bootId: randomUUID(),
+    registrationRevision: secondRunner.revision,
+  };
+  await liveness.heartbeat(runnerPrincipal, secondClaim);
+  const token = {
+    assignmentId: grant.assignmentId,
+    executionId: grant.executionId,
+    attemptId: grant.attemptId,
+    runnerId: grant.runnerId,
+    generation: grant.generation,
+    epoch: grant.epoch,
+  };
+  const leaseCommand = {
+    bootId: claim.bootId,
+    registrationRevision: runner.revision,
+    nonce: randomBytes(32).toString('base64url'),
+    token,
+  };
+  await leaseService.activate(runnerPrincipal, leaseCommand);
+  await database.pluginPackage.update({
+    where: {
+      applicationId_packageId_version: {
+        applicationId,
+        packageId: 'agent-fixture',
+        version: '1.0.0',
+      },
+    },
+    data: { state: 'REVOKED', revision: { increment: 1 } },
+  });
+  await assert.rejects(
+    leaseService.activate(runnerPrincipal, leaseCommand),
+    (error) =>
+      error instanceof ApplicationError && error.code === 'STALE_ASSIGNMENT',
+  );
+  const payloadAuthorization = new PrismaDispatchPayloadAuthorization(
+    database as unknown as DatabaseService,
+    leaseService,
+  );
+  await assert.rejects(
+    payloadAuthorization.assertCurrent(
+      runnerPrincipal,
+      leaseCommand,
+      grant.envelopeId,
+    ),
+    (error) =>
+      error instanceof ApplicationError && error.code === 'STALE_ASSIGNMENT',
+  );
+  const authority = new PrismaRunnerAuthority(
+    database as unknown as DatabaseService,
+  );
+  await assert.rejects(
+    authority.report(runnerPrincipal, {
+      type: 'started',
+      token,
+      lease: {
+        bootId: claim.bootId,
+        registrationRevision: runner.revision,
+        nonce: leaseCommand.nonce,
+      },
+    }),
+    (error) =>
+      error instanceof ApplicationError && error.code === 'STALE_ASSIGNMENT',
+  );
+  assert.deepEqual(await dispatch.claim(runnerPrincipal, secondClaim), {
+    grant: null,
+  });
+  assert.equal(
+    await database.runnerAssignment.count({
+      where: { executionId: remainingExecutionId },
+    }),
+    0,
+  );
+  assert.equal(
+    await leaseStore.release({
+      ...token,
+      ownerSubject: runnerPrincipal.subject,
+      nonce: leaseCommand.nonce,
     }),
     'RELEASED',
   );

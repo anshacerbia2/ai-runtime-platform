@@ -9,7 +9,7 @@ import type {
 } from '../application/runner-lease-authority.port.js';
 
 type LeaseRow = Prisma.RunnerAssignmentGetPayload<{
-  include: { execution: true; runner: true };
+  include: { execution: { include: { profile: true } }; runner: true };
 }>;
 
 function nonceDigest(nonce: string) {
@@ -74,13 +74,42 @@ export class PrismaRunnerLeaseAuthority implements RunnerLeaseAuthority {
     }
   }
 
+  private async requirePlugin(
+    db: Pick<Prisma.TransactionClient, '$queryRaw'>,
+    row: LeaseRow,
+  ) {
+    const profile = row.execution.profile;
+    if (!profile.pluginPackageId) {
+      return;
+    }
+    const [plugin] = await db.$queryRaw<
+      Array<{ bundle_digest: string; state: string }>
+    >`SELECT bundle_digest, state FROM control.plugin_packages
+        WHERE application_id = ${row.execution.applicationId}
+          AND package_id = ${profile.pluginPackageId}
+          AND version = ${profile.pluginVersion}
+        FOR SHARE`;
+    if (
+      !plugin ||
+      plugin.state !== 'ACTIVE' ||
+      plugin.bundle_digest.trim() !== profile.pluginDigest?.trim()
+    ) {
+      throw new ApplicationError(
+        'STALE_ASSIGNMENT',
+        'Pinned plugin package is no longer active.',
+      );
+    }
+  }
+
   async status(command: RunnerLeaseCommand, ownerSubject: string) {
     await this.requireEpoch(this.db, command.token.epoch);
     const row = await this.db.runnerAssignment.findUnique({
       where: { id: command.token.assignmentId },
-      include: { execution: true, runner: true },
+      include: { execution: { include: { profile: true } }, runner: true },
     });
-    return statusOf(row, command, ownerSubject);
+    const status = statusOf(row, command, ownerSubject);
+    await this.requirePlugin(this.db, row!);
+    return status;
   }
 
   async confirm(command: RunnerLeaseCommand, ownerSubject: string) {
@@ -91,9 +120,11 @@ export class PrismaRunnerLeaseAuthority implements RunnerLeaseAuthority {
         await tx.$queryRaw`SELECT id FROM control.runner_nodes WHERE id = ${command.token.runnerId} FOR SHARE`;
         const row = await tx.runnerAssignment.findUnique({
           where: { id: command.token.assignmentId },
-          include: { execution: true, runner: true },
+          include: { execution: { include: { profile: true } }, runner: true },
         });
-        if (statusOf(row, command, ownerSubject) === 'UNINITIALIZED') {
+        const status = statusOf(row, command, ownerSubject);
+        await this.requirePlugin(tx, row!);
+        if (status === 'UNINITIALIZED') {
           await tx.runnerAssignment.update({
             where: { id: command.token.assignmentId },
             data: { leaseNonceDigest: nonceDigest(command.nonce) },

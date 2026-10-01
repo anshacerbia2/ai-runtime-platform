@@ -29,6 +29,74 @@ const digest = (value: string) =>
 const jsonDigest = (value: unknown) => digest(canonicalJson(value));
 const positive = (value: bigint) => (value > 0n ? value : 0n);
 
+interface ProfilePluginRef {
+  packageId: string;
+  version: string;
+  bundleDigest: string;
+  runtimeVersion: string;
+}
+
+function presentProfilePlugin<
+  T extends {
+    pluginPackageId: string | null;
+    pluginVersion: string | null;
+    pluginDigest: string | null;
+    pluginRuntimeVersion: string | null;
+  },
+>(row: T) {
+  const {
+    pluginPackageId,
+    pluginVersion,
+    pluginDigest,
+    pluginRuntimeVersion,
+    ...rest
+  } = row;
+  return {
+    ...rest,
+    plugin:
+      pluginPackageId && pluginVersion && pluginDigest && pluginRuntimeVersion
+        ? {
+            packageId: pluginPackageId,
+            version: pluginVersion,
+            bundleDigest: pluginDigest.trim(),
+            runtimeVersion: pluginRuntimeVersion,
+          }
+        : null,
+  };
+}
+
+async function lockedActivePlugin(
+  tx: Prisma.TransactionClient,
+  applicationId: string,
+  plugin: ProfilePluginRef,
+) {
+  const [row] = await tx.$queryRaw<
+    Array<{
+      bundle_digest: string;
+      compatible_runtime_versions: string[];
+      required_permissions: string[];
+      state: string;
+    }>
+  >`SELECT bundle_digest, compatible_runtime_versions, required_permissions, state
+      FROM control.plugin_packages
+      WHERE application_id = ${applicationId}
+        AND package_id = ${plugin.packageId}
+        AND version = ${plugin.version}
+      FOR SHARE`;
+  if (
+    !row ||
+    row.state !== 'ACTIVE' ||
+    row.bundle_digest.trim() !== plugin.bundleDigest ||
+    !row.compatible_runtime_versions.includes(plugin.runtimeVersion)
+  ) {
+    throw new ApplicationError(
+      'POLICY_DENIED',
+      'Profile plugin package is unavailable.',
+    );
+  }
+  return { ...plugin, requiredPermissions: row.required_permissions };
+}
+
 function connectionAdmissionScope(connection: {
   id: string;
   sharingMode: 'DEDICATED' | 'SHARED';
@@ -162,6 +230,10 @@ export class PrismaM1Repository implements M1Repository {
               streaming: true,
               holdUnits: true,
               accountIds: true,
+              pluginPackageId: true,
+              pluginVersion: true,
+              pluginDigest: true,
+              pluginRuntimeVersion: true,
               digest: true,
             },
             orderBy: [{ profileRef: 'asc' }, { revision: 'desc' }],
@@ -197,7 +269,7 @@ export class PrismaM1Repository implements M1Repository {
         application,
         bindings,
         profiles: profiles.map((item) => ({
-          ...item,
+          ...presentProfilePlugin(item),
           holdUnits: asString(item.holdUnits),
         })),
         budgets: budgets.map((item) => ({
@@ -302,6 +374,10 @@ export class PrismaM1Repository implements M1Repository {
           streaming: true,
           holdUnits: true,
           accountIds: true,
+          pluginPackageId: true,
+          pluginVersion: true,
+          pluginDigest: true,
+          pluginRuntimeVersion: true,
           digest: true,
           createdAt: true,
         },
@@ -359,7 +435,7 @@ export class PrismaM1Repository implements M1Repository {
       bindings,
       aliases,
       profiles: profiles.map((item) => ({
-        ...item,
+        ...presentProfilePlugin(item),
         holdUnits: asString(item.holdUnits),
         createdAt: item.createdAt.toISOString(),
       })),
@@ -1123,6 +1199,16 @@ export class PrismaM1Repository implements M1Repository {
           );
         }
       }
+      const plugin = command.plugin ?? null;
+      if (plugin && command.capability !== 'agent_execute') {
+        throw new ApplicationError(
+          'INVALID_REQUEST',
+          'Only agent_execute profiles may bind plugin packages.',
+        );
+      }
+      if (plugin) {
+        await lockedActivePlugin(tx, command.applicationId, plugin);
+      }
       const definition = {
         applicationId: command.applicationId,
         profileRef: command.id,
@@ -1139,6 +1225,7 @@ export class PrismaM1Repository implements M1Repository {
         streaming,
         holdUnits: command.holdUnits,
         accountIds,
+        ...(plugin ? { plugin } : {}),
       };
       const created = await tx.profileRevision.create({
         data: {
@@ -1158,6 +1245,10 @@ export class PrismaM1Repository implements M1Repository {
           streaming,
           holdUnits: BigInt(command.holdUnits),
           accountIds,
+          pluginPackageId: plugin?.packageId ?? null,
+          pluginVersion: plugin?.version ?? null,
+          pluginDigest: plugin?.bundleDigest ?? null,
+          pluginRuntimeVersion: plugin?.runtimeVersion ?? null,
           digest: jsonDigest(definition),
         },
       });
@@ -1203,6 +1294,7 @@ export class PrismaM1Repository implements M1Repository {
         streaming: created.streaming,
         holdUnits: asString(created.holdUnits),
         accountIds: created.accountIds,
+        plugin,
         digest: created.digest,
         enabled: command.enabled,
         aliasVersion: (alias?.version ?? 0) + 1,
@@ -1392,6 +1484,18 @@ export class PrismaM1Repository implements M1Repository {
           if (!profile) {
             notFound('Published profile revision not found.');
           }
+          const plugin =
+            profile.pluginPackageId &&
+            profile.pluginVersion &&
+            profile.pluginDigest &&
+            profile.pluginRuntimeVersion
+              ? await lockedActivePlugin(tx, applicationId, {
+                  packageId: profile.pluginPackageId,
+                  version: profile.pluginVersion,
+                  bundleDigest: profile.pluginDigest.trim(),
+                  runtimeVersion: profile.pluginRuntimeVersion,
+                })
+              : null;
           let lockedEnvelope: { id: string; revision: number } | undefined;
           if (envelope) {
             if (profile.capability !== 'agent_execute') {
@@ -1582,6 +1686,7 @@ export class PrismaM1Repository implements M1Repository {
             holdUnits: asString(profile.holdUnits),
             accountIds: sortedAccounts,
             profileDigest: profile.digest,
+            plugin,
           };
           await tx.execution.create({
             data: {

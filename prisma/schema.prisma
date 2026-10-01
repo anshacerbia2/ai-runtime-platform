@@ -197,6 +197,10 @@ model ProfileRevision {
   maxOutputTokens         Int      @default(2048) @map("max_output_tokens")
   timeoutMs               Int      @default(30000) @map("timeout_ms")
   streaming               Boolean  @default(false)
+  pluginPackageId         String?  @map("plugin_package_id") @db.Text
+  pluginVersion           String?  @map("plugin_version") @db.Text
+  pluginDigest            String?  @map("plugin_digest") @db.Char(64)
+  pluginRuntimeVersion    String?  @map("plugin_runtime_version") @db.Text
   holdUnits               BigInt   @map("hold_units")
   accountIds              String[] @map("account_ids")
   digest                  String   @db.Char(64)
@@ -205,6 +209,7 @@ model ProfileRevision {
   application        ControlApplication @relation(fields: [applicationId], references: [id], onDelete: Restrict)
   connection         AiConnection       @relation("PrimaryProfileConnection", fields: [connectionId], references: [id], onDelete: Restrict)
   fallbackConnection AiConnection?      @relation("FallbackProfileConnection", fields: [fallbackConnectionId], references: [id], onDelete: Restrict)
+  pluginPackage      PluginPackage?     @relation(fields: [applicationId, pluginPackageId, pluginVersion], references: [applicationId, packageId, version], onDelete: Restrict)
   aliases            ProfileAlias[]
   executions         Execution[]
   dispatchEnvelopes  DispatchEnvelope[]
@@ -691,6 +696,7 @@ model PluginPackage {
   createdAt                 DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                 DateTime           @default(now()) @map("updated_at") @db.Timestamptz(6)
   application               ControlApplication @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  profiles                  ProfileRevision[]
 
   @@id([applicationId, packageId, version])
   @@index([applicationId, state, packageId, version], map: "plugin_packages_application_state")

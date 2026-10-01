@@ -165,15 +165,40 @@ export class PrismaResourceReader implements ResourceReader {
               streaming: true,
               holdUnits: true,
               accountIds: true,
+              pluginPackageId: true,
+              pluginVersion: true,
+              pluginDigest: true,
+              pluginRuntimeVersion: true,
               digest: true,
               createdAt: true,
             },
           })
-        ).map((r) => ({
-          ...r,
-          holdUnits: r.holdUnits.toString(),
-          createdAt: r.createdAt.toISOString(),
-        }));
+        ).map((r) => {
+          const {
+            pluginPackageId,
+            pluginVersion,
+            pluginDigest,
+            pluginRuntimeVersion,
+            ...profile
+          } = r;
+          return {
+            ...profile,
+            plugin:
+              pluginPackageId &&
+              pluginVersion &&
+              pluginDigest &&
+              pluginRuntimeVersion
+                ? {
+                    packageId: pluginPackageId,
+                    version: pluginVersion,
+                    bundleDigest: pluginDigest.trim(),
+                    runtimeVersion: pluginRuntimeVersion,
+                  }
+                : null,
+            holdUnits: r.holdUnits.toString(),
+            createdAt: r.createdAt.toISOString(),
+          };
+        });
         break;
       case 'budgets':
         rows = (

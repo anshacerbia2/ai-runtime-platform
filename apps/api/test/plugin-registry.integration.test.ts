@@ -52,6 +52,18 @@ test('app-owned plugin package activates only after matching attestation and rev
       ['STAGED', 'STAGED'],
     );
     assert.equal(await db.pluginPackage.count({ where: { applicationId } }), 1);
+    await assert.rejects(
+      db.pluginPackage.update({
+        where: {
+          applicationId_packageId_version: {
+            applicationId,
+            packageId: command.packageId,
+            version: command.version,
+          },
+        },
+        data: { bundleDigest: randomBytes(32).toString('hex') },
+      }),
+    );
     const forgedInput = {
       ...command,
       packageId: 'forged-state',
@@ -61,6 +73,10 @@ test('app-owned plugin package activates only after matching attestation and rev
     };
     const forged = await untrustedVerifier.stage(forgedInput);
     assert.equal(forged.state, 'STAGED');
+    assert.equal(
+      (await untrustedVerifier.revoke(forgedInput, forged.revision)).state,
+      'REVOKED',
+    );
     await assert.rejects(
       untrustedVerifier.stage({ ...command, bundleDigest: 'f'.repeat(64) }),
       (error) =>
@@ -131,6 +147,18 @@ test('app-owned plugin package activates only after matching attestation and rev
     );
     const revoked = await trustedVerifier.revoke(command, activated.revision);
     assert.equal(revoked.state, 'REVOKED');
+    await assert.rejects(
+      db.pluginPackage.update({
+        where: {
+          applicationId_packageId_version: {
+            applicationId,
+            packageId: command.packageId,
+            version: command.version,
+          },
+        },
+        data: { state: 'ACTIVE', revision: { increment: 1 } },
+      }),
+    );
     assert.equal(
       (await trustedVerifier.revoke(command, activated.revision)).revision,
       revoked.revision,

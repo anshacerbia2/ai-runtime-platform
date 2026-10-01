@@ -185,6 +185,24 @@ export class PrismaRunnerDispatchRepository implements RunnerDispatchRepository 
     if (bindings.length === 0) {
       return null;
     }
+    if (execution.profile.pluginPackageId) {
+      const plugin = execution.profile;
+      const [packageState] = await tx.$queryRaw<
+        Array<{ bundle_digest: string; state: string }>
+      >`SELECT bundle_digest, state
+          FROM control.plugin_packages
+          WHERE application_id = ${execution.applicationId}
+            AND package_id = ${plugin.pluginPackageId}
+            AND version = ${plugin.pluginVersion}
+          FOR SHARE`;
+      if (
+        !packageState ||
+        packageState.state !== 'ACTIVE' ||
+        packageState.bundle_digest.trim() !== plugin.pluginDigest?.trim()
+      ) {
+        return null;
+      }
+    }
     const credentials = await tx.$queryRaw<Array<{ id: string }>>`
       SELECT id FROM control.credential_instances
       WHERE connection_id = ${connection.id}

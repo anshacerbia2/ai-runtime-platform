@@ -90,6 +90,16 @@ export const ManagementCommand = z.discriminatedUnion('kind', [
       maxOutputTokens: z.number().int().min(1).max(32768).optional(),
       timeoutMs: z.number().int().min(1).max(3600000).optional(),
       streaming: z.boolean().optional(),
+      plugin: z
+        .object({
+          packageId: id,
+          version: id,
+          bundleDigest: z.string().regex(/^[a-f0-9]{64}$/),
+          runtimeVersion: id,
+        })
+        .strict()
+        .nullable()
+        .optional(),
       holdUnits: units,
       accountIds: z.array(id).min(1).max(8),
       enabled: z.boolean(),

@@ -191,6 +191,7 @@ after(async () => {
   await db.execution.deleteMany({ where: scope });
   await db.profileAlias.deleteMany({ where: scope });
   await db.profileRevision.deleteMany({ where: scope });
+  await db.pluginPackage.deleteMany({ where: scope });
   await db.budgetProjection.deleteMany({
     where: { accountId: { startsWith: prefix } },
   });
@@ -214,6 +215,94 @@ after(async () => {
   await db.profile.deleteMany({ where: scope });
   await db.application.deleteMany({ where: { id: { in: [a.id, b.id] } } });
   await db.$disconnect();
+});
+
+test('plugin profile pins an app-owned active package and revocation fences new admission', async () => {
+  const f = await fixture('plugin-profile');
+  const bundleDigest = 'b'.repeat(64);
+  const plugin = {
+    packageId: 'scribe-draft',
+    version: '1.0.0',
+    bundleDigest,
+    runtimeVersion: 'claude-agent-sdk:0.3',
+  };
+  await db.pluginPackage.create({
+    data: {
+      applicationId: b.id,
+      packageId: plugin.packageId,
+      version: plugin.version,
+      bundleDigest,
+      objectKey: `plugins/v1/${randomUUID()}`,
+      bundleBytes: 2048,
+      compatibleRuntimeVersions: [plugin.runtimeVersion],
+      requiredPermissions: ['artifact:write'],
+      state: 'ACTIVE',
+      attestationRef: 'fixture:verified',
+    },
+  });
+  const command = {
+    ...f.profile,
+    expectedRevision: 1,
+    capability: 'agent_execute',
+    plugin,
+  };
+  assert.equal(
+    (await request('PUT', 'control-plane', op, command)).statusCode,
+    403,
+  );
+  await db.pluginPackage.create({
+    data: {
+      applicationId: a.id,
+      packageId: plugin.packageId,
+      version: plugin.version,
+      bundleDigest,
+      objectKey: `plugins/v1/${randomUUID()}`,
+      bundleBytes: 2048,
+      compatibleRuntimeVersions: [plugin.runtimeVersion],
+      requiredPermissions: ['artifact:write'],
+      state: 'ACTIVE',
+      attestationRef: 'fixture:verified',
+    },
+  });
+  assert.equal(
+    (
+      await request('PUT', 'control-plane', op, {
+        ...command,
+        plugin: { ...plugin, bundleDigest: 'c'.repeat(64) },
+      })
+    ).statusCode,
+    403,
+  );
+  const published = await manage(command);
+  assert.deepEqual(published.plugin, plugin);
+  const accepted = await f.admit();
+  assert.equal(accepted.statusCode, 201, accepted.body);
+  const executionId = accepted.json().execution.id as string;
+  const execution = await db.execution.findUniqueOrThrow({
+    where: { id: executionId },
+  });
+  assert.deepEqual((execution.profileSnapshot as { plugin: unknown }).plugin, {
+    ...plugin,
+    requiredPermissions: ['artifact:write'],
+  });
+  await db.pluginPackage.update({
+    where: {
+      applicationId_packageId_version: {
+        applicationId: a.id,
+        packageId: plugin.packageId,
+        version: plugin.version,
+      },
+    },
+    data: { state: 'REVOKED', revision: { increment: 1 } },
+  });
+  const denied = await f.admit();
+  assert.equal(denied.statusCode, 403, denied.body);
+  assert.equal(
+    await db.execution.count({
+      where: { applicationId: a.id, profileRevisionId: published.id },
+    }),
+    1,
+  );
 });
 
 test('G01/G26 operator-only mutations; application scope protects admission, execution, artifacts, usage and audit', async () => {
