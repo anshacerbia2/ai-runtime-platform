@@ -54,6 +54,7 @@ interface LockedDispatch {
   expiresAt: Date;
   executionRevision: number;
   coordinationEpoch: number;
+  plugin: RunnerDispatchGrant['plugin'];
 }
 
 export class PrismaRunnerDispatchRepository implements RunnerDispatchRepository {
@@ -185,23 +186,43 @@ export class PrismaRunnerDispatchRepository implements RunnerDispatchRepository 
     if (bindings.length === 0) {
       return null;
     }
+    let plugin: RunnerDispatchGrant['plugin'] = null;
     if (execution.profile.pluginPackageId) {
-      const plugin = execution.profile;
+      const pinned = execution.profile;
       const [packageState] = await tx.$queryRaw<
-        Array<{ bundle_digest: string; state: string }>
-      >`SELECT bundle_digest, state
+        Array<{
+          bundle_digest: string;
+          required_permissions: string[];
+          state: string;
+        }>
+      >`SELECT bundle_digest, required_permissions, state
           FROM control.plugin_packages
           WHERE application_id = ${execution.applicationId}
-            AND package_id = ${plugin.pluginPackageId}
-            AND version = ${plugin.pluginVersion}
+            AND package_id = ${pinned.pluginPackageId}
+            AND version = ${pinned.pluginVersion}
           FOR SHARE`;
       if (
         !packageState ||
         packageState.state !== 'ACTIVE' ||
-        packageState.bundle_digest.trim() !== plugin.pluginDigest?.trim()
+        packageState.bundle_digest.trim() !== pinned.pluginDigest?.trim()
       ) {
         return null;
       }
+      if (
+        !pinned.pluginPackageId ||
+        !pinned.pluginVersion ||
+        !pinned.pluginDigest ||
+        !pinned.pluginRuntimeVersion
+      ) {
+        return null;
+      }
+      plugin = {
+        packageId: pinned.pluginPackageId,
+        version: pinned.pluginVersion,
+        bundleDigest: pinned.pluginDigest.trim(),
+        runtimeVersion: pinned.pluginRuntimeVersion,
+        requiredPermissions: packageState.required_permissions,
+      };
     }
     const credentials = await tx.$queryRaw<Array<{ id: string }>>`
       SELECT id FROM control.credential_instances
@@ -243,6 +264,7 @@ export class PrismaRunnerDispatchRepository implements RunnerDispatchRepository 
         expiresAt: envelope.expiresAt,
         executionRevision: execution.revision,
         coordinationEpoch: coordinationEpoch ?? execution.coordinationEpoch,
+        plugin,
       };
     }
 
@@ -272,6 +294,7 @@ export class PrismaRunnerDispatchRepository implements RunnerDispatchRepository 
       expiresAt: envelope.expiresAt,
       executionRevision: execution.revision,
       coordinationEpoch: coordinationEpoch ?? execution.coordinationEpoch,
+      plugin,
     };
   }
 
@@ -396,6 +419,7 @@ export class PrismaRunnerDispatchRepository implements RunnerDispatchRepository 
                 inputDigest: dispatch.inputDigest,
                 plaintextBytes: dispatch.plaintextBytes,
                 expiresAt: dispatch.expiresAt.toISOString(),
+                plugin: dispatch.plugin,
               })
             : null;
         }
@@ -439,6 +463,7 @@ export class PrismaRunnerDispatchRepository implements RunnerDispatchRepository 
             inputDigest: dispatch.inputDigest,
             plaintextBytes: dispatch.plaintextBytes,
             expiresAt: dispatch.expiresAt.toISOString(),
+            plugin: dispatch.plugin,
           });
         }
         return null;

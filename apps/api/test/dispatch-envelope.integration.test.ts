@@ -425,6 +425,13 @@ test('current runner presence autonomously claims one policy-scoped dispatch gra
   assert.equal(grant.inputDigest, nextDigest);
   assert.equal(grant.generation, 1);
   assert.equal(grant.state, 'GRANTED');
+  assert.deepEqual(grant.plugin, {
+    packageId: 'agent-fixture',
+    version: '1.0.0',
+    bundleDigest: pluginDigest,
+    runtimeVersion: 'claude-agent-sdk:0.3',
+    requiredPermissions: ['artifact:write'],
+  });
   assert.equal('objectKey' in grant, false);
   assert.equal('wrappedDataKey' in grant, false);
 

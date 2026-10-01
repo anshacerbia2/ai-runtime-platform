@@ -104,6 +104,7 @@ test('dispatch claim withholds a committed grant when the boot changes during pl
     inputDigest: 'a'.repeat(64),
     plaintextBytes: 1,
     expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    plugin: null,
   };
   const repository: RunnerDispatchRepository = {
     async claim() {
