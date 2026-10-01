@@ -115,6 +115,7 @@ model ControlApplication {
   events            OutboxEvent[]
   audit             AuditEntry[]
   dispatchEnvelopes DispatchEnvelope[]
+  pluginPackages    PluginPackage[]
 
   @@map("applications")
   @@schema("control")
@@ -672,5 +673,27 @@ model ToolEffect {
   @@id([applicationId, operationId])
   @@index([executionId, state], map: "tool_effects_execution_state")
   @@map("tool_effects")
+  @@schema("control")
+}
+
+model PluginPackage {
+  applicationId             String             @map("application_id") @db.Text
+  packageId                 String             @map("package_id") @db.Text
+  version                   String             @db.Text
+  bundleDigest              String             @map("bundle_digest") @db.Char(64)
+  objectKey                 String             @unique @map("object_key") @db.Text
+  bundleBytes               Int                @map("bundle_bytes")
+  compatibleRuntimeVersions String[]           @map("compatible_runtime_versions")
+  requiredPermissions       String[]           @map("required_permissions")
+  state                     String             @default("STAGED") @db.Text
+  attestationRef            String?            @map("attestation_ref") @db.Text
+  revision                  Int                @default(1)
+  createdAt                 DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                 DateTime           @default(now()) @map("updated_at") @db.Timestamptz(6)
+  application               ControlApplication @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+
+  @@id([applicationId, packageId, version])
+  @@index([applicationId, state, packageId, version], map: "plugin_packages_application_state")
+  @@map("plugin_packages")
   @@schema("control")
 }
