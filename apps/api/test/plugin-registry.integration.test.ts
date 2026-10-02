@@ -7,21 +7,15 @@ import type { DatabaseService } from '../src/infrastructure/database/database.se
 import { ApplicationError } from '../src/shared/domain/application-error.js';
 import { PluginRegistryService } from '../src/modules/plugin-registry/application/plugin-registry.service.js';
 import { PrismaPluginPackageRepository } from '../src/modules/plugin-registry/infrastructure/prisma-plugin-package.repository.js';
+import { SignedPluginPackageReader } from '../src/modules/plugin-registry/infrastructure/signed-plugin-package.reader.js';
+import { signedPluginFixture } from './fixtures/signed-plugin-package.js';
 
 const db = createDatabaseClient(loadConfig());
 
 test('app-owned plugin package activates only after matching attestation and revocation is final', async () => {
   const applicationId = `plugin-test-${randomUUID()}`;
-  const command = {
-    applicationId,
-    packageId: 'scribe-draft',
-    version: '1.0.0',
-    bundleDigest: randomBytes(32).toString('hex'),
-    objectKey: `plugins/v1/${randomUUID()}`,
-    bundleBytes: 2048,
-    compatibleRuntimeVersions: ['claude-agent-sdk:0.3'],
-    requiredPermissions: ['artifact:write'],
-  };
+  const fixture = signedPluginFixture(applicationId);
+  const command = fixture.record;
   await db.$connect();
   await db.controlApplication.create({
     data: {
@@ -90,19 +84,19 @@ test('app-owned plugin package activates only after matching attestation and rev
     );
     assert.equal((await repository.find(command))?.state, 'STAGED');
 
-    const trustedVerifier = new PluginRegistryService(repository, {
-      async verify() {
-        return {
-          bundleDigest: command.bundleDigest,
-          attestationRef: `scan:${randomUUID()}`,
-        };
-      },
-    });
+    const trustedVerifier = new PluginRegistryService(
+      repository,
+      new SignedPluginPackageReader(fixture.store, fixture.keys),
+    );
     const activated = await trustedVerifier.activate(
       command,
       staged[0]!.revision,
     );
     assert.equal(activated.state, 'ACTIVE');
+    assert.match(
+      activated.attestationRef!,
+      /^ed25519:release-key-1:[a-f0-9]{64}$/,
+    );
     assert.equal(activated.revision, staged[0]!.revision + 1);
     assert.equal(
       (

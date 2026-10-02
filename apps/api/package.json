@@ -4,11 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "prebuild": "npm run build -w @ai-runtime/plugin-package",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@ai-runtime/contracts": "0.3.0-m0",
+    "@ai-runtime/plugin-package": "0.3.0-m0",
     "@aws-sdk/client-s3": "3.1141.0",
     "@nestjs/common": "12.0.3",
     "@nestjs/core": "12.0.3",

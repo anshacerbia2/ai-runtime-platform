@@ -23,7 +23,7 @@ export interface PluginPackageAttestation {
   attestationRef: string;
 }
 
-/** No production implementation exists until object bytes and provenance are verified. */
+/** Activation requires verified stored bytes and an app-authorized signer. */
 export interface PluginPackageVerifier {
   verify(staged: PluginPackageRecord): Promise<PluginPackageAttestation>;
 }
@@ -40,4 +40,28 @@ export interface PluginPackageRepository {
     identity: PluginPackageIdentity,
     expectedRevision: number,
   ): Promise<PluginPackageRecord>;
+}
+
+export interface PluginPackageBytesStore {
+  /** Returns a caller-owned buffer; consumers may erase it after use. */
+  get(
+    key: string,
+    maximumBytes: number,
+    signal?: AbortSignal,
+  ): Promise<Uint8Array | null>;
+}
+
+export interface PluginSigningKeyResolver {
+  resolve(
+    applicationId: string,
+    keyId: string,
+    signal?: AbortSignal,
+  ): Promise<string | null>;
+}
+
+export interface VerifiedPluginPackageReader {
+  readVerified(record: PluginPackageRecord): Promise<{
+    bytes: Uint8Array;
+    attestation: PluginPackageAttestation;
+  }>;
 }

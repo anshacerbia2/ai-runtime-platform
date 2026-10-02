@@ -23,6 +23,7 @@ for (const directory of [
   'apps/runner/src',
   'apps/web/src',
   'packages/contracts/src',
+  'packages/plugin-package/src',
 ]) {
   walk(resolve(root, directory));
 }
@@ -30,6 +31,9 @@ const normalize = (path) => relative(root, path).replaceAll('\\', '/');
 function sourceTarget(importer, specifier) {
   if (specifier === '@ai-runtime/contracts') {
     return 'packages/contracts/src/index.ts';
+  }
+  if (specifier === '@ai-runtime/plugin-package') {
+    return 'packages/plugin-package/src/index.ts';
   }
   if (!specifier.startsWith('.')) {
     return specifier;

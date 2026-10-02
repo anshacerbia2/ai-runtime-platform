@@ -2,6 +2,48 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { dependencyViolation } from '../lib/dependency-rules.mjs';
 
+test('plugin verifier stays outside web/BFF and is allowed in API/runner infrastructure', () => {
+  assert.ok(
+    dependencyViolation(
+      'apps/api/src/modules/plugin-registry/application/check.ts',
+      '@ai-runtime/plugin-package',
+      'packages/plugin-package/src/index.ts',
+    ),
+  );
+  for (const file of [
+    'apps/web/src/server/read.ts',
+    'apps/web/src/features/view.tsx',
+  ]) {
+    assert.ok(
+      dependencyViolation(
+        file,
+        '@ai-runtime/plugin-package',
+        'packages/plugin-package/src/index.ts',
+      ),
+    );
+    assert.ok(
+      dependencyViolation(
+        file,
+        '../../../../packages/plugin-package/src/index.ts',
+        'packages/plugin-package/src/index.ts',
+      ),
+    );
+  }
+  for (const file of [
+    'apps/api/src/modules/plugin-registry/infrastructure/reader.ts',
+    'apps/runner/src/plugin-bundle.ts',
+  ]) {
+    assert.equal(
+      dependencyViolation(
+        file,
+        '@ai-runtime/plugin-package',
+        'packages/plugin-package/src/index.ts',
+      ),
+      null,
+    );
+  }
+});
+
 for (const dependency of [
   '@nestjs/common',
   'fastify',

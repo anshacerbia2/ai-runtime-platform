@@ -1,13 +1,15 @@
 {
-  "name": "@ai-runtime/runner",
+  "name": "@ai-runtime/plugin-package",
   "version": "0.3.0-m0",
   "private": true,
   "type": "module",
-  "dependencies": {
-    "@ai-runtime/plugin-package": "0.3.0-m0"
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
   },
   "scripts": {
-    "prebuild": "npm run build -w @ai-runtime/plugin-package",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   }

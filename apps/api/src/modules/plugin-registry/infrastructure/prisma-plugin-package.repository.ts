@@ -18,7 +18,7 @@ function prismaCode(error: unknown, code: string) {
   );
 }
 
-function record(row: PluginPackage): PluginPackageRecord {
+export function pluginPackageRecord(row: PluginPackage): PluginPackageRecord {
   if (!['STAGED', 'ACTIVE', 'REVOKED'].includes(row.state)) {
     throw new Error('Unexpected plugin package state.');
   }
@@ -85,7 +85,7 @@ export class PrismaPluginPackageRepository implements PluginPackageRepository {
     const row = await this.database.pluginPackage.findUnique({
       where: this.key(identity),
     });
-    return row ? record(row) : null;
+    return row ? pluginPackageRecord(row) : null;
   }
 
   async stage(command: StagedPluginPackage): Promise<PluginPackageRecord> {
@@ -102,7 +102,7 @@ export class PrismaPluginPackageRepository implements PluginPackageRepository {
           requiredPermissions: [...command.requiredPermissions],
         },
       });
-      return record(row);
+      return pluginPackageRecord(row);
     } catch (error) {
       if (!prismaCode(error, 'P2002')) {
         throw error;

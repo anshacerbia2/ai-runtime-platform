@@ -30,6 +30,10 @@ import type {
 import { PrismaToolEffectRepository } from '../src/modules/tool-effects/infrastructure/prisma-tool-effect.repository.js';
 import { Sha256ToolEffectDigester } from '../src/modules/tool-effects/infrastructure/sha256-tool-effect.digester.js';
 import { PrismaDispatchPayloadAuthorization } from '../src/modules/dispatch-envelope/infrastructure/prisma-dispatch-payload.authorization.js';
+import { PrismaRunnerPluginAuthorization } from '../src/modules/plugin-registry/infrastructure/prisma-runner-plugin.authorization.js';
+import { SignedPluginPackageReader } from '../src/modules/plugin-registry/infrastructure/signed-plugin-package.reader.js';
+import { PluginPackageDeliveryService } from '../src/modules/plugin-registry/application/plugin-package-delivery.service.js';
+import { signedPluginFixture } from './fixtures/signed-plugin-package.js';
 
 const config = loadConfig();
 const database = createDatabaseClient(config);
@@ -37,7 +41,12 @@ const prefix = `dispatch-${randomUUID()}`;
 const applicationId = `${prefix}-app`;
 const connectionId = `${prefix}-connection`;
 const profileRevisionId = randomUUID();
-const pluginDigest = randomBytes(32).toString('hex');
+const pluginFixture = signedPluginFixture(applicationId, 'agent-fixture');
+const pluginReader = new SignedPluginPackageReader(
+  pluginFixture.store,
+  pluginFixture.keys,
+);
+const pluginDigest = pluginFixture.record.bundleDigest;
 const executionId = randomUUID();
 const envelopeId = randomUUID();
 const bindingId = randomUUID();
@@ -112,12 +121,13 @@ before(async () => {
       packageId: 'agent-fixture',
       version: '1.0.0',
       bundleDigest: pluginDigest,
-      objectKey: `plugins/v1/${randomUUID()}`,
-      bundleBytes: 2048,
+      objectKey: pluginFixture.record.objectKey,
+      bundleBytes: pluginFixture.record.bundleBytes,
       compatibleRuntimeVersions: ['claude-agent-sdk:0.3'],
       requiredPermissions: ['artifact:write'],
       state: 'ACTIVE',
-      attestationRef: 'fixture:verified',
+      attestationRef: (await pluginReader.verify(pluginFixture.record))
+        .attestationRef,
     },
   });
   await database.profileRevision.create({
@@ -567,6 +577,36 @@ test('current runner presence autonomously claims one policy-scoped dispatch gra
       nextEnvelopeId,
     ),
     { applicationId },
+  );
+  const pluginAuthorization = new PrismaRunnerPluginAuthorization(
+    database as unknown as DatabaseService,
+    payloadAuthorization,
+  );
+  const pinnedPlugin = await pluginAuthorization.assertCurrent(
+    runnerPrincipal,
+    leaseCommand,
+    nextEnvelopeId,
+  );
+  assert.equal(pinnedPlugin.applicationId, applicationId);
+  assert.equal(pinnedPlugin.packageId, 'agent-fixture');
+  assert.equal(pinnedPlugin.bundleDigest, pluginDigest);
+  const pluginDelivery = new PluginPackageDeliveryService(
+    pluginAuthorization,
+    pluginReader,
+  );
+  assert.deepEqual(
+    Buffer.from(
+      await pluginDelivery.read(runnerPrincipal, leaseCommand, nextEnvelopeId),
+    ),
+    pluginFixture.bytes,
+  );
+  await assert.rejects(
+    pluginAuthorization.assertCurrent(
+      { ...runnerPrincipal, subject: 'another-owner' },
+      leaseCommand,
+      nextEnvelopeId,
+    ),
+    ApplicationError,
   );
   await assert.rejects(
     payloadAuthorization.assertCurrent(
@@ -1042,24 +1082,46 @@ test('revoked pinned plugin blocks lease activation and new dispatch grants', as
     token,
   };
   await leaseService.activate(runnerPrincipal, leaseCommand);
-  await database.pluginPackage.update({
-    where: {
-      applicationId_packageId_version: {
-        applicationId,
-        packageId: 'agent-fixture',
-        version: '1.0.0',
+  const payloadAuthorization = new PrismaDispatchPayloadAuthorization(
+    database as unknown as DatabaseService,
+    leaseService,
+  );
+  let downloaded: Uint8Array | undefined;
+  const delivery = new PluginPackageDeliveryService(
+    new PrismaRunnerPluginAuthorization(
+      database as unknown as DatabaseService,
+      payloadAuthorization,
+    ),
+    {
+      async readVerified(record) {
+        const result = await pluginReader.readVerified(record);
+        downloaded = result.bytes;
+        await database.pluginPackage.update({
+          where: {
+            applicationId_packageId_version: {
+              applicationId,
+              packageId: 'agent-fixture',
+              version: '1.0.0',
+            },
+          },
+          data: { state: 'REVOKED', revision: { increment: 1 } },
+        });
+        return result;
       },
     },
-    data: { state: 'REVOKED', revision: { increment: 1 } },
-  });
+  );
+  await assert.rejects(
+    delivery.read(runnerPrincipal, leaseCommand, grant.envelopeId),
+    (error) =>
+      error instanceof ApplicationError && error.code === 'STALE_ASSIGNMENT',
+  );
+  assert.ok(
+    downloaded && (downloaded as Uint8Array).every((byte) => byte === 0),
+  );
   await assert.rejects(
     leaseService.activate(runnerPrincipal, leaseCommand),
     (error) =>
       error instanceof ApplicationError && error.code === 'STALE_ASSIGNMENT',
-  );
-  const payloadAuthorization = new PrismaDispatchPayloadAuthorization(
-    database as unknown as DatabaseService,
-    leaseService,
   );
   await assert.rejects(
     payloadAuthorization.assertCurrent(
@@ -1069,6 +1131,13 @@ test('revoked pinned plugin blocks lease activation and new dispatch grants', as
     ),
     (error) =>
       error instanceof ApplicationError && error.code === 'STALE_ASSIGNMENT',
+  );
+  await assert.rejects(
+    new PrismaRunnerPluginAuthorization(
+      database as unknown as DatabaseService,
+      payloadAuthorization,
+    ).assertCurrent(runnerPrincipal, leaseCommand, grant.envelopeId),
+    ApplicationError,
   );
   const authority = new PrismaRunnerAuthority(
     database as unknown as DatabaseService,
