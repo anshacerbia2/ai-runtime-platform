@@ -337,15 +337,20 @@ test('budget limit management queues behind admission and revalidates exposure',
 
 test('shared quota-group reconfiguration is ordered before admission capacity', async () => {
   const fixture = await setupFixture({ activePeer: true });
+  const quotaBlocker = new pg.Client({ connectionString: config.databaseUrl });
   let held = false;
+  let quotaHeld = false;
   try {
+    await quotaBlocker.connect();
     await blocker.query('BEGIN');
     held = true;
     await blocker.query(
       'SELECT id FROM control.applications WHERE id = $1 FOR UPDATE',
       [fixture.applicationId],
     );
-    await blocker.query(
+    await quotaBlocker.query('BEGIN');
+    quotaHeld = true;
+    await quotaBlocker.query(
       'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))',
       [`quota:${fixture.quotaGroupRef}`],
     );
@@ -366,9 +371,14 @@ test('shared quota-group reconfiguration is ordered before admission capacity', 
     await waitForLock('advisory', 1);
     const admitted = admission(fixture, `${fixture.id}-move-first`);
     await waitForLock('row', 1);
+    // Keep admission behind the app row until the logical management command
+    // commits. Releasing both blockers together allows a Serializable retry
+    // to release the quota lock and give admission a valid earlier turn.
+    await quotaBlocker.query('COMMIT');
+    quotaHeld = false;
+    await reconfigured;
     await blocker.query('COMMIT');
     held = false;
-    await reconfigured;
     await admitted;
     const peer = await db.aiConnection.findUniqueOrThrow({
       where: { id: fixture.peerConnectionId },
@@ -376,9 +386,13 @@ test('shared quota-group reconfiguration is ordered before admission capacity', 
     assert.equal(peer.sharingMode, 'DEDICATED');
     assert.equal(peer.quotaGroupRef, null);
   } finally {
+    if (quotaHeld) {
+      await quotaBlocker.query('ROLLBACK');
+    }
     if (held) {
       await blocker.query('ROLLBACK');
     }
+    await quotaBlocker.end();
     await cleanupFixture(fixture);
   }
 });
