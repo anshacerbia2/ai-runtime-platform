@@ -29,6 +29,8 @@ Adapter HTTP binary payload dan plugin runner tersedia sebagai source dan lulus 
 
 Daftar operator `GET /api/v1/runners` kini menambahkan `liveness` dari exact registration presence: `ALIVE`, `OFFLINE`, atau `UNKNOWN` saat Redis tidak dapat dibaca. `status` tetap lifecycle durable, dan liveness tidak dipakai sebagai bukti bahwa sandbox lama berhenti atau sebagai izin reassignment otomatis.
 
+Runner package kini menyediakan supervisor lifecycle lokal berbasis port sandbox dengan duplicate-launch guard, bounded graceful/force stop, dan bukti `TERMINATED|UNCONFIRMED` yang fail closed. Belum ada adapter sandbox produksi, proses Claude, durable stop receipt, atau penghubung hasil stop ke reconciler PostgreSQL. Karena itu status `ORPHAN_SUSPENDED` tetap memerlukan penanganan eksplisit dan tidak dapat memicu retry otomatis.
+
 ## Proses dan ownership yang nyata
 
 Web menjalankan Next.js; API menjalankan NestJS dengan FastifyAdapter; PostgreSQL saat ini masih menyimpan schema m0 dan control. Global `/health/live` dimiliki `CoreHealthModule`. `DEPLOYMENT_ROLE=api-production` tidak meregistrasikan `ContractLabModule`; pemisahan migration/schema m0 dari database produksi adalah langkah hygiene terpisah yang belum dilakukan. Local mode memakai token fixture server-side dan tidak membutuhkan issuer/Redis. Nonlocal mode memiliki kode OIDC dan Redis session store yang dikonfigurasi eksplisit. Session Redis bukan runner heartbeat Redis.
