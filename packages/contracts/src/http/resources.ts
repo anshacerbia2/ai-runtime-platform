@@ -44,7 +44,7 @@ export const ResourcePageSchemas = {
   aliases: view.AliasRecord,
   budgets: view.BudgetRecord,
   pools: view.PoolRecord,
-  runners: view.RunnerRecord,
+  runners: view.RunnerListRecord,
   audit: view.AuditRecord,
   outbox: view.OutboxRecord.omit({ payload: true }),
 } as const;

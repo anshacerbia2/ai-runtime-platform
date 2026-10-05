@@ -136,6 +136,7 @@ const columns: Record<ResourceName, string[]> = {
     'capacity',
     'revision',
     'status',
+    'liveness',
   ],
   audit: [
     'id',

@@ -27,6 +27,8 @@ Untuk menjawab “apa yang berjalan sekarang”, gunakan source, migration, kont
 
 Adapter HTTP binary payload dan plugin runner tersedia sebagai source dan lulus tes dalam komposisi terisolasi. Keduanya belum terdaftar pada aplikasi API, sehingga belum merupakan endpoint yang dapat dipakai runner. Service pembaca internal tetap memegang pemeriksaan lease/binding; aktivasi route menunggu wiring KMS/storage dan signer trust/provenance produksi.
 
+Daftar operator `GET /api/v1/runners` kini menambahkan `liveness` dari exact registration presence: `ALIVE`, `OFFLINE`, atau `UNKNOWN` saat Redis tidak dapat dibaca. `status` tetap lifecycle durable, dan liveness tidak dipakai sebagai bukti bahwa sandbox lama berhenti atau sebagai izin reassignment otomatis.
+
 ## Proses dan ownership yang nyata
 
 Web menjalankan Next.js; API menjalankan NestJS dengan FastifyAdapter; PostgreSQL saat ini masih menyimpan schema m0 dan control. Global `/health/live` dimiliki `CoreHealthModule`. `DEPLOYMENT_ROLE=api-production` tidak meregistrasikan `ContractLabModule`; pemisahan migration/schema m0 dari database produksi adalah langkah hygiene terpisah yang belum dilakukan. Local mode memakai token fixture server-side dan tidak membutuhkan issuer/Redis. Nonlocal mode memiliki kode OIDC dan Redis session store yang dikonfigurasi eksplisit. Session Redis bukan runner heartbeat Redis.

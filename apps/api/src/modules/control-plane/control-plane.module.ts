@@ -225,8 +225,9 @@ const RUNNER_COORDINATION_STORE = Symbol('RUNNER_COORDINATION_STORE');
     },
     {
       provide: RESOURCE_READER,
-      inject: [DatabaseService],
-      useFactory: (db: DatabaseService) => new PrismaResourceReader(db),
+      inject: [DatabaseService, RUNNER_PRESENCE_STORE],
+      useFactory: (db: DatabaseService, presence: RunnerPresenceStore) =>
+        new PrismaResourceReader(db, presence),
     },
     {
       provide: ResourceService,
