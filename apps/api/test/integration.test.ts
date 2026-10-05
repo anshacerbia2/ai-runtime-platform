@@ -368,6 +368,19 @@ test('api-production composition keeps core liveness and does not register Contr
       headers,
     });
     assert.equal(lab.statusCode, 404);
+
+    for (const path of [
+      '/api/runner/v1/dispatches/payload',
+      '/api/runner/v1/dispatches/plugin',
+    ]) {
+      const handoff = await production.inject({
+        method: 'POST',
+        url: path,
+        headers: { host: config.apiHost },
+        payload: {},
+      });
+      assert.equal(handoff.statusCode, 404);
+    }
   } finally {
     await production.close();
   }

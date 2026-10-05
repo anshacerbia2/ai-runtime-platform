@@ -1,6 +1,6 @@
 # Kondisi Implementasi Aktual
 
-**Diperiksa 2 Oktober 2026 (Asia/Jakarta), pada branch `feat/m2-multi-replica-hardening`.** Halaman ini menjelaskan perilaku yang sudah ada, bukan seluruh target produk. M0–M2 telah ditutup secara local implementation; P3 masih bertahap. Source yang dibaca, riwayat pengujian, dan batas sinkronisasi tercatat di [contract execution evidence](../reviews/CONTRACT-EXECUTION.md). Perubahan lokal belum berarti deployment atau persetujuan produksi.
+**Diperiksa 5 Oktober 2026 (Asia/Jakarta), pada branch `feat/m2-multi-replica-hardening`.** Halaman ini menjelaskan perilaku yang sudah ada, bukan seluruh target produk. M0–M2 telah ditutup secara local implementation; P3 masih bertahap. Source yang dibaca, riwayat pengujian, dan batas sinkronisasi tercatat di [contract execution evidence](../reviews/CONTRACT-EXECUTION.md). Perubahan lokal belum berarti deployment atau persetujuan produksi.
 
 ## Cara membaca dokumentasi
 
@@ -24,6 +24,8 @@ Untuk menjawab “apa yang berjalan sekarang”, gunakan source, migration, kont
 | AI runtime       | Gateway `chat`/`generate`/`structured_generate`, OpenRouter + Direct Anthropic adapters, SSE/replay, durable provider invocation/result/usage, bounded fallback                                                  | Live vendor smoke belum tersedia di workstation; `agent_execute`, tools/plugins/workspace tetap belum berjalan                  |
 
 `chat`, `generate`, dan `structured_generate` sudah memiliki jalur gateway lokal yang executable; `agent_execute` tetap **CONTRACT_ONLY** sampai M3 runtime tersedia. State runner STARTED atau proposal outcome completed tidak mengubah status `agent_execute` itu. Lihat [catalogue](../contracts/CAPABILITIES.md).
+
+Adapter HTTP binary payload dan plugin runner tersedia sebagai source dan lulus tes dalam komposisi terisolasi. Keduanya belum terdaftar pada aplikasi API, sehingga belum merupakan endpoint yang dapat dipakai runner. Service pembaca internal tetap memegang pemeriksaan lease/binding; aktivasi route menunggu wiring KMS/storage dan signer trust/provenance produksi.
 
 ## Proses dan ownership yang nyata
 
