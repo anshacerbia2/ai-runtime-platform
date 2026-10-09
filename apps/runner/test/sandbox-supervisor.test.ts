@@ -61,6 +61,10 @@ test('duplicate start shares one exact sandbox launch and stop is idempotent', a
 
 test('stop waits for in-flight launch then escalates and requires exit inspection', async () => {
   const grant = identity();
+  let launchEntered!: () => void;
+  const launched = new Promise<void>((resolve) => {
+    launchEntered = resolve;
+  });
   let completeLaunch!: (handle: SandboxHandle) => void;
   const pending = new Promise<SandboxHandle>((resolve) => {
     completeLaunch = resolve;
@@ -80,10 +84,12 @@ test('stop waits for in-flight launch then escalates and requires exit inspectio
   };
   const supervisor = new LocalSandboxSupervisor({
     async launch() {
+      launchEntered();
       return pending;
     },
   });
   const started = supervisor.start(grant);
+  await launched;
   const stopping = supervisor.stop(grant);
   completeLaunch(handle);
   await assert.rejects(started, /stopp?ed/i);
@@ -182,6 +188,10 @@ test('stale generation or boot cannot stop another sandbox', async () => {
 
 test('late launch after stop deadline remains unconfirmed and receives cleanup', async () => {
   const grant = identity();
+  let launchEntered!: () => void;
+  const launched = new Promise<void>((resolve) => {
+    launchEntered = resolve;
+  });
   let completeLaunch!: (handle: SandboxHandle) => void;
   const pending = new Promise<SandboxHandle>((resolve) => {
     completeLaunch = resolve;
@@ -190,12 +200,14 @@ test('late launch after stop deadline remains unconfirmed and receives cleanup',
   const supervisor = new LocalSandboxSupervisor(
     {
       async launch() {
+        launchEntered();
         return pending;
       },
     },
     { launchMs: 10, gracefulMs: 10, forceMs: 10 },
   );
   const started = supervisor.start(grant);
+  await launched;
   assert.deepEqual(await supervisor.stop(grant), {
     state: 'UNCONFIRMED',
     method: null,
@@ -265,4 +277,23 @@ test('stop before launch seals the assignment but cannot assert a process exit',
   assert.throws(() => supervisor.start(grant), /stopp?ed/i);
   assert.equal(launches, 0);
   assert.throws(() => supervisor.stop({ ...grant, epoch: 2 }), /identity/i);
+});
+
+test('stop in the same turn prevents a queued sandbox launch', async () => {
+  const grant = identity();
+  let launches = 0;
+  const supervisor = new LocalSandboxSupervisor({
+    async launch() {
+      launches++;
+      throw new Error('sandbox should not launch');
+    },
+  });
+  const started = supervisor.start(grant);
+  const stopping = supervisor.stop(grant);
+  await assert.rejects(started, /stopp?ed/i);
+  assert.deepEqual(await stopping, {
+    state: 'UNCONFIRMED',
+    method: null,
+  });
+  assert.equal(launches, 0);
 });

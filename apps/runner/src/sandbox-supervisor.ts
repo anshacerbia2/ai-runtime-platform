@@ -130,9 +130,12 @@ export class LocalSandboxSupervisor {
       stopping: null,
     };
     this.entries.set(captured.assignmentId, entry);
-    entry.started = Promise.resolve().then(() =>
-      this.driver.launch({ ...captured }),
-    );
+    entry.started = Promise.resolve().then(() => {
+      if (entry.stopping) {
+        throw new Error('Sandbox assignment was stopped.');
+      }
+      return this.driver.launch({ ...captured });
+    });
     return this.deliverStarted(entry);
   }
 
