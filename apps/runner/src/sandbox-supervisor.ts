@@ -21,6 +21,13 @@ export interface SandboxHandle {
 export interface SandboxDriver {
   /** A deterministic assignment ID must make launch idempotent across retries. */
   launch(identity: SandboxIdentity): Promise<SandboxHandle>;
+  /** Discover an existing sandbox after supervisor restart; return its recorded binding. */
+  recover(identity: SandboxIdentity): Promise<RecoveredSandbox | null>;
+}
+
+export interface RecoveredSandbox {
+  identity: SandboxIdentity;
+  handle: SandboxHandle;
 }
 
 export interface StopEvidence {
@@ -157,7 +164,7 @@ export class LocalSandboxSupervisor {
       if (this.entries.size >= MAX_TRACKED_ASSIGNMENTS) {
         throw new Error('Local sandbox supervisor capacity is exhausted.');
       }
-      // Seal an out-of-order stop locally. Absence cannot prove a remote process died.
+      // Seal first, then discover a possible sandbox left by an earlier process.
       entry = { identity: { ...identity }, started: null, stopping: null };
       this.entries.set(identity.assignmentId, entry);
     }
@@ -167,7 +174,7 @@ export class LocalSandboxSupervisor {
     if (!entry.stopping) {
       entry.stopping = entry.started
         ? this.stopStarted(entry.started)
-        : Promise.resolve(UNCONFIRMED);
+        : this.stopRecovered(entry.identity);
     }
     return entry.stopping;
   }
@@ -182,6 +189,30 @@ export class LocalSandboxSupervisor {
       return UNCONFIRMED;
     }
     return this.terminate(handle);
+  }
+
+  private async stopRecovered(
+    identity: SandboxIdentity,
+  ): Promise<StopEvidence> {
+    const lookup = Promise.resolve().then(() =>
+      this.driver.recover({ ...identity }),
+    );
+    const recovered = await within(lookup, this.deadlines.launchMs);
+    if (!recovered) {
+      // A slow lookup may still locate an old sandbox after this call expires.
+      void lookup
+        .then((late) =>
+          late && sameIdentity(late.identity, identity)
+            ? this.terminate(late.handle)
+            : undefined,
+        )
+        .catch(() => {});
+      return UNCONFIRMED;
+    }
+    if (!sameIdentity(recovered.identity, identity)) {
+      return UNCONFIRMED;
+    }
+    return this.terminate(recovered.handle);
   }
 
   private async terminate(handle: SandboxHandle): Promise<StopEvidence> {

@@ -31,7 +31,7 @@ These are candidates, not ranked defaults. If Kubernetes is the target, compare 
 
 For each candidate, record pinned runtime/image/package digests, host/kernel/CRI versions, node topology, applied policy, workload digest, observed behavior, logs, and reviewer disposition. Evidence must be from the deployment shape proposed for production, not only a local fake driver.
 
-1. Launch an exact assignment twice after a response loss and after supervisor restart. Inspect the deterministic sandbox identity; only one owned sandbox may execute. A stale boot, owner, generation, or epoch cannot stop or attach to a different sandbox.
+1. Launch an exact assignment twice after a response loss and after supervisor restart. The adapter's `recover` lookup must return the full recorded binding and handle for the deterministic sandbox identity; only one owned sandbox may execute. A stale boot, owner, generation, or epoch cannot stop or attach to a different sandbox. The local port has fake-driver tests for this ordering, not a real runtime proof.
 2. Try to read host/control-plane environment, service-account material, runtime sockets, arbitrary host paths, and another application's workspace. Test symlinks and mount propagation. The workload must receive no broad host/provider credential.
 3. Probe metadata and private/control networks over IPv4 and IPv6, DNS changes, and redirects. Only explicit broker/approved destinations may be reachable. Verify outbound policy at the enforcement point, not through agent SDK prompts.
 4. Exercise CPU, memory, process, disk, log, and wall-clock exhaustion. Measure whether neighboring jobs and the control plane remain within their stated budgets.

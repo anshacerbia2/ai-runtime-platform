@@ -36,6 +36,9 @@ test('duplicate start shares one exact sandbox launch and stop is idempotent', a
     },
   };
   const supervisor = new LocalSandboxSupervisor({
+    async recover() {
+      return null;
+    },
     async launch() {
       launches++;
       return handle;
@@ -83,6 +86,9 @@ test('stop waits for in-flight launch then escalates and requires exit inspectio
     },
   };
   const supervisor = new LocalSandboxSupervisor({
+    async recover() {
+      return null;
+    },
     async launch() {
       launchEntered();
       return pending;
@@ -103,6 +109,9 @@ test('stop waits for in-flight launch then escalates and requires exit inspectio
 test('unknown sandbox or failed inspection never becomes termination evidence', async () => {
   const grant = identity();
   const supervisor = new LocalSandboxSupervisor({
+    async recover() {
+      return null;
+    },
     async launch() {
       return {
         async requestStop() {
@@ -131,6 +140,9 @@ test('unknown sandbox or failed inspection never becomes termination evidence', 
 test('observed exit is evidence even when the stop signal fails', async () => {
   const grant = identity();
   const supervisor = new LocalSandboxSupervisor({
+    async recover() {
+      return null;
+    },
     async launch() {
       return {
         async requestStop() {
@@ -156,6 +168,9 @@ test('stale generation or boot cannot stop another sandbox', async () => {
   const grant = identity();
   let signals = 0;
   const supervisor = new LocalSandboxSupervisor({
+    async recover() {
+      return null;
+    },
     async launch() {
       return {
         async requestStop() {
@@ -199,6 +214,9 @@ test('late launch after stop deadline remains unconfirmed and receives cleanup',
   let signals = 0;
   const supervisor = new LocalSandboxSupervisor(
     {
+      async recover() {
+        return null;
+      },
       async launch() {
         launchEntered();
         return pending;
@@ -239,6 +257,9 @@ test('hung stop and inspection are bounded and cannot certify termination', asyn
   const never = new Promise<void>(() => {});
   const supervisor = new LocalSandboxSupervisor(
     {
+      async recover() {
+        return null;
+      },
       async launch() {
         return {
           requestStop: () => never,
@@ -265,6 +286,9 @@ test('stop before launch seals the assignment but cannot assert a process exit',
   const grant = identity();
   let launches = 0;
   const supervisor = new LocalSandboxSupervisor({
+    async recover() {
+      return null;
+    },
     async launch() {
       launches++;
       throw new Error('must not launch');
@@ -283,6 +307,9 @@ test('stop in the same turn prevents a queued sandbox launch', async () => {
   const grant = identity();
   let launches = 0;
   const supervisor = new LocalSandboxSupervisor({
+    async recover() {
+      return null;
+    },
     async launch() {
       launches++;
       throw new Error('sandbox should not launch');
@@ -296,4 +323,171 @@ test('stop in the same turn prevents a queued sandbox launch', async () => {
     method: null,
   });
   assert.equal(launches, 0);
+});
+
+test('a restarted supervisor stops only an exact recovered sandbox', async () => {
+  const grant = identity();
+  let recoveries = 0;
+  let signals = 0;
+  const supervisor = new LocalSandboxSupervisor({
+    async launch() {
+      throw new Error('must not launch');
+    },
+    async recover() {
+      recoveries++;
+      return {
+        identity: { ...grant },
+        handle: {
+          async requestStop() {
+            signals++;
+          },
+          async forceStop() {
+            throw new Error('force must not run');
+          },
+          async inspect() {
+            return 'EXITED';
+          },
+        } satisfies SandboxHandle,
+      };
+    },
+  });
+  const [first, second] = await Promise.all([
+    supervisor.stop(grant),
+    supervisor.stop({ ...grant }),
+  ]);
+  assert.deepEqual(first, { state: 'TERMINATED', method: 'GRACEFUL' });
+  assert.deepEqual(second, first);
+  assert.equal(recoveries, 1);
+  assert.equal(signals, 1);
+  assert.throws(() => supervisor.start(grant), /stopp?ed/i);
+});
+
+test('a mismatched recovered sandbox is never signaled', async () => {
+  const grant = identity();
+  let recoveries = 0;
+  let signals = 0;
+  const supervisor = new LocalSandboxSupervisor({
+    async launch() {
+      throw new Error('must not launch');
+    },
+    async recover() {
+      recoveries++;
+      return {
+        identity: { ...grant, bootId: randomUUID() },
+        handle: {
+          async requestStop() {
+            signals++;
+          },
+          async forceStop() {
+            signals++;
+          },
+          async inspect() {
+            return 'EXITED';
+          },
+        } satisfies SandboxHandle,
+      };
+    },
+  });
+  assert.deepEqual(await supervisor.stop(grant), {
+    state: 'UNCONFIRMED',
+    method: null,
+  });
+  assert.equal(recoveries, 1);
+  assert.equal(signals, 0);
+});
+
+test('late recovery remains unconfirmed but requests bounded cleanup', async () => {
+  const grant = identity();
+  let complete!: (recovered: {
+    identity: SandboxIdentity;
+    handle: SandboxHandle;
+  }) => void;
+  const pending = new Promise<{
+    identity: SandboxIdentity;
+    handle: SandboxHandle;
+  }>((resolve) => {
+    complete = resolve;
+  });
+  let signals = 0;
+  const supervisor = new LocalSandboxSupervisor(
+    {
+      async launch() {
+        throw new Error('must not launch');
+      },
+      async recover() {
+        return pending;
+      },
+    },
+    { launchMs: 10, gracefulMs: 10, forceMs: 10 },
+  );
+  assert.deepEqual(await supervisor.stop(grant), {
+    state: 'UNCONFIRMED',
+    method: null,
+  });
+  complete({
+    identity: { ...grant },
+    handle: {
+      async requestStop() {
+        signals++;
+      },
+      async forceStop() {
+        signals++;
+      },
+      async inspect() {
+        return 'EXITED';
+      },
+    },
+  });
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(signals, 1);
+  assert.deepEqual(await supervisor.stop(grant), {
+    state: 'UNCONFIRMED',
+    method: null,
+  });
+});
+
+test('late lookup with another binding never signals that sandbox', async () => {
+  const grant = identity();
+  let complete!: (recovered: {
+    identity: SandboxIdentity;
+    handle: SandboxHandle;
+  }) => void;
+  const pending = new Promise<{
+    identity: SandboxIdentity;
+    handle: SandboxHandle;
+  }>((resolve) => {
+    complete = resolve;
+  });
+  let signals = 0;
+  const supervisor = new LocalSandboxSupervisor(
+    {
+      async launch() {
+        throw new Error('must not launch');
+      },
+      async recover() {
+        return pending;
+      },
+    },
+    { launchMs: 10, gracefulMs: 10, forceMs: 10 },
+  );
+  assert.deepEqual(await supervisor.stop(grant), {
+    state: 'UNCONFIRMED',
+    method: null,
+  });
+  complete({
+    identity: { ...grant, generation: 2 },
+    handle: {
+      async requestStop() {
+        signals++;
+      },
+      async forceStop() {
+        signals++;
+      },
+      async inspect() {
+        return 'EXITED';
+      },
+    },
+  });
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(signals, 0);
 });
