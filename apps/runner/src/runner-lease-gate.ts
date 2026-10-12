@@ -24,6 +24,7 @@ const UNCONFIRMED: StopEvidence = { state: 'UNCONFIRMED', method: null };
 export class RunnerLeaseGate {
   private readonly identity: SandboxIdentity;
   private expiresAtMs: number;
+  private lastRenewalStartedAtMs: number;
   private lastNowMs: number;
   private lost = false;
   private pendingRenewal: Promise<boolean> | null = null;
@@ -56,6 +57,7 @@ export class RunnerLeaseGate {
     this.identity = { ...identity };
     this.lastNowMs = now;
     this.expiresAtMs = initialActivationStartedAtMs + policy.leaseTtlMs;
+    this.lastRenewalStartedAtMs = initialActivationStartedAtMs;
   }
 
   canStartStep(): boolean {
@@ -77,6 +79,7 @@ export class RunnerLeaseGate {
     if (this.pendingRenewal) {
       return this.pendingRenewal;
     }
+    this.lastRenewalStartedAtMs = this.lastNowMs;
     const pending = this.renewOnce(this.lastNowMs);
     this.pendingRenewal = pending;
     void pending.then(() => {
@@ -85,6 +88,27 @@ export class RunnerLeaseGate {
       }
     });
     return pending;
+  }
+
+  /** Remaining time from the last request start; null once authority is lost. */
+  timeUntilRenewalMs(intervalMs: number): number | null {
+    if (!Number.isSafeInteger(intervalMs) || intervalMs < 1) {
+      throw new Error('Runner lease renewal interval must be positive.');
+    }
+    if (!this.canStartStep()) {
+      return null;
+    }
+    return Math.max(
+      0,
+      this.lastRenewalStartedAtMs + intervalMs - this.lastNowMs,
+    );
+  }
+
+  timeUntilExpiryMs(): number | null {
+    if (!this.canStartStep()) {
+      return null;
+    }
+    return this.expiresAtMs - this.lastNowMs;
   }
 
   private async renewOnce(sentAtMs: number): Promise<boolean> {
