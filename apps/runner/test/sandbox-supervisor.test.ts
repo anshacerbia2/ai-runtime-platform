@@ -491,3 +491,102 @@ test('late lookup with another binding never signals that sandbox', async () => 
   await new Promise<void>((resolve) => setImmediate(resolve));
   assert.equal(signals, 0);
 });
+
+test('quiesce blocks a queued launch without stopping existing work', async () => {
+  const grant = identity();
+  let launches = 0;
+  const supervisor = new LocalSandboxSupervisor({
+    async recover() {
+      return null;
+    },
+    async launch() {
+      launches++;
+      throw new Error('must not launch');
+    },
+  });
+  const started = supervisor.start(grant);
+  assert.deepEqual(supervisor.quiesce(), [{ ...grant }]);
+  await assert.rejects(started, /draining/i);
+  assert.equal(launches, 0);
+  assert.throws(() => supervisor.start(identity()), /draining/i);
+  assert.deepEqual(await supervisor.stopTracked(), [
+    { identity: grant, evidence: { state: 'UNCONFIRMED', method: null } },
+  ]);
+});
+
+test('quiesce preserves running work until explicit stopTracked', async () => {
+  const first = identity();
+  const second = identity();
+  let signals = 0;
+  const supervisor = new LocalSandboxSupervisor({
+    async recover() {
+      return null;
+    },
+    async launch() {
+      return {
+        async requestStop() {
+          signals++;
+        },
+        async forceStop() {
+          throw new Error('force must not run');
+        },
+        async inspect() {
+          return 'EXITED';
+        },
+      } satisfies SandboxHandle;
+    },
+  });
+  await Promise.all([supervisor.start(first), supervisor.start(second)]);
+  assert.deepEqual(supervisor.quiesce(), [first, second]);
+  assert.equal(signals, 0);
+  assert.throws(() => supervisor.start(identity()), /draining/i);
+  const stopping = supervisor.stopTracked();
+  assert.equal(supervisor.stopTracked(), stopping);
+  assert.deepEqual(await stopping, [
+    { identity: first, evidence: { state: 'TERMINATED', method: 'GRACEFUL' } },
+    { identity: second, evidence: { state: 'TERMINATED', method: 'GRACEFUL' } },
+  ]);
+  assert.equal(signals, 2);
+});
+
+test('explicit stopTracked catches an in-flight launch after quiesce', async () => {
+  const grant = identity();
+  let launchEntered!: () => void;
+  const launched = new Promise<void>((resolve) => {
+    launchEntered = resolve;
+  });
+  let completeLaunch!: (handle: SandboxHandle) => void;
+  const pending = new Promise<SandboxHandle>((resolve) => {
+    completeLaunch = resolve;
+  });
+  let signals = 0;
+  const supervisor = new LocalSandboxSupervisor({
+    async recover() {
+      return null;
+    },
+    async launch() {
+      launchEntered();
+      return pending;
+    },
+  });
+  const started = supervisor.start(grant);
+  await launched;
+  supervisor.quiesce();
+  const stopping = supervisor.stopTracked();
+  completeLaunch({
+    async requestStop() {
+      signals++;
+    },
+    async forceStop() {
+      throw new Error('force must not run');
+    },
+    async inspect() {
+      return 'EXITED';
+    },
+  });
+  await assert.rejects(started, /stopp?ed/i);
+  assert.deepEqual(await stopping, [
+    { identity: grant, evidence: { state: 'TERMINATED', method: 'GRACEFUL' } },
+  ]);
+  assert.equal(signals, 1);
+});

@@ -35,6 +35,11 @@ export interface StopEvidence {
   method: 'GRACEFUL' | 'FORCED' | 'OBSERVED' | null;
 }
 
+export interface TrackedStopResult {
+  identity: SandboxIdentity;
+  evidence: StopEvidence;
+}
+
 interface Entry {
   identity: SandboxIdentity;
   started: Promise<SandboxHandle> | null;
@@ -99,6 +104,8 @@ async function within<T>(
  */
 export class LocalSandboxSupervisor {
   private readonly entries = new Map<string, Entry>();
+  private quiesced: SandboxIdentity[] | null = null;
+  private trackedStop: Promise<readonly TrackedStopResult[]> | null = null;
 
   constructor(
     private readonly driver: SandboxDriver,
@@ -117,6 +124,9 @@ export class LocalSandboxSupervisor {
 
   start(identity: SandboxIdentity): Promise<SandboxHandle> {
     assertIdentity(identity);
+    if (this.quiesced) {
+      throw new Error('Sandbox supervisor is draining.');
+    }
     const current = this.entries.get(identity.assignmentId);
     if (current) {
       if (!sameIdentity(current.identity, identity)) {
@@ -138,12 +148,39 @@ export class LocalSandboxSupervisor {
     };
     this.entries.set(captured.assignmentId, entry);
     entry.started = Promise.resolve().then(() => {
+      if (this.quiesced) {
+        throw new Error('Sandbox supervisor is draining.');
+      }
       if (entry.stopping) {
         throw new Error('Sandbox assignment was stopped.');
       }
       return this.driver.launch({ ...captured });
     });
     return this.deliverStarted(entry);
+  }
+
+  /** Stop admitting launches; existing work keeps its caller-owned deadline. */
+  quiesce(): readonly SandboxIdentity[] {
+    if (!this.quiesced) {
+      this.quiesced = [...this.entries.values()].map((entry) => ({
+        ...entry.identity,
+      }));
+    }
+    return this.quiesced.map((identity) => ({ ...identity }));
+  }
+
+  /** Explicit cleanup after cancellation or the caller's in-flight deadline. */
+  stopTracked(): Promise<readonly TrackedStopResult[]> {
+    if (!this.trackedStop) {
+      const snapshot = this.quiesce();
+      this.trackedStop = Promise.all(
+        snapshot.map(async (identity) => ({
+          identity,
+          evidence: await this.stop(identity),
+        })),
+      );
+    }
+    return this.trackedStop;
   }
 
   private async deliverStarted(entry: Entry): Promise<SandboxHandle> {
