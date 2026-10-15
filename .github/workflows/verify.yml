@@ -156,6 +156,11 @@ jobs:
           M3_TEST_OBJECT_STORE_ENDPOINT: http://127.0.0.1:9000
           M3_TEST_OBJECT_STORE_ACCESS_KEY_ID: minio_ci_access
           M3_TEST_OBJECT_STORE_SECRET_ACCESS_KEY: minio_ci_secret_0000000000000000
+      - run: npm run test:plugin:s3
+        env:
+          M3_TEST_OBJECT_STORE_ENDPOINT: http://127.0.0.1:9000
+          M3_TEST_OBJECT_STORE_ACCESS_KEY_ID: minio_ci_access
+          M3_TEST_OBJECT_STORE_SECRET_ACCESS_KEY: minio_ci_secret_0000000000000000
       - name: Stop isolated MinIO dispatch conformance service
         if: always()
         run: |

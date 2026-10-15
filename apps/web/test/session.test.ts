@@ -20,7 +20,9 @@ test('G37 cookie is an opaque signed reference; credentials exist only encrypted
     false,
   );
   assert.equal(await manager.access(ref), 'sensitive-access');
-  assert.equal(await manager.read('x' + ref.slice(1)), null);
+  const tampered = (ref[0] === 'x' ? 'y' : 'x') + ref.slice(1);
+  assert.notEqual(tampered, ref);
+  assert.equal(await manager.read(tampered), null);
   await manager.logout(ref);
   assert.equal(await manager.read(ref), null);
 });

@@ -59,6 +59,15 @@ export const ProfileRecord = z.object({
   maxOutputTokens: z.number().int().positive(),
   timeoutMs: z.number().int().positive(),
   streaming: z.boolean(),
+  plugin: z
+    .object({
+      packageId: text,
+      version: text,
+      bundleDigest: text,
+      runtimeVersion: text,
+    })
+    .nullable()
+    .optional(),
   holdUnits: amount,
   accountIds: z.array(text),
   digest: text,

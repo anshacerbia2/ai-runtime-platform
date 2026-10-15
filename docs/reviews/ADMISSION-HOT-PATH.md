@@ -47,6 +47,8 @@ Admission now uses **Read Committed** with explicit, ordered database locks for 
 
 Deterministic PostgreSQL races now cover both lock orders for application, connection, and binding revocation, plus profile-alias disable, a budget-limit change queued behind a reservation, and shared quota-group reconfiguration ordered before capacity admission. In the admission-first cases, admission commits and the policy change follows it. If the policy change owns the ordering point first, the later admission observes the new state. This is the agreed transaction-order contract; it does not turn disable into implicit cancellation of already-running provider work.
 
+Fixture clarification, 2 October 2026: the quota-group test now holds its application-row blocker and quota advisory blocker in separate transactions. It releases the quota blocker, waits for the logical management command to commit, then releases admission. Releasing both blockers together did not guarantee that ordering: a Serializable management retry can release its advisory lock before the logical command commits. The test must establish committed management-first ordering explicitly rather than infer it from lock wake-up order. This changes test orchestration only; isolation, lock protocol, capacity policy, and benchmark results are unchanged.
+
 The final comparison below uses the same workstation, PostgreSQL, pool size, five scenarios, and 100 admissions per scenario. The baseline was captured immediately before the change; the candidate was captured after the lock protocol and with the expanded per-statement instrumentation.
 
 | Isolation / protocol            | Workers | Shards | Accepted | Admission p95 / p99 | Pool acquire p95 | `BEGIN` count | Lock-wait samples |

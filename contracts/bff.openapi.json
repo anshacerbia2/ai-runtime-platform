@@ -12580,6 +12580,36 @@
                           "streaming": {
                             "type": "boolean"
                           },
+                          "plugin": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "packageId": {
+                                    "type": "string"
+                                  },
+                                  "version": {
+                                    "type": "string"
+                                  },
+                                  "bundleDigest": {
+                                    "type": "string"
+                                  },
+                                  "runtimeVersion": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "packageId",
+                                  "version",
+                                  "bundleDigest",
+                                  "runtimeVersion"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
                           "holdUnits": {
                             "type": "string",
                             "pattern": "^-?[0-9]+$"
@@ -13912,6 +13942,41 @@
                   "streaming": {
                     "type": "boolean"
                   },
+                  "plugin": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "packageId": {
+                            "type": "string",
+                            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,119}$"
+                          },
+                          "version": {
+                            "type": "string",
+                            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,119}$"
+                          },
+                          "bundleDigest": {
+                            "type": "string",
+                            "pattern": "^[a-f0-9]{64}$"
+                          },
+                          "runtimeVersion": {
+                            "type": "string",
+                            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,119}$"
+                          }
+                        },
+                        "required": [
+                          "packageId",
+                          "version",
+                          "bundleDigest",
+                          "runtimeVersion"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "holdUnits": {
                     "type": "string",
                     "pattern": "^(0|[1-9][0-9]{0,14})$"
@@ -14019,6 +14084,36 @@
                         },
                         "streaming": {
                           "type": "boolean"
+                        },
+                        "plugin": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "packageId": {
+                                  "type": "string"
+                                },
+                                "version": {
+                                  "type": "string"
+                                },
+                                "bundleDigest": {
+                                  "type": "string"
+                                },
+                                "runtimeVersion": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "packageId",
+                                "version",
+                                "bundleDigest",
+                                "runtimeVersion"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         },
                         "holdUnits": {
                           "type": "string",
@@ -41368,6 +41463,36 @@
                               "streaming": {
                                 "type": "boolean"
                               },
+                              "plugin": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "packageId": {
+                                        "type": "string"
+                                      },
+                                      "version": {
+                                        "type": "string"
+                                      },
+                                      "bundleDigest": {
+                                        "type": "string"
+                                      },
+                                      "runtimeVersion": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "packageId",
+                                      "version",
+                                      "bundleDigest",
+                                      "runtimeVersion"
+                                    ]
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
                               "holdUnits": {
                                 "type": "string",
                                 "pattern": "^-?[0-9]+$"
@@ -41736,6 +41861,36 @@
                               },
                               "streaming": {
                                 "type": "boolean"
+                              },
+                              "plugin": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "packageId": {
+                                        "type": "string"
+                                      },
+                                      "version": {
+                                        "type": "string"
+                                      },
+                                      "bundleDigest": {
+                                        "type": "string"
+                                      },
+                                      "runtimeVersion": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "packageId",
+                                      "version",
+                                      "bundleDigest",
+                                      "runtimeVersion"
+                                    ]
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
                               },
                               "holdUnits": {
                                 "type": "string",
@@ -43376,6 +43531,41 @@
                       "streaming": {
                         "type": "boolean"
                       },
+                      "plugin": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "packageId": {
+                                "type": "string",
+                                "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,119}$"
+                              },
+                              "version": {
+                                "type": "string",
+                                "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,119}$"
+                              },
+                              "bundleDigest": {
+                                "type": "string",
+                                "pattern": "^[a-f0-9]{64}$"
+                              },
+                              "runtimeVersion": {
+                                "type": "string",
+                                "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,119}$"
+                              }
+                            },
+                            "required": [
+                              "packageId",
+                              "version",
+                              "bundleDigest",
+                              "runtimeVersion"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
                       "holdUnits": {
                         "type": "string",
                         "pattern": "^(0|[1-9][0-9]{0,14})$"
@@ -43866,6 +44056,36 @@
                         },
                         "streaming": {
                           "type": "boolean"
+                        },
+                        "plugin": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "packageId": {
+                                  "type": "string"
+                                },
+                                "version": {
+                                  "type": "string"
+                                },
+                                "bundleDigest": {
+                                  "type": "string"
+                                },
+                                "runtimeVersion": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "packageId",
+                                "version",
+                                "bundleDigest",
+                                "runtimeVersion"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         },
                         "holdUnits": {
                           "type": "string",

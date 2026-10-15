@@ -390,6 +390,27 @@ export class PrismaRunnerAuthority implements RunnerAuthority {
         stale();
       }
       if (report.type === 'started') {
+        if (execution.admissionSource === 'AGENT') {
+          const profile = await tx.profileRevision.findUniqueOrThrow({
+            where: { id: execution.profileRevisionId },
+          });
+          if (profile.pluginPackageId) {
+            const [plugin] = await tx.$queryRaw<
+              Array<{ bundle_digest: string; state: string }>
+            >`SELECT bundle_digest, state FROM control.plugin_packages
+                WHERE application_id = ${execution.applicationId}
+                  AND package_id = ${profile.pluginPackageId}
+                  AND version = ${profile.pluginVersion}
+                FOR SHARE`;
+            if (
+              !plugin ||
+              plugin.state !== 'ACTIVE' ||
+              plugin.bundle_digest.trim() !== profile.pluginDigest?.trim()
+            ) {
+              stale();
+            }
+          }
+        }
         if (row.state === 'STARTED') {
           return present(row);
         }

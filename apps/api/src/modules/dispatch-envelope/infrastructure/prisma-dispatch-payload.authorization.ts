@@ -48,6 +48,11 @@ export class PrismaDispatchPayloadAuthorization implements DispatchPayloadAuthor
       SELECT e.application_id AS "applicationId"
       FROM control.runner_assignments a
       JOIN control.executions e ON e.id = a.execution_id
+      JOIN control.profile_revisions p ON p.id = e.profile_revision_id
+      LEFT JOIN control.plugin_packages pkg
+        ON pkg.application_id = e.application_id
+       AND pkg.package_id = p.plugin_package_id
+       AND pkg.version = p.plugin_version
       JOIN control.attempts t ON t.id = a.attempt_id AND t.execution_id = e.id
       JOIN control.dispatch_envelopes d
         ON d.execution_id = e.id AND d.application_id = e.application_id
@@ -65,6 +70,10 @@ export class PrismaDispatchPayloadAuthorization implements DispatchPayloadAuthor
         AND e.cancel_requested_at IS NULL
         AND e.assignment_generation = a.generation
         AND e.coordination_epoch = a.epoch
+        AND (p.plugin_package_id IS NULL OR (
+          pkg.state = 'ACTIVE'
+          AND pkg.bundle_digest = p.plugin_digest
+        ))
         AND t.status IN ('PREPARED', 'RUNNING')
         AND t.authority = 'OWNED'
         AND d.id = ${envelopeId}::uuid

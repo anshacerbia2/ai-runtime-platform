@@ -96,6 +96,7 @@ process.once('SIGTERM', () => stop());
 
 try {
   run(tsc, '-p', 'packages/contracts/tsconfig.json');
+  run(tsc, '-p', 'packages/plugin-package/tsconfig.json');
   run(join(root, 'node_modules/prisma/build/index.js'), 'generate');
   run(join(root, 'scripts/setup-local.mjs'));
   run(tsc, '-p', 'apps/api/tsconfig.json');

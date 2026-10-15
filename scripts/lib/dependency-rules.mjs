@@ -9,6 +9,13 @@ export function dependencyViolation(
   clientDirective = false,
 ) {
   const inner = /\/(domain|application)\//.test(file);
+  const pluginPackage =
+    dependency === '@ai-runtime/plugin-package' ||
+    dependency.startsWith('@ai-runtime/plugin-package/') ||
+    target.startsWith('packages/plugin-package/');
+  if (inner && pluginPackage && !typeOnly) {
+    return 'Plugin byte verification belongs in infrastructure, behind an application port.';
+  }
   if (inner && frameworks.test(dependency)) {
     return 'Inner layers cannot import framework, transport, database, or Node infrastructure.';
   }
@@ -34,6 +41,9 @@ export function dependencyViolation(
   }
   const web = file.startsWith('apps/web/');
   const server = file.startsWith('apps/web/src/server/');
+  if (web && pluginPackage) {
+    return 'Plugin package verification belongs only in API/runner processes.';
+  }
   if (
     web &&
     /(?:@nestjs|@prisma|^pg$|^postgres$|^mysql|^sqlite)/.test(dependency)

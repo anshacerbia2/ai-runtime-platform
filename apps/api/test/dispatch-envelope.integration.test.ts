@@ -30,6 +30,10 @@ import type {
 import { PrismaToolEffectRepository } from '../src/modules/tool-effects/infrastructure/prisma-tool-effect.repository.js';
 import { Sha256ToolEffectDigester } from '../src/modules/tool-effects/infrastructure/sha256-tool-effect.digester.js';
 import { PrismaDispatchPayloadAuthorization } from '../src/modules/dispatch-envelope/infrastructure/prisma-dispatch-payload.authorization.js';
+import { PrismaRunnerPluginAuthorization } from '../src/modules/plugin-registry/infrastructure/prisma-runner-plugin.authorization.js';
+import { SignedPluginPackageReader } from '../src/modules/plugin-registry/infrastructure/signed-plugin-package.reader.js';
+import { PluginPackageDeliveryService } from '../src/modules/plugin-registry/application/plugin-package-delivery.service.js';
+import { signedPluginFixture } from './fixtures/signed-plugin-package.js';
 
 const config = loadConfig();
 const database = createDatabaseClient(config);
@@ -37,6 +41,12 @@ const prefix = `dispatch-${randomUUID()}`;
 const applicationId = `${prefix}-app`;
 const connectionId = `${prefix}-connection`;
 const profileRevisionId = randomUUID();
+const pluginFixture = signedPluginFixture(applicationId, 'agent-fixture');
+const pluginReader = new SignedPluginPackageReader(
+  pluginFixture.store,
+  pluginFixture.keys,
+);
+const pluginDigest = pluginFixture.record.bundleDigest;
 const executionId = randomUUID();
 const envelopeId = randomUUID();
 const bindingId = randomUUID();
@@ -105,6 +115,21 @@ before(async () => {
       sharingMode: 'DEDICATED',
     },
   });
+  await database.pluginPackage.create({
+    data: {
+      applicationId,
+      packageId: 'agent-fixture',
+      version: '1.0.0',
+      bundleDigest: pluginDigest,
+      objectKey: pluginFixture.record.objectKey,
+      bundleBytes: pluginFixture.record.bundleBytes,
+      compatibleRuntimeVersions: ['claude-agent-sdk:0.3'],
+      requiredPermissions: ['artifact:write'],
+      state: 'ACTIVE',
+      attestationRef: (await pluginReader.verify(pluginFixture.record))
+        .attestationRef,
+    },
+  });
   await database.profileRevision.create({
     data: {
       id: profileRevisionId,
@@ -120,6 +145,10 @@ before(async () => {
       streaming: true,
       holdUnits: 0n,
       accountIds: [],
+      pluginPackageId: 'agent-fixture',
+      pluginVersion: '1.0.0',
+      pluginDigest,
+      pluginRuntimeVersion: 'claude-agent-sdk:0.3',
       digest: randomBytes(32).toString('hex'),
     },
   });
@@ -220,11 +249,12 @@ after(async () => {
     where: { scopeKey: { contains: prefix } },
   });
   await database.credentialInstance.deleteMany({
-    where: { id: credentialId },
+    where: { runnerRef: { in: [runnerId, ineligibleRunnerId] } },
   });
   await database.credentialBinding.deleteMany({ where: { id: bindingId } });
   await database.profileAlias.deleteMany({ where: { applicationId } });
   await database.profileRevision.deleteMany({ where: { applicationId } });
+  await database.pluginPackage.deleteMany({ where: { applicationId } });
   await database.aiConnection.deleteMany({ where: { id: connectionId } });
   await database.runnerNode.deleteMany({
     where: { id: { in: [runnerId, ineligibleRunnerId] } },
@@ -405,6 +435,13 @@ test('current runner presence autonomously claims one policy-scoped dispatch gra
   assert.equal(grant.inputDigest, nextDigest);
   assert.equal(grant.generation, 1);
   assert.equal(grant.state, 'GRANTED');
+  assert.deepEqual(grant.plugin, {
+    packageId: 'agent-fixture',
+    version: '1.0.0',
+    bundleDigest: pluginDigest,
+    runtimeVersion: 'claude-agent-sdk:0.3',
+    requiredPermissions: ['artifact:write'],
+  });
   assert.equal('objectKey' in grant, false);
   assert.equal('wrappedDataKey' in grant, false);
 
@@ -540,6 +577,36 @@ test('current runner presence autonomously claims one policy-scoped dispatch gra
       nextEnvelopeId,
     ),
     { applicationId },
+  );
+  const pluginAuthorization = new PrismaRunnerPluginAuthorization(
+    database as unknown as DatabaseService,
+    payloadAuthorization,
+  );
+  const pinnedPlugin = await pluginAuthorization.assertCurrent(
+    runnerPrincipal,
+    leaseCommand,
+    nextEnvelopeId,
+  );
+  assert.equal(pinnedPlugin.applicationId, applicationId);
+  assert.equal(pinnedPlugin.packageId, 'agent-fixture');
+  assert.equal(pinnedPlugin.bundleDigest, pluginDigest);
+  const pluginDelivery = new PluginPackageDeliveryService(
+    pluginAuthorization,
+    pluginReader,
+  );
+  assert.deepEqual(
+    Buffer.from(
+      await pluginDelivery.read(runnerPrincipal, leaseCommand, nextEnvelopeId),
+    ),
+    pluginFixture.bytes,
+  );
+  await assert.rejects(
+    pluginAuthorization.assertCurrent(
+      { ...runnerPrincipal, subject: 'another-owner' },
+      leaseCommand,
+      nextEnvelopeId,
+    ),
+    ApplicationError,
   );
   await assert.rejects(
     payloadAuthorization.assertCurrent(
@@ -941,6 +1008,167 @@ test('tool-effect recovery avoids duplicate mutation before epoch fences a live 
       ...token,
       ownerSubject: runnerPrincipal.subject,
       nonce,
+    }),
+    'RELEASED',
+  );
+});
+
+test('revoked pinned plugin blocks lease activation and new dispatch grants', async () => {
+  const executions = await Promise.all(
+    Array.from({ length: 2 }, async (_, index) => {
+      const nextEnvelopeId = randomUUID();
+      const nextExecutionId = randomUUID();
+      const nextDigest = randomBytes(32).toString('hex');
+      await repository.createStaged({
+        ...staged,
+        envelopeId: nextEnvelopeId,
+        executionBindingId: nextExecutionId,
+        inputDigest: nextDigest,
+        objectKey: `dispatch-envelopes/v1/${nextEnvelopeId}`,
+      });
+      await control.admitDispatchEnvelope(
+        principal,
+        { profileRef: `${prefix}-agent`, inputDigest: nextDigest },
+        `${prefix}-revoked-plugin-${index}`,
+        { envelopeId: nextEnvelopeId, executionId: nextExecutionId },
+      );
+      return nextExecutionId;
+    }),
+  );
+  const runner = await database.runnerNode.findUniqueOrThrow({
+    where: { id: runnerId },
+  });
+  const claim = {
+    runnerId,
+    bootId: randomUUID(),
+    registrationRevision: runner.revision,
+  };
+  await liveness.heartbeat(runnerPrincipal, claim);
+  const grant = (await dispatch.claim(runnerPrincipal, claim)).grant;
+  assert.ok(grant);
+  assert.ok(executions.some((id) => id === grant.executionId));
+  const remainingExecutionId = executions.find(
+    (id) => id !== grant.executionId,
+  )!;
+  await database.credentialInstance.create({
+    data: {
+      id: `${prefix}-second-credential`,
+      connectionId,
+      residency: 'RUNNER_LOCAL',
+      runnerRef: ineligibleRunnerId,
+    },
+  });
+  const secondRunner = await database.runnerNode.findUniqueOrThrow({
+    where: { id: ineligibleRunnerId },
+  });
+  const secondClaim = {
+    runnerId: ineligibleRunnerId,
+    bootId: randomUUID(),
+    registrationRevision: secondRunner.revision,
+  };
+  await liveness.heartbeat(runnerPrincipal, secondClaim);
+  const token = {
+    assignmentId: grant.assignmentId,
+    executionId: grant.executionId,
+    attemptId: grant.attemptId,
+    runnerId: grant.runnerId,
+    generation: grant.generation,
+    epoch: grant.epoch,
+  };
+  const leaseCommand = {
+    bootId: claim.bootId,
+    registrationRevision: runner.revision,
+    nonce: randomBytes(32).toString('base64url'),
+    token,
+  };
+  await leaseService.activate(runnerPrincipal, leaseCommand);
+  const payloadAuthorization = new PrismaDispatchPayloadAuthorization(
+    database as unknown as DatabaseService,
+    leaseService,
+  );
+  let downloaded: Uint8Array | undefined;
+  const delivery = new PluginPackageDeliveryService(
+    new PrismaRunnerPluginAuthorization(
+      database as unknown as DatabaseService,
+      payloadAuthorization,
+    ),
+    {
+      async readVerified(record) {
+        const result = await pluginReader.readVerified(record);
+        downloaded = result.bytes;
+        await database.pluginPackage.update({
+          where: {
+            applicationId_packageId_version: {
+              applicationId,
+              packageId: 'agent-fixture',
+              version: '1.0.0',
+            },
+          },
+          data: { state: 'REVOKED', revision: { increment: 1 } },
+        });
+        return result;
+      },
+    },
+  );
+  await assert.rejects(
+    delivery.read(runnerPrincipal, leaseCommand, grant.envelopeId),
+    (error) =>
+      error instanceof ApplicationError && error.code === 'STALE_ASSIGNMENT',
+  );
+  assert.ok(
+    downloaded && (downloaded as Uint8Array).every((byte) => byte === 0),
+  );
+  await assert.rejects(
+    leaseService.activate(runnerPrincipal, leaseCommand),
+    (error) =>
+      error instanceof ApplicationError && error.code === 'STALE_ASSIGNMENT',
+  );
+  await assert.rejects(
+    payloadAuthorization.assertCurrent(
+      runnerPrincipal,
+      leaseCommand,
+      grant.envelopeId,
+    ),
+    (error) =>
+      error instanceof ApplicationError && error.code === 'STALE_ASSIGNMENT',
+  );
+  await assert.rejects(
+    new PrismaRunnerPluginAuthorization(
+      database as unknown as DatabaseService,
+      payloadAuthorization,
+    ).assertCurrent(runnerPrincipal, leaseCommand, grant.envelopeId),
+    ApplicationError,
+  );
+  const authority = new PrismaRunnerAuthority(
+    database as unknown as DatabaseService,
+  );
+  await assert.rejects(
+    authority.report(runnerPrincipal, {
+      type: 'started',
+      token,
+      lease: {
+        bootId: claim.bootId,
+        registrationRevision: runner.revision,
+        nonce: leaseCommand.nonce,
+      },
+    }),
+    (error) =>
+      error instanceof ApplicationError && error.code === 'STALE_ASSIGNMENT',
+  );
+  assert.deepEqual(await dispatch.claim(runnerPrincipal, secondClaim), {
+    grant: null,
+  });
+  assert.equal(
+    await database.runnerAssignment.count({
+      where: { executionId: remainingExecutionId },
+    }),
+    0,
+  );
+  assert.equal(
+    await leaseStore.release({
+      ...token,
+      ownerSubject: runnerPrincipal.subject,
+      nonce: leaseCommand.nonce,
     }),
     'RELEASED',
   );

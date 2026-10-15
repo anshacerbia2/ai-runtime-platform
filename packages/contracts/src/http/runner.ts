@@ -124,6 +124,16 @@ export const RunnerDispatchGrant = Assignment.extend({
   inputDigest: z.string().regex(/^[a-f0-9]{64}$/),
   plaintextBytes: z.number().int().min(1).max(1_048_576),
   expiresAt: z.iso.datetime({ offset: true }),
+  plugin: z
+    .object({
+      packageId: ResourceId,
+      version: ResourceId,
+      bundleDigest: z.string().regex(/^[a-f0-9]{64}$/),
+      runtimeVersion: ResourceId,
+      requiredPermissions: z.array(ResourceId).max(64),
+    })
+    .strict()
+    .nullable(),
 }).strict();
 export type RunnerDispatchGrant = z.infer<typeof RunnerDispatchGrant>;
 export const RunnerDispatchClaimResult = z
