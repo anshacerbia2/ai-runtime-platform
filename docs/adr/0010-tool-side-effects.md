@@ -6,7 +6,7 @@
 
 ## Implementation reconciliation — 24 September 2026
 
-No autonomous mutating tool broker or receiver contract has been integrated. Management request receipts do not imply tool side-effect deduplication. See [current source state](../implementation/CURRENT-STATE.md), [active HTTP operations](../implementation/HTTP-API.md), and [verification scope](../reviews/CONTRACT-EXECUTION.md). This note updates implementation status only; it does not create new reviewer approval or erase the original decision history.
+The local internal intent store and status-first recovery service now exercise receiver commit followed by lost receipt, concurrent same-key calls, and changed-input conflict against PostgreSQL. No autonomous mutating tool broker, receiver contract, tool grant, or runner integration has been activated. Management request receipts do not imply tool side-effect deduplication. See [current source state](../implementation/CURRENT-STATE.md), [active HTTP operations](../implementation/HTTP-API.md), and [verification scope](../reviews/CONTRACT-EXECUTION.md). This note updates implementation status only; it does not create new reviewer approval or erase the original decision history.
 
 ## Context
 

@@ -40,7 +40,10 @@ function stale(): never {
   );
 }
 export class PrismaRunnerAuthority implements RunnerAuthority {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly strictCoordination = false,
+  ) {}
   private transaction<T>(work: (tx: Prisma.TransactionClient) => Promise<T>) {
     return this.db.$transaction(work, {
       isolationLevel: 'ReadCommitted',
@@ -333,6 +336,17 @@ export class PrismaRunnerAuthority implements RunnerAuthority {
   report(p: Principal, report: RunnerReport) {
     return this.transaction(async (tx) => {
       const execution = await this.execution(tx, report.token.executionId);
+      if (this.strictCoordination && execution.admissionSource === 'AGENT') {
+        const rows = await tx.$queryRaw<
+          Array<{ epoch: number; state: string }>
+        >`SELECT epoch, state FROM control.runner_coordination WHERE id = 1 FOR SHARE`;
+        if (
+          rows[0]?.state !== 'ACTIVE' ||
+          rows[0].epoch !== report.token.epoch
+        ) {
+          stale();
+        }
+      }
       const row = await this.owned(tx, p, report.token);
       if (
         execution.assignmentGeneration !== row.generation ||

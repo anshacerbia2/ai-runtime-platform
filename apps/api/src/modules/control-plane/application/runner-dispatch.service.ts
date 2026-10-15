@@ -8,12 +8,14 @@ import { requireAuthority } from '../../identity/domain/principal.js';
 import type { RunnerDispatchRepository } from './runner-dispatch.port.js';
 import type { RunnerLivenessRegistry } from './runner-liveness-registry.port.js';
 import type { RunnerPresenceStore } from './runner-presence-store.port.js';
+import type { RunnerCoordinationService } from './runner-coordination.service.js';
 
 export class RunnerDispatchService {
   constructor(
     private readonly registry: RunnerLivenessRegistry,
     private readonly presence: RunnerPresenceStore,
     private readonly repository: RunnerDispatchRepository,
+    private readonly coordination?: RunnerCoordinationService,
   ) {}
 
   async claim(
@@ -21,6 +23,7 @@ export class RunnerDispatchService {
     input: RunnerHeartbeat,
   ): Promise<RunnerDispatchClaimResult> {
     requireAuthority(principal, 'runner:report');
+    await this.coordination?.assertActive();
     const registration = await this.registry.authorizeHeartbeat(
       principal,
       input.runnerId,
@@ -32,6 +35,7 @@ export class RunnerDispatchService {
       // A replacement heartbeat may have superseded this boot while PostgreSQL
       // was assigning the work. Leave the durable grant for reconciliation.
       await this.requireCurrentPresence(registration, input.bootId);
+      await this.coordination?.assertActive();
     }
     return { grant };
   }

@@ -13,8 +13,10 @@ export interface RunnerLeaseRecovery {
     afterId: string | null,
     limit: number,
   ): Promise<RunnerLeaseRecoveryCandidate[]>;
+  scanActive(limit: number): Promise<RunnerLeaseRecoveryCandidate[]>;
   fence(
     candidate: RunnerLeaseRecoveryCandidate,
-    reason: 'ACTIVATION_TIMEOUT' | 'LEASE_MISSING' | 'LEASE_MISMATCH',
+    reason:
+      'ACTIVATION_TIMEOUT' | 'LEASE_MISSING' | 'LEASE_MISMATCH' | 'EPOCH_LOST',
   ): Promise<boolean>;
 }

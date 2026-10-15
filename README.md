@@ -8,7 +8,7 @@ Shared AI execution platform untuk aplikasi yang membutuhkan direct chat, struct
 
 ## Kondisi source saat ini
 
-M0–M2 sudah mencakup hardening HTTP/UI dan perluasan [ADR-0027–0029](docs/adr/README.md): resource APIs `/api/v1`, independent pagination/count overview, atomic management receipts dengan optimistic concurrency, bounded client retry, machine-only runner authority/fencing, quarantine evidence, explicit mappers/serialization CI gate, serta executable model gateway dengan durable provider invocation/result dan accounting. Autonomous runner dispatch/agent runtime belum ada; authorized live OpenRouter/Anthropic smoke dan production deployment belum dibuktikan.
+M0–M2 sudah mencakup hardening HTTP/UI dan perluasan [ADR-0027–0029](docs/adr/README.md): resource APIs `/api/v1`, independent pagination/count overview, atomic management receipts dengan optimistic concurrency, bounded client retry, machine-only runner authority/fencing, quarantine evidence, explicit mappers/serialization CI gate, serta executable model gateway dengan durable provider invocation/result dan accounting. M3 mempunyai fondasi autonomous initial pull dispatch, lease/epoch fencing, internal scoped payload read, dan tool-effect recovery; agent runtime end-to-end belum ada. Authorized live OpenRouter/Anthropic smoke dan production deployment belum dibuktikan.
 
 Mulai dari [kondisi implementasi aktual](docs/implementation/CURRENT-STATE.md), [katalog operasi HTTP aktif](docs/implementation/HTTP-API.md), dan [diagram implementasi](docs/diagrams/10-implemented-contracts.md). Rancangan target, fitur PLANNED, dan hasil tes historis tetap dibedakan. Source dan migration adalah rujukan perilaku saat ini; status verifikasi terbaru ada di [contract execution evidence](docs/reviews/CONTRACT-EXECUTION.md), sementara [documentation sync](docs/reviews/DOCUMENTATION-SYNC.md) tetap menjadi snapshot audit 24 September.
 
@@ -22,7 +22,7 @@ npm run env:init
 npm run dev
 ```
 
-Alamat FE/API, PostgreSQL, browser-test settings, credentials, dan timeout berasal dari root `.env`; M0 tidak memakai hidden local config atau silent fallback. Node 24 dan PostgreSQL binaries diperlukan bila `M0_MANAGE_POSTGRES=true`. [Panduan M0](docs/development/M0.md) menjelaskan cara uji; [Web/BFF Operations](docs/development/WEB.md) menjelaskan entry, session, dan deployment Next.js; [Configuration](docs/development/CONFIGURATION.md) mendefinisikan single env gate; [Status/evidence M0](docs/milestones/M0.md) memisahkan slice teknis dari review kontrak yang masih terbuka.
+Alamat FE/API, PostgreSQL, browser-test settings, credentials, dan timeout berasal dari root `.env`; M0 tidak memakai hidden local config atau silent fallback. Node 24 dan PostgreSQL binaries diperlukan bila `M0_MANAGE_POSTGRES=true`. [Panduan M0](docs/development/M0.md) menjelaskan cara uji; [M3 local development](docs/development/M3.md) menjelaskan bagian runner yang sudah dapat dites di lokal; [Web/BFF Operations](docs/development/WEB.md) menjelaskan entry, session, dan deployment Next.js; [Configuration](docs/development/CONFIGURATION.md) mendefinisikan single env gate; [Status/evidence M0](docs/milestones/M0.md) memisahkan slice teknis dari review kontrak yang masih terbuka.
 
 ## Mulai membaca
 

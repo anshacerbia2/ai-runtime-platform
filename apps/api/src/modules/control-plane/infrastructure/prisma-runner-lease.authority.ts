@@ -52,9 +52,30 @@ function statusOf(
 }
 
 export class PrismaRunnerLeaseAuthority implements RunnerLeaseAuthority {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly strictCoordination = false,
+  ) {}
+
+  private async requireEpoch(
+    db: Pick<Prisma.TransactionClient, '$queryRaw'>,
+    epoch: number,
+  ) {
+    if (!this.strictCoordination) {
+      return;
+    }
+    const rows = await db.$queryRaw<Array<{ epoch: number; state: string }>>`
+      SELECT epoch, state FROM control.runner_coordination WHERE id = 1 FOR SHARE`;
+    if (rows[0]?.state !== 'ACTIVE' || rows[0].epoch !== epoch) {
+      throw new ApplicationError(
+        'STALE_ASSIGNMENT',
+        'Runner coordination epoch is not current.',
+      );
+    }
+  }
 
   async status(command: RunnerLeaseCommand, ownerSubject: string) {
+    await this.requireEpoch(this.db, command.token.epoch);
     const row = await this.db.runnerAssignment.findUnique({
       where: { id: command.token.assignmentId },
       include: { execution: true, runner: true },
@@ -65,6 +86,7 @@ export class PrismaRunnerLeaseAuthority implements RunnerLeaseAuthority {
   async confirm(command: RunnerLeaseCommand, ownerSubject: string) {
     await this.db.$transaction(
       async (tx) => {
+        await this.requireEpoch(tx, command.token.epoch);
         await tx.$queryRaw`SELECT id FROM control.executions WHERE id = ${command.token.executionId}::uuid FOR UPDATE`;
         await tx.$queryRaw`SELECT id FROM control.runner_nodes WHERE id = ${command.token.runnerId} FOR SHARE`;
         const row = await tx.runnerAssignment.findUnique({

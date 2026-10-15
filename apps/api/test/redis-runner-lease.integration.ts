@@ -7,6 +7,14 @@ import type { RunnerLeaseProof } from '../src/modules/control-plane/application/
 import { RedisRunnerLeaseStore } from '../src/modules/control-plane/infrastructure/redis-runner-lease.store.js';
 import { RedisRunnerPresenceStore } from '../src/modules/control-plane/infrastructure/redis-runner-presence.store.js';
 import { runnerPresenceKey } from '../src/modules/control-plane/infrastructure/runner-presence-proof.js';
+import { createDatabaseClient } from '../src/infrastructure/database/client.js';
+import type { DatabaseService } from '../src/infrastructure/database/database.service.js';
+import { PrismaRunnerCoordinationRepository } from '../src/modules/control-plane/infrastructure/prisma-runner-coordination.repository.js';
+import { PrismaRunnerLeaseRecoveryRepository } from '../src/modules/control-plane/infrastructure/prisma-runner-lease-recovery.repository.js';
+import { RedisRunnerCoordinationStore } from '../src/modules/control-plane/infrastructure/redis-runner-coordination.store.js';
+import { RunnerCoordinationService } from '../src/modules/control-plane/application/runner-coordination.service.js';
+import { ApplicationError } from '../src/shared/domain/application-error.js';
+import { PrismaRunnerDispatchRepository } from '../src/modules/control-plane/infrastructure/prisma-runner-dispatch.repository.js';
 
 const url = loadConfig().runner.coordinationRedisUrl;
 if (!url) {
@@ -121,6 +129,115 @@ test('runner presence is shared and registration-fenced across coordinators', as
       owner.onModuleDestroy(),
       peer.onModuleDestroy(),
       admin.isOpen ? admin.close() : Promise.resolve(),
+    ]);
+  }
+});
+
+test('two coordinators pause on lost Redis marker and advance durable epoch before reopening', async () => {
+  const db = createDatabaseClient(loadConfig());
+  const owner = await RedisRunnerCoordinationStore.connect(url);
+  const peer = await RedisRunnerCoordinationStore.connect(url);
+  const admin = createClient({ url });
+  const key = 'ai-runtime:m3:runner-coordination-epoch';
+  let original:
+    | Awaited<ReturnType<typeof db.runnerCoordination.findUniqueOrThrow>>
+    | undefined;
+  let previousMarker: string | null = null;
+  try {
+    await admin.connect();
+    await db.$connect();
+    original = await db.runnerCoordination.findUniqueOrThrow({
+      where: { id: 1 },
+    });
+    previousMarker = await admin.get(key);
+    assert.equal(
+      await db.runnerAssignment.count({
+        where: {
+          state: { in: ['GRANTED', 'STARTED', 'RESULT_PROPOSED'] },
+          execution: { admissionSource: 'AGENT' },
+        },
+      }),
+      0,
+    );
+    await db.runnerCoordination.update({
+      where: { id: 1 },
+      data: { state: 'PAUSED', marker: null },
+    });
+    const authority = new PrismaRunnerCoordinationRepository(
+      db as unknown as DatabaseService,
+    );
+    const strictDispatch = new PrismaRunnerDispatchRepository(
+      db as unknown as DatabaseService,
+      true,
+    );
+    const registration = {
+      runnerId: `runner:${randomUUID()}`,
+      ownerSubject: `runner:${randomUUID()}`,
+      registrationRevision: 1,
+    };
+    await assert.rejects(
+      strictDispatch.claim(registration, randomUUID()),
+      (error) =>
+        error instanceof ApplicationError &&
+        error.code === 'DEPENDENCY_UNAVAILABLE',
+    );
+    const recovery = new PrismaRunnerLeaseRecoveryRepository(
+      db as unknown as DatabaseService,
+    );
+    const first = new RunnerCoordinationService(authority, recovery, owner);
+    const second = new RunnerCoordinationService(authority, recovery, peer);
+    assert.equal(await first.recover(), 0);
+    await second.assertActive();
+    assert.equal(await strictDispatch.claim(registration, randomUUID()), null);
+    const activated = await authority.read();
+    assert.equal(activated.epoch, original.epoch + 1);
+    assert.equal(activated.state, 'ACTIVE');
+    assert.equal(await admin.get(key), activated.marker);
+
+    await admin.del(key);
+    await assert.rejects(
+      second.assertActive(),
+      (error) =>
+        error instanceof ApplicationError &&
+        error.code === 'DEPENDENCY_UNAVAILABLE',
+    );
+    assert.equal((await authority.read()).state, 'PAUSED');
+    await assert.rejects(
+      strictDispatch.claim(registration, randomUUID()),
+      (error) =>
+        error instanceof ApplicationError &&
+        error.code === 'DEPENDENCY_UNAVAILABLE',
+    );
+    assert.equal(await first.recover(), 0);
+    const restarted = await authority.read();
+    assert.equal(restarted.epoch, activated.epoch + 1);
+    assert.notEqual(restarted.marker, activated.marker);
+    await second.assertActive();
+  } finally {
+    if (original) {
+      await db.runnerCoordination.update({
+        where: { id: 1 },
+        data: {
+          state: original.state,
+          marker: original.marker,
+          epoch: original.epoch,
+          revision: original.revision,
+          updatedAt: original.updatedAt,
+        },
+      });
+    }
+    if (admin.isOpen) {
+      if (previousMarker === null) {
+        await admin.del(key);
+      } else {
+        await admin.set(key, previousMarker);
+      }
+    }
+    await Promise.allSettled([
+      owner.onModuleDestroy(),
+      peer.onModuleDestroy(),
+      admin.isOpen ? admin.close() : Promise.resolve(),
+      db.$disconnect(),
     ]);
   }
 });

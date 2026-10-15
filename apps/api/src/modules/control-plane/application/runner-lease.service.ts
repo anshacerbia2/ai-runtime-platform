@@ -13,6 +13,7 @@ import type {
 } from './runner-lease-store.port.js';
 import type { RunnerLivenessRegistry } from './runner-liveness-registry.port.js';
 import type { RunnerPresenceStore } from './runner-presence-store.port.js';
+import type { RunnerCoordinationService } from './runner-coordination.service.js';
 
 const LEASE_TTL_MS = 15_000;
 
@@ -22,6 +23,7 @@ export class RunnerLeaseService {
     private readonly presence: RunnerPresenceStore,
     private readonly leases: RunnerLeaseStore,
     private readonly authority: RunnerLeaseAuthority,
+    private readonly coordination?: RunnerCoordinationService,
   ) {}
 
   private async currentBoot(
@@ -73,6 +75,7 @@ export class RunnerLeaseService {
     command: RunnerLeaseCommand,
   ): Promise<RunnerLeaseAck> {
     requireAuthority(principal, 'runner:report');
+    await this.coordination?.assertActive();
     await this.currentBoot(
       principal,
       command.token.runnerId,
@@ -126,6 +129,7 @@ export class RunnerLeaseService {
         'Runner lease coordination is unavailable.',
       );
     }
+    await this.coordination?.assertActive();
     return { state: 'ACTIVE', leaseTtlMs: 15_000, renewIntervalMs: 5_000 };
   }
 
@@ -137,6 +141,7 @@ export class RunnerLeaseService {
       return;
     }
     requireAuthority(principal, 'runner:report');
+    await this.coordination?.assertActive();
     const command: RunnerLeaseCommand = {
       ...report.lease,
       token: report.token,

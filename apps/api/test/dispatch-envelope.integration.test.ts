@@ -22,6 +22,14 @@ import { RunnerLeaseService } from '../src/modules/control-plane/application/run
 import { RunnerAuthorityService } from '../src/modules/control-plane/application/runner-authority.service.js';
 import { RunnerLeaseRecoveryService } from '../src/modules/control-plane/application/runner-lease-recovery.service.js';
 import { PrismaRunnerLeaseRecoveryRepository } from '../src/modules/control-plane/infrastructure/prisma-runner-lease-recovery.repository.js';
+import { ToolEffectService } from '../src/modules/tool-effects/application/tool-effect.service.js';
+import type {
+  ToolEffectRepository,
+  ToolReceiverOutcome,
+} from '../src/modules/tool-effects/application/tool-effect.port.js';
+import { PrismaToolEffectRepository } from '../src/modules/tool-effects/infrastructure/prisma-tool-effect.repository.js';
+import { Sha256ToolEffectDigester } from '../src/modules/tool-effects/infrastructure/sha256-tool-effect.digester.js';
+import { PrismaDispatchPayloadAuthorization } from '../src/modules/dispatch-envelope/infrastructure/prisma-dispatch-payload.authorization.js';
 
 const config = loadConfig();
 const database = createDatabaseClient(config);
@@ -195,6 +203,7 @@ before(async () => {
 
 after(async () => {
   await database.dispatchEnvelope.deleteMany({ where: { applicationId } });
+  await database.$executeRaw`DELETE FROM control.tool_effects WHERE application_id = ${applicationId}`;
   await database.runnerEvidence.deleteMany({
     where: { execution: { applicationId } },
   });
@@ -520,6 +529,27 @@ test('current runner presence autonomously claims one policy-scoped dispatch gra
     leaseTtlMs: 15_000,
     renewIntervalMs: 5_000,
   });
+  const payloadAuthorization = new PrismaDispatchPayloadAuthorization(
+    database as unknown as DatabaseService,
+    leaseService,
+  );
+  assert.deepEqual(
+    await payloadAuthorization.assertCurrent(
+      runnerPrincipal,
+      leaseCommand,
+      nextEnvelopeId,
+    ),
+    { applicationId },
+  );
+  await assert.rejects(
+    payloadAuthorization.assertCurrent(
+      runnerPrincipal,
+      leaseCommand,
+      envelopeId,
+    ),
+    (error) =>
+      error instanceof ApplicationError && error.code === 'STALE_ASSIGNMENT',
+  );
   assert.equal(
     (
       await database.runnerAssignment.findUniqueOrThrow({
@@ -556,6 +586,23 @@ test('current runner presence autonomously claims one policy-scoped dispatch gra
       .state,
     'STARTED',
   );
+  const proposal = {
+    outcome: 'completed' as const,
+    digest: 'a'.repeat(64),
+    artifactIds: [],
+    summary: '',
+  };
+  assert.equal(
+    (
+      await reports.report(runnerPrincipal, {
+        type: 'result.proposed',
+        token,
+        lease,
+        proposal,
+      })
+    ).state,
+    'RESULT_PROPOSED',
+  );
   const proof = {
     ...token,
     ownerSubject: runnerPrincipal.subject,
@@ -576,7 +623,7 @@ test('current runner presence autonomously claims one policy-scoped dispatch gra
         where: { id: grant.assignmentId },
       })
     ).state,
-    'STARTED',
+    'RESULT_PROPOSED',
   );
   assert.equal(await leaseStore.release(proof), 'RELEASED');
   await assert.rejects(
@@ -589,12 +636,7 @@ test('current runner presence autonomously claims one policy-scoped dispatch gra
       type: 'result.proposed',
       token,
       lease,
-      proposal: {
-        outcome: 'completed',
-        digest: 'a'.repeat(64),
-        artifactIds: [],
-        summary: '',
-      },
+      proposal,
     }),
     (error) =>
       error instanceof ApplicationError && error.code === 'STALE_ASSIGNMENT',
@@ -605,7 +647,7 @@ test('current runner presence autonomously claims one policy-scoped dispatch gra
         where: { id: grant.assignmentId },
       })
     ).state,
-    'STARTED',
+    'RESULT_PROPOSED',
   );
   const held = await database.reservation.findMany({
     where: { executionId: grant.executionId },
@@ -619,6 +661,23 @@ test('current runner presence autonomously claims one policy-scoped dispatch gra
       })
     ).state,
     'FENCED',
+  );
+  await assert.rejects(
+    payloadAuthorization.assertCurrent(
+      runnerPrincipal,
+      leaseCommand,
+      nextEnvelopeId,
+    ),
+    (error) =>
+      error instanceof ApplicationError && error.code === 'STALE_ASSIGNMENT',
+  );
+  assert.deepEqual(
+    (
+      await database.runnerAssignment.findUniqueOrThrow({
+        where: { id: grant.assignmentId },
+      })
+    ).proposal,
+    proposal,
   );
   const suspended = await database.attempt.findUniqueOrThrow({
     where: { id: grant.attemptId },
@@ -662,4 +721,227 @@ test('current runner presence autonomously claims one policy-scoped dispatch gra
     },
   });
   assert.equal(JSON.stringify(fencedEvent.payload).includes(nonce), false);
+});
+
+test('tool-effect recovery avoids duplicate mutation before epoch fences a live lease', async () => {
+  const nextEnvelopeId = randomUUID();
+  const nextExecutionId = randomUUID();
+  const inputDigest = randomBytes(32).toString('hex');
+  await repository.createStaged({
+    ...staged,
+    envelopeId: nextEnvelopeId,
+    executionBindingId: nextExecutionId,
+    inputDigest,
+    objectKey: `dispatch-envelopes/v1/${nextEnvelopeId}`,
+  });
+  await control.admitDispatchEnvelope(
+    principal,
+    { profileRef: `${prefix}-agent`, inputDigest },
+    `${prefix}-epoch-recovery`,
+    { envelopeId: nextEnvelopeId, executionId: nextExecutionId },
+  );
+  const runner = await database.runnerNode.findUniqueOrThrow({
+    where: { id: runnerId },
+  });
+  const bootId = randomUUID();
+  const heartbeat = {
+    runnerId,
+    bootId,
+    registrationRevision: runner.revision,
+  };
+  await liveness.heartbeat(runnerPrincipal, heartbeat);
+  const grant = (await dispatch.claim(runnerPrincipal, heartbeat)).grant;
+  assert.ok(grant);
+  const token = {
+    assignmentId: grant.assignmentId,
+    executionId: grant.executionId,
+    attemptId: grant.attemptId,
+    runnerId: grant.runnerId,
+    generation: grant.generation,
+    epoch: grant.epoch,
+  };
+  const nonce = randomBytes(32).toString('base64url');
+  const lease = { bootId, registrationRevision: runner.revision, nonce };
+  await leaseService.activate(runnerPrincipal, { token, ...lease });
+  const authority = new PrismaRunnerAuthority(
+    database as unknown as DatabaseService,
+  );
+  const reports = new RunnerAuthorityService(authority, leaseService);
+  assert.equal(
+    (await reports.report(runnerPrincipal, { type: 'started', token, lease }))
+      .state,
+    'STARTED',
+  );
+  const effects = new PrismaToolEffectRepository(
+    database as unknown as DatabaseService,
+    false,
+  );
+  const digester = new Sha256ToolEffectDigester();
+  const input = Buffer.from('synthetic approved tool mutation');
+  const intent = {
+    applicationId,
+    operationId: randomUUID(),
+    executionId: grant.executionId,
+    assignmentId: grant.assignmentId,
+    attemptId: grant.attemptId,
+    generation: grant.generation,
+    epoch: grant.epoch,
+    toolRef: 'fixture:mutate',
+    requestDigest: createHash('sha256').update(input).digest('hex'),
+    receiverRetentionUntil: new Date(Date.now() + 60_000),
+  };
+  const committed: ToolReceiverOutcome = {
+    state: 'COMMITTED',
+    receiptRef: `receipt:${randomUUID()}`,
+    receiptDigest: randomBytes(32).toString('hex'),
+  };
+  let invoked = 0;
+  let statusChecks = 0;
+  let statusAvailable = false;
+  const receiverKeys: string[] = [];
+  const receiver = {
+    async invoke(key: string) {
+      receiverKeys.push(key);
+      invoked += 1;
+      return committed;
+    },
+    async checkStatus(key: string) {
+      receiverKeys.push(key);
+      statusChecks += 1;
+      return statusAvailable ? committed : { state: 'UNKNOWN' as const };
+    },
+  };
+  let loseReceipt = true;
+  const interrupted: ToolEffectRepository = {
+    prepare: (command) => effects.prepare(command),
+    claim: (command) => effects.claim(command),
+    recordOutcome: (command, outcome) => {
+      if (loseReceipt) {
+        loseReceipt = false;
+        throw new Error('synthetic crash after receiver commit');
+      }
+      return effects.recordOutcome(command, outcome);
+    },
+  };
+  await assert.rejects(
+    new ToolEffectService(interrupted, digester).execute(
+      intent,
+      input,
+      receiver,
+    ),
+    /synthetic crash after receiver commit/,
+  );
+  assert.equal(invoked, 1);
+  const broker = new ToolEffectService(effects, digester);
+  assert.equal(
+    (await broker.execute(intent, input, receiver)).state,
+    'UNKNOWN',
+  );
+  assert.equal(invoked, 1);
+  statusAvailable = true;
+  assert.equal(
+    (await broker.execute(intent, input, receiver)).state,
+    'COMMITTED',
+  );
+  assert.equal(
+    (await broker.execute(intent, input, receiver)).state,
+    'COMMITTED',
+  );
+  assert.equal(invoked, 1);
+  assert.equal(statusChecks, 2);
+  assert.equal(new Set(receiverKeys).size, 1);
+  assert.notEqual(receiverKeys[0], intent.operationId);
+  const concurrentIntent = { ...intent, operationId: randomUUID() };
+  let concurrentInvokes = 0;
+  const concurrentReceiver = {
+    async invoke() {
+      concurrentInvokes += 1;
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      return committed;
+    },
+    async checkStatus() {
+      return { state: 'UNKNOWN' as const };
+    },
+  };
+  const concurrent = await Promise.all([
+    broker.execute(concurrentIntent, input, concurrentReceiver),
+    broker.execute(concurrentIntent, input, concurrentReceiver),
+  ]);
+  assert.equal(concurrentInvokes, 1);
+  assert.ok(concurrent.some((result) => result.state === 'COMMITTED'));
+  assert.equal(
+    (await broker.execute(concurrentIntent, input, concurrentReceiver)).state,
+    'COMMITTED',
+  );
+  const altered = Buffer.from('different mutation');
+  await assert.rejects(
+    broker.execute(
+      {
+        ...intent,
+        requestDigest: createHash('sha256').update(altered).digest('hex'),
+      },
+      altered,
+      receiver,
+    ),
+    (error) =>
+      error instanceof ApplicationError &&
+      error.code === 'IDEMPOTENCY_CONFLICT',
+  );
+  await assert.rejects(
+    broker.execute(
+      { ...intent, applicationId: `${applicationId}-other` },
+      input,
+      receiver,
+    ),
+    (error) =>
+      error instanceof ApplicationError && error.code === 'STALE_ASSIGNMENT',
+  );
+  await assert.rejects(
+    broker.execute(
+      {
+        ...intent,
+        operationId: randomUUID(),
+        receiverRetentionUntil: new Date(Date.now() - 1_000),
+      },
+      input,
+      receiver,
+    ),
+    (error) =>
+      error instanceof ApplicationError && error.code === 'INVALID_REQUEST',
+  );
+  const recovery = new PrismaRunnerLeaseRecoveryRepository(
+    database as unknown as DatabaseService,
+  );
+  const candidate = (await recovery.scanActive(64)).find(
+    (row) => row.assignmentId === grant.assignmentId,
+  );
+  assert.ok(candidate);
+  assert.equal(await recovery.fence(candidate, 'EPOCH_LOST'), true);
+  assert.equal(await recovery.fence(candidate, 'EPOCH_LOST'), false);
+  await assert.rejects(
+    broker.execute({ ...intent, operationId: randomUUID() }, input, receiver),
+    (error) =>
+      error instanceof ApplicationError && error.code === 'STALE_ASSIGNMENT',
+  );
+  assert.equal(
+    (
+      await database.execution.findUniqueOrThrow({
+        where: { id: grant.executionId },
+      })
+    ).status,
+    'RECONCILING',
+  );
+  await assert.rejects(
+    authority.report(runnerPrincipal, { type: 'started', token, lease }),
+    (error) =>
+      error instanceof ApplicationError && error.code === 'STALE_ASSIGNMENT',
+  );
+  assert.equal(
+    await leaseStore.release({
+      ...token,
+      ownerSubject: runnerPrincipal.subject,
+      nonce,
+    }),
+    'RELEASED',
+  );
 });
