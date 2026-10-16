@@ -27,6 +27,8 @@ Local M2 evidence now covers G03 adapter conformance, G10/G11 replay/reset seman
 
 ## 2. Catalogue
 
+The local single-assignment lifecycle harness (`npm run test:runner:lifecycle`) composes the lease HTTP client, monotonic gate, renewal/watchdog loop, and sandbox supervisor. A loopback HTTP fixture verifies exact command renewal while trusted runtime work is in flight. Fault tests cover cancellation during activation/launch, lost renewals, expiry, launch timeout, quiesce, late acknowledgements, and preservation of in-flight effect results. These add a local G05 subset; the driver/runtime are fixtures, with no real isolation, live coordinator/Redis failover, worker bootstrap, durable stop receipt, reassignment, or external-effect reconciliation proof.
+
 | ID  | Scenario / injected fault                                                                             | Required assertion                                                                                                | Layer / phase              |
 | --- | ----------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | -------------------------- |
 | G01 | App A mencoba read/list/cancel/stream/artifact/session/usage App B; forged application identity/scope | Semua unauthorized access ditolak, no cross-scope data                                                            | Security integration / P1  |

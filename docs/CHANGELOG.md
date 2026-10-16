@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased — 16 October 2026 — single-assignment runner lifecycle
+
+Composed lease activation, monotonic step gating, renewal/watchdog scheduling, and local sandbox supervision in `RunnerAssignmentLifecycle`. Concurrent starts on one instance share activation and launch; cancellation, failed renewal, expiry, and bounded launch failure close the gate before cleanup. Late responses cannot reopen a stopped instance, and in-flight operation results remain available for durable reconciliation. The dedicated lifecycle harness includes a loopback HTTP server and fixture sandbox/runtime. Production worker bootstrap, credentials, payload/plugin delivery, sandbox/Claude execution, and durable stop-receipt reconciliation remain pending.
+
 ## Unreleased — 29 September 2026 — initial runner pull dispatch
 
 Added the machine-only `/api/runner/v1/dispatches/claim` route and enabled runner protocol execution dispatch for initial `agent_execute` placement. Claims require authenticated ownership, exact registration revision, and exact current boot presence. PostgreSQL remains authority and atomically checks current application/connection/binding policy, pool/node lifecycle, environment, minimum version, capability, advertised connection, runner-local or central credential, capacity, and committed envelope before issuing generation 1 assignment authority. Duplicate/concurrent claims replay one scoped grant containing only assignment and sanitized envelope metadata; object keys, wrapped/plaintext keys, payloads, and credentials remain withheld. ADR-0031 records the decision. Payload/KMS delivery, lease-driven recovery, automatic reassignment, sandbox/tools, and agent execution remain pending.
