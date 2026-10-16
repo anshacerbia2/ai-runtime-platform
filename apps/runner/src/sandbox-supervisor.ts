@@ -122,7 +122,11 @@ export class LocalSandboxSupervisor {
     }
   }
 
-  start(identity: SandboxIdentity): Promise<SandboxHandle> {
+  start(
+    identity: SandboxIdentity,
+    /** Recheck local authority at the queued driver call, not only at enqueue. */
+    canLaunch?: () => boolean,
+  ): Promise<SandboxHandle> {
     assertIdentity(identity);
     if (this.quiesced) {
       throw new Error('Sandbox supervisor is draining.');
@@ -153,6 +157,9 @@ export class LocalSandboxSupervisor {
       }
       if (entry.stopping) {
         throw new Error('Sandbox assignment was stopped.');
+      }
+      if (canLaunch && !canLaunch()) {
+        throw new Error('Sandbox launch authority was lost.');
       }
       return this.driver.launch({ ...captured });
     });
