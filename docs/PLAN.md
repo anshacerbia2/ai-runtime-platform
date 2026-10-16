@@ -62,7 +62,7 @@ Tambahkan per-app/pool concurrency, rate limits, token/output bounds, deadline, 
 
 ### P3 — Claude Agent Runtime MVP
 
-**Status:** IN PROGRESS — coordination lease/presence, encrypted dispatch envelope, connection-locality-aware initial pull placement, lease-gated start/result reports, bounded lease-loss suspension, epoch pause/fence/reopen, internal scoped payload read, tool-effect intent/status recovery, registry/pinning/materializer plugin, Ed25519 stored-package verification, bounded S3 reader, dan internal lease-scoped plugin delivery tersedia lokal; authenticated payload/plugin HTTP handoff, real Redis failover chaos, automatic reassignment, production signer trust/provenance wiring, sandbox execution, authorized tool broker, artifact promotion, production KMS, dan retention approval masih pending.
+**Status:** IN PROGRESS — coordination lease/presence, encrypted dispatch envelope, connection-locality-aware initial pull placement, lease-gated start/result reports, bounded lease-loss suspension, epoch pause/fence/reopen, internal scoped payload read, tool-effect intent/status recovery, registry/pinning/materializer plugin, Ed25519 stored-package verification, bounded S3 reader, internal lease-scoped plugin delivery, dan boundary supervisor lokal tersedia; production activation untuk payload/plugin HTTP handoff, real Redis failover chaos, automatic reassignment, production signer trust/provenance wiring, sandbox execution, authorized tool broker, artifact promotion, production KMS, dan retention approval masih pending.
 
 **Dependency:** P1; P2 common contracts. **Owner roles:** runtime + security + Scribe owner.
 

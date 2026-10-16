@@ -8,6 +8,7 @@ import { createDatabaseClient } from '../src/infrastructure/database/client.js';
 import { seedDatabase } from '../src/infrastructure/database/seed.js';
 import { PrismaM1Repository } from '../src/modules/control-plane/infrastructure/prisma-m1.repository.js';
 import { PrismaResourceReader } from '../src/modules/control-plane/infrastructure/prisma-resource-reader.js';
+import { InMemoryRunnerPresenceStore } from '../src/modules/control-plane/infrastructure/in-memory-runner-presence.store.js';
 import type { DatabaseService } from '../src/infrastructure/database/database.service.js';
 import { ManagementCommand } from '@ai-runtime/contracts';
 
@@ -396,7 +397,10 @@ test('keyset collections validate scope and UUID cursors, omit secret columns an
     ).statusCode,
     400,
   );
-  const reader = new PrismaResourceReader(db as DatabaseService);
+  const reader = new PrismaResourceReader(
+    db as DatabaseService,
+    new InMemoryRunnerPresenceStore(),
+  );
   await assert.rejects(
     reader.list({ ...principal, subject: 'other' }, 'connections', {
       cursor: first.json().nextCursor,

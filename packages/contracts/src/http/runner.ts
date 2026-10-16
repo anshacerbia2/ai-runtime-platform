@@ -56,6 +56,54 @@ export const RunnerLeaseCommand = RunnerLeaseIdentity.extend({
   token: AssignmentToken,
 }).strict();
 export type RunnerLeaseCommand = z.infer<typeof RunnerLeaseCommand>;
+export const RunnerPayloadHandoffCommand = RunnerLeaseCommand.extend({
+  envelopeId: z.uuid(),
+}).strict();
+export type RunnerPayloadHandoffCommand = z.infer<
+  typeof RunnerPayloadHandoffCommand
+>;
+/** Draft machine-only binary contract; not registered in the production API. */
+export const runnerPayloadHandoffContract = c.router({
+  payload: {
+    method: 'POST',
+    path: '/api/runner/v1/dispatches/payload',
+    headers: z.object({ 'x-runner-protocol': z.literal('1') }),
+    body: RunnerPayloadHandoffCommand,
+    metadata: {
+      responseMode: 'binary',
+      behavior: { replay: 'none', maxAttempts: 1, maxResponseBytes: 1_048_576 },
+    },
+    responses: {
+      200: c.otherResponse({
+        contentType: 'application/octet-stream',
+        body: c.type<Uint8Array>(),
+      }),
+    },
+  },
+});
+/** Draft verified package handoff; kept outside the production API contract. */
+export const runnerPluginHandoffContract = c.router({
+  plugin: {
+    method: 'POST',
+    path: '/api/runner/v1/dispatches/plugin',
+    headers: z.object({ 'x-runner-protocol': z.literal('1') }),
+    body: RunnerPayloadHandoffCommand,
+    metadata: {
+      responseMode: 'binary',
+      behavior: {
+        replay: 'none',
+        maxAttempts: 1,
+        maxResponseBytes: 16_777_216,
+      },
+    },
+    responses: {
+      200: c.otherResponse({
+        contentType: 'application/octet-stream',
+        body: c.type<Uint8Array>(),
+      }),
+    },
+  },
+});
 export const RunnerLeaseAck = z
   .object({
     state: z.literal('ACTIVE'),

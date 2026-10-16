@@ -63,7 +63,7 @@ DRAINING menolak grant baru; DISABLED menolak report authority. Initial pull pla
 
 ## 7. Target yang belum berjalan
 
-Scoped payload/KMS delivery, lease install/renewal, automatic reassignment/epoch recovery, sandbox launch/termination, plugin registry/materialization, optional workspace/MCP, provider credential injection, artifact promotion dan live agent inference adalah target P3. DB mengizinkan beberapa lifecycle values untuk fondasi berikutnya; initial placement bukan bukti service transition atau derived OFFLINE/recovery detector sudah tersedia.
+Scoped payload delivery dengan KMS produksi, automatic reassignment, sandbox launch/termination, optional workspace/MCP, provider credential injection, artifact promotion dan live agent inference tetap target P3. Lease install/renewal, epoch pause/fence/reopen, plugin registry/materialization, dan proyeksi liveness runner tersedia lokal. Pada `GET /api/v1/runners`, `liveness` adalah `ALIVE` hanya bila presence cocok dengan owner dan revision registrasi saat ini; presence hilang/mismatch menjadi `OFFLINE`, sedangkan kegagalan membaca coordination store menjadi `UNKNOWN`. Field ini tidak mengubah lifecycle durable `RUNNING/DRAINING/DISABLED`, tidak memberi authority untuk reassignment, dan bukan bukti service transition atau recovery detector sudah lengkap.
 
 Initial placement memeriksa capability, verified credential locality, capacity, environment/version, lifecycle, dan current binding policy. Region/data policy, upstream quota-aware fleet fairness, drain recovery, dan cross-pool scheduling tetap belum lengkap; jangan mendokumentasikannya sebagai full scheduler.
 

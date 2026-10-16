@@ -11,6 +11,7 @@ import {
 } from '@ai-runtime/contracts/http';
 import type { DatabaseService } from '../../../infrastructure/database/database.service.js';
 import type { Principal } from '../../identity/domain/principal.js';
+import type { RunnerPresenceStore } from '../application/runner-presence-store.port.js';
 import type { ResourceReader } from '../application/resource-read.port.js';
 import { ApplicationError } from '../../../shared/domain/application-error.js';
 const Cursor = z
@@ -22,7 +23,10 @@ const Cursor = z
   })
   .strict();
 export class PrismaResourceReader implements ResourceReader {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly presence: RunnerPresenceStore,
+  ) {}
   async list<R extends ResourceName>(
     principal: Principal,
     resource: R,
@@ -332,7 +336,35 @@ export class PrismaResourceReader implements ResourceReader {
         );
     }
     const hasMore = rows.length > limit;
-    const items = rows.slice(0, limit);
+    let items = rows.slice(0, limit);
+    if (resource === 'runners') {
+      const runners = items as Array<{
+        id: string;
+        ownerSubject: string;
+        revision: number;
+      }>;
+      const inspected = await Promise.allSettled(
+        runners.map((runner) =>
+          this.presence.inspect({
+            runnerId: runner.id,
+            ownerSubject: runner.ownerSubject,
+            registrationRevision: runner.revision,
+          }),
+        ),
+      );
+      items = runners.map((runner, index) => {
+        const result = inspected[index];
+        return {
+          ...runner,
+          liveness:
+            result?.status !== 'fulfilled'
+              ? 'UNKNOWN'
+              : result.value === 'CURRENT'
+                ? 'ALIVE'
+                : 'OFFLINE',
+        };
+      });
+    }
     const last = items.at(-1);
     const nextCursor =
       hasMore && last

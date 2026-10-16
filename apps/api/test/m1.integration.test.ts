@@ -937,11 +937,49 @@ test('G29 runner registration identity, pool version, duplicate registration and
   const node = await db.runnerNode.findUniqueOrThrow({
     where: { id: runner.id },
   });
+  const listedRunner = async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/runners?limit=100',
+      headers: {
+        host: `${config.apiHost}:${config.apiPort}`,
+        authorization: `Bearer ${op}`,
+      },
+    });
+    assert.equal(response.statusCode, 200, response.body);
+    const listed = response
+      .json()
+      .items.find((item: { id: string }) => item.id === runner.id);
+    assert.ok(listed);
+    return { status: listed.status, liveness: listed.liveness } as {
+      status: string;
+      liveness: string;
+    };
+  };
+  assert.equal((await listedRunner()).liveness, 'OFFLINE');
+  const bootId = randomUUID();
+  const heartbeat = async (registrationRevision: number) =>
+    app.inject({
+      method: 'POST',
+      url: '/api/runner/v1/heartbeat',
+      headers: {
+        host: `${config.apiHost}:${config.apiPort}`,
+        authorization: `Bearer ${config.localRunnerToken}`,
+        'x-runner-protocol': '1',
+      },
+      payload: { runnerId: runner.id, bootId, registrationRevision },
+    });
+  assert.equal((await heartbeat(node.revision)).statusCode, 200);
+  assert.equal((await listedRunner()).liveness, 'ALIVE');
   await manage({
     kind: 'runner',
     id: runner.id,
     expectedRevision: node.revision,
     status: 'DRAINING',
+  });
+  assert.deepEqual(await listedRunner(), {
+    status: 'DRAINING',
+    liveness: 'OFFLINE',
   });
   assert.equal(
     (
@@ -951,6 +989,11 @@ test('G29 runner registration identity, pool version, duplicate registration and
   );
   const draining = await db.runnerNode.findUniqueOrThrow({
     where: { id: runner.id },
+  });
+  assert.equal((await heartbeat(draining.revision)).statusCode, 200);
+  assert.deepEqual(await listedRunner(), {
+    status: 'DRAINING',
+    liveness: 'ALIVE',
   });
   await manage({
     kind: 'runner',

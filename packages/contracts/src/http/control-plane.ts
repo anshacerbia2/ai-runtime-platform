@@ -113,6 +113,10 @@ export const RunnerRecord = z.object({
   revision,
   lastHeartbeatAt: timestamp,
 });
+/** Presence is a read-only hot-state projection, separate from lifecycle status. */
+export const RunnerListRecord = RunnerRecord.extend({
+  liveness: z.enum(['ALIVE', 'OFFLINE', 'UNKNOWN']),
+});
 export const OperatorSnapshot = z.object({
   applications: z.array(ApplicationRecord),
   connections: z.array(ConnectionRecord),
