@@ -34,6 +34,8 @@ M3 checkpoint 19 October 2026: programmatic worker bootstrap and scoped binary p
 
 The subsequent local authority/reporting slice adds durable preflight through existing lease renewal, one typed result proposal, and late quarantine evidence intake. Fixture HTTP worker and separate PostgreSQL proofs preserve cancel/fence ordering and keep completion/settlement separate. Durable reporting collection/spool, fast cancel signals, stop receipts/retirement, approved sandbox/Claude execution and production delivery remain dependencies; applicable M3/M3.5 gates stay open.
 
+The worker HTTP CI gate now composes two real API processes with shared PostgreSQL/Redis to test coordinator A→B continuation, lost acknowledgements, cross-API cancel, missing-lease fencing, held budget and quarantined late evidence. Local fixture auth and inert runtime/sandbox limit this evidence; strict nonlocal epoch/failover, production runtime and reporting durability remain separate dependencies.
+
 Keputusan aktif dirujuk melalui [ADR](adr/README.md). OpenRouter may remain primary per profile. A direct adapter proof does not automatically enable failover. Codex is an agent-runtime target, not another label for an inference API. Redis handles hot streams/heartbeat; authoritative reservations and settlement use durable transactions. Completion and accounting stay independent.
 
 ## Readiness is not inferred

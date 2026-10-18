@@ -10,5 +10,5 @@
     "playwright.config.ts",
     "prisma.config.ts"
   ],
-  "exclude": ["tests/cdc/**"]
+  "exclude": ["tests/cdc/**", "tests/m3/**"]
 }
