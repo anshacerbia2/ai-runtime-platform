@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased — 18 October 2026 — programmatic runner worker bootstrap
+
+Added `RunnerWorker` with one process boot UUID, independent heartbeat and serialized pull polling, a retained lifecycle/nonce per assignment, local capacity, and exact STARTED acknowledgement before trusted runtime dispatch. Process presence is rechecked at driver launch and each new step. Host shutdown signals use non-extensible bounded drain before local cleanup; unconfirmed stops retain capacity and assignment tombstones are bounded without automatic eviction. Shared machine HTTP transport preserves byte/deadline/origin limits, sanitizes errors, and supports caller abort. Loopback HTTP and fault fixtures cover lost acknowledgements, duplicate/mutated grants, presence-expiry races, timer failure, and shutdown. Deployment credentials/registration, real sandbox/Claude execution, payload/plugin and durable cancel/result/evidence delivery remain pending.
+
 ## Unreleased — 16 October 2026 — single-assignment runner lifecycle
 
 Composed lease activation, monotonic step gating, renewal/watchdog scheduling, and local sandbox supervision in `RunnerAssignmentLifecycle`. Concurrent starts on one instance share activation and launch; cancellation, failed renewal, expiry, and bounded launch failure close the gate before cleanup. Late responses cannot reopen a stopped instance, and in-flight operation results remain available for durable reconciliation. The dedicated lifecycle harness includes a loopback HTTP server and fixture sandbox/runtime. Production worker bootstrap, credentials, payload/plugin delivery, sandbox/Claude execution, and durable stop-receipt reconciliation remain pending.

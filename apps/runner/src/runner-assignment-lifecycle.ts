@@ -21,6 +21,8 @@ export interface RunnerAssignmentOptions {
   timers?: LeaseTimerPort;
   /** Local launch wait only; timeout still requires bounded supervisor cleanup. */
   launchTimeoutMs?: number;
+  /** Trusted process guard, rechecked at the queued sandbox-driver dispatch. */
+  canLaunch?: () => boolean;
 }
 
 const UNCONFIRMED: StopEvidence = { state: 'UNCONFIRMED', method: null };
@@ -38,6 +40,7 @@ export class RunnerAssignmentLifecycle {
   private readonly timers: LeaseTimerPort | undefined;
   private readonly renewTimeoutMs: number;
   private readonly launchTimeoutMs: number;
+  private readonly canLaunch: () => boolean;
   private readonly controller = new AbortController();
   private starting: Promise<void> | null = null;
   private stopping: Promise<StopEvidence> | null = null;
@@ -45,6 +48,11 @@ export class RunnerAssignmentLifecycle {
   private loop: RunnerLeaseLoop | null = null;
   private ready = false;
   private closed = false;
+
+  /** Observation only; stop() owns cancellation of this assignment. */
+  get signal(): AbortSignal {
+    return this.controller.signal;
+  }
 
   constructor(command: RunnerLeaseCommand, options: RunnerAssignmentOptions) {
     const captured = RunnerLeaseCommand.parse(command);
@@ -64,6 +72,7 @@ export class RunnerAssignmentLifecycle {
     this.timers = options.timers;
     this.renewTimeoutMs = options.http.timeoutMs;
     this.launchTimeoutMs = options.launchTimeoutMs ?? 10_000;
+    this.canLaunch = options.canLaunch ?? (() => true);
     if (
       !Number.isSafeInteger(this.launchTimeoutMs) ||
       this.launchTimeoutMs < 1 ||
@@ -113,7 +122,9 @@ export class RunnerAssignmentLifecycle {
       if (this.closed) {
         throw new Error('Stopped before activation.');
       }
-      const { startedAtMs, ack } = await this.whileOpen(this.client.activate());
+      const { startedAtMs, ack } = await this.whileOpen(
+        this.client.activate(this.controller.signal),
+      );
       if (this.closed) {
         throw new Error('Stopped during activation.');
       }
@@ -148,7 +159,10 @@ export class RunnerAssignmentLifecycle {
       await this.whileOpen(
         this.supervisor.start(
           { ...this.identity },
-          () => !this.closed && this.gate?.canStartStep() === true,
+          () =>
+            !this.closed &&
+            this.gate?.canStartStep() === true &&
+            this.canLaunch(),
         ),
         this.launchTimeoutMs,
       );
