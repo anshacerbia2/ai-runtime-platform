@@ -1,0 +1,538 @@
+import { randomBytes, randomUUID } from 'node:crypto';
+import { performance } from 'node:perf_hooks';
+import {
+  RunnerHeartbeat,
+  type RunnerDispatchGrant,
+  type RunnerLeaseCommand,
+} from '@ai-runtime/contracts/http';
+import { RunnerAssignmentLifecycle } from './runner-assignment-lifecycle.js';
+import { RunnerControlHttpClient } from './runner-control-http-client.js';
+import {
+  RunnerHttpError,
+  type RunnerHttpOptions,
+} from './runner-http-transport.js';
+import type { MonotonicClock } from './runner-lease-gate.js';
+import type { LeaseTimerPort } from './runner-lease-loop.js';
+import {
+  LocalSandboxSupervisor,
+  type SandboxDriver,
+  type StopEvidence,
+  type TrackedStopResult,
+} from './sandbox-supervisor.js';
+
+export interface RunnerStepContext {
+  readonly signal: AbortSignal;
+  runStep<T>(work: (signal: AbortSignal) => Promise<T>): Promise<T>;
+}
+
+export interface RunnerWorkerOptions {
+  runnerId: string;
+  ownerSubject: string;
+  registrationRevision: number;
+  capacity: number;
+  http: RunnerHttpOptions;
+  driver: SandboxDriver;
+  /** Trusted runtime bridge; every new external dispatch must use context.runStep. */
+  runtime: {
+    execute(
+      grant: RunnerDispatchGrant,
+      context: RunnerStepContext,
+    ): Promise<void>;
+  };
+  maxTracked?: number;
+  pollIntervalMs?: number;
+  clock?: MonotonicClock;
+  timers?: LeaseTimerPort;
+  /** Host composition translates SIGTERM/deployment shutdown into this signal. */
+  shutdownSignal?: AbortSignal;
+  drainGraceMs?: number;
+}
+
+interface Entry {
+  grant: RunnerDispatchGrant;
+  command: RunnerLeaseCommand;
+  lifecycle: RunnerAssignmentLifecycle;
+  task: Promise<void>;
+  busy: boolean;
+}
+
+const nativeTimers: LeaseTimerPort = {
+  schedule: (callback, delayMs) => setTimeout(callback, delayMs),
+  cancel: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
+};
+const UNCONFIRMED: StopEvidence = { state: 'UNCONFIRMED', method: null };
+
+/**
+ * One registered process boot. Retained assignment tombstones prevent replayed
+ * grants from creating new nonces/lifecycles. This is not a durable reconciler.
+ */
+export class RunnerWorker {
+  private readonly processIdentity: RunnerHeartbeat;
+  private readonly owner: string;
+  private readonly capacity: number;
+  private readonly maxTracked: number;
+  private readonly pollIntervalMs: number;
+  private readonly clock: MonotonicClock;
+  private readonly timers: LeaseTimerPort;
+  private readonly http: RunnerHttpOptions;
+  private readonly runtime: RunnerWorkerOptions['runtime'];
+  private readonly control: RunnerControlHttpClient;
+  private readonly supervisor: LocalSandboxSupervisor;
+  private readonly controller = new AbortController();
+  private readonly entries = new Map<string, Entry>();
+  private state: 'NEW' | 'STARTING' | 'RUNNING' | 'DRAINING' | 'STOPPED' =
+    'NEW';
+  private starting: Promise<void> | null = null;
+  private stopping: Promise<readonly TrackedStopResult[]> | null = null;
+  private draining: Promise<readonly TrackedStopResult[]> | null = null;
+  private heartbeatPending: Promise<void> | null = null;
+  private heartbeatTimer: unknown | null = null;
+  private claimTimer: unknown | null = null;
+  private claimController: AbortController | null = null;
+  private polling = false;
+  private presenceDeadline = 0;
+  private drainDeadline: number | null = null;
+  private lastNow = 0;
+  private readonly shutdownSignal: AbortSignal | undefined;
+  private readonly onShutdown: () => void;
+
+  constructor(options: RunnerWorkerOptions) {
+    this.processIdentity = RunnerHeartbeat.parse({
+      runnerId: options.runnerId,
+      registrationRevision: options.registrationRevision,
+      bootId: randomUUID(),
+    });
+    if (
+      typeof options.ownerSubject !== 'string' ||
+      !options.ownerSubject.trim()
+    ) {
+      throw new Error('Runner owner is required.');
+    }
+    this.capacity = options.capacity;
+    this.maxTracked = options.maxTracked ?? 256;
+    this.pollIntervalMs = options.pollIntervalMs ?? 1_000;
+    if (
+      !Number.isSafeInteger(this.capacity) ||
+      this.capacity < 1 ||
+      !Number.isSafeInteger(this.maxTracked) ||
+      this.maxTracked < this.capacity ||
+      this.maxTracked > 256 ||
+      !Number.isSafeInteger(this.pollIntervalMs) ||
+      this.pollIntervalMs < 100 ||
+      this.pollIntervalMs > 5_000
+    ) {
+      throw new Error('Invalid bounded runner capacity or poll interval.');
+    }
+    this.owner = options.ownerSubject;
+    this.clock = options.clock ?? { nowMs: () => performance.now() };
+    this.timers = options.timers ?? nativeTimers;
+    this.http = { ...options.http };
+    this.runtime = options.runtime;
+    this.control = new RunnerControlHttpClient(
+      this.processIdentity,
+      this.owner,
+      this.http,
+    );
+    this.supervisor = new LocalSandboxSupervisor(options.driver);
+    const graceMs = options.drainGraceMs ?? 5_000;
+    if (!Number.isSafeInteger(graceMs) || graceMs < 0 || graceMs > 30_000) {
+      throw new Error('Runner drain grace must be 0-30000 ms.');
+    }
+    this.shutdownSignal = options.shutdownSignal;
+    this.onShutdown = () => {
+      try {
+        void this.drain(graceMs).catch(() => this.stop());
+      } catch {
+        void this.stop();
+      }
+    };
+    if (this.shutdownSignal?.aborted) {
+      void this.stop();
+    } else {
+      this.shutdownSignal?.addEventListener('abort', this.onShutdown, {
+        once: true,
+      });
+    }
+  }
+
+  get identity(): RunnerHeartbeat {
+    return { ...this.processIdentity };
+  }
+
+  start(): Promise<void> {
+    if (this.state === 'STOPPED' || this.state === 'DRAINING') {
+      return Promise.reject(new Error('Runner worker was stopped or drained.'));
+    }
+    if (!this.starting) {
+      this.state = 'STARTING';
+      this.starting = Promise.resolve().then(async () => {
+        try {
+          if (this.controller.signal.aborted) {
+            throw new Error();
+          }
+          await this.heartbeat();
+          if (this.controller.signal.aborted) {
+            throw new Error();
+          }
+          if (this.state === 'STARTING') {
+            this.state = 'RUNNING';
+          }
+          this.scheduleClaim(0);
+          if (this.controller.signal.aborted) {
+            throw new Error();
+          }
+        } catch {
+          void this.stop();
+          throw new Error('Runner worker startup failed.');
+        }
+      });
+    }
+    return this.starting;
+  }
+
+  /** Stop new claims/launches; existing work and heartbeat retain their deadline. */
+  quiesce(): void {
+    if (this.state === 'STOPPED') {
+      return;
+    }
+    this.state = 'DRAINING';
+    this.cancelTimer('claim');
+    this.claimController?.abort();
+    this.supervisor.quiesce();
+  }
+
+  /** One non-extensible grace deadline, then bounded local cleanup. */
+  drain(graceMs: number): Promise<readonly TrackedStopResult[]> {
+    if (!Number.isSafeInteger(graceMs) || graceMs < 0 || graceMs > 30_000) {
+      throw new Error('Runner drain grace must be 0-30000 ms.');
+    }
+    if (this.state === 'STOPPED') {
+      return this.stop();
+    }
+    if (!this.draining) {
+      this.drainDeadline = this.now() + graceMs;
+      this.quiesce();
+      this.draining = this.finishDrain(graceMs);
+    }
+    return this.draining;
+  }
+
+  stop(): Promise<readonly TrackedStopResult[]> {
+    if (!this.stopping) {
+      let finish!: (results: readonly TrackedStopResult[]) => void;
+      this.stopping = new Promise((resolve) => {
+        finish = resolve;
+      });
+      this.state = 'STOPPED';
+      this.shutdownSignal?.removeEventListener('abort', this.onShutdown);
+      this.cancelTimer('heartbeat');
+      this.cancelTimer('claim');
+      this.controller.abort();
+      this.claimController?.abort();
+      this.supervisor.quiesce();
+      void Promise.all(
+        [...this.entries.values()].map(async (entry) => {
+          let evidence: StopEvidence;
+          try {
+            evidence = await entry.lifecycle.stop();
+          } catch {
+            evidence = UNCONFIRMED;
+          }
+          return {
+            identity: {
+              ...entry.command.token,
+              bootId: this.processIdentity.bootId,
+              ownerSubject: this.owner,
+            },
+            evidence,
+          };
+        }),
+      ).then(finish);
+    }
+    return this.stopping;
+  }
+
+  private async finishDrain(
+    graceMs: number,
+  ): Promise<readonly TrackedStopResult[]> {
+    if (this.controller.signal.aborted) {
+      return this.stop();
+    }
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let onStop!: () => void;
+    const stopped = new Promise<void>((resolve) => {
+      onStop = resolve;
+      this.controller.signal.addEventListener('abort', onStop, { once: true });
+    });
+    try {
+      await Promise.race([
+        Promise.all([...this.entries.values()].map((entry) => entry.task)),
+        new Promise<void>((resolve) => {
+          timer = setTimeout(resolve, graceMs);
+        }),
+        stopped,
+      ]);
+    } finally {
+      if (timer) {
+        clearTimeout(timer);
+      }
+      this.controller.signal.removeEventListener('abort', onStop);
+    }
+    return this.stop();
+  }
+
+  private heartbeat(): Promise<void> {
+    if (this.heartbeatPending) {
+      return this.heartbeatPending;
+    }
+    const work = this.heartbeatOnce();
+    this.heartbeatPending = work;
+    const clear = () => {
+      if (this.heartbeatPending === work) {
+        this.heartbeatPending = null;
+      }
+    };
+    void work.then(clear, clear);
+    return work;
+  }
+
+  private async heartbeatOnce(): Promise<void> {
+    try {
+      const sent = this.now();
+      this.checkDrain(sent);
+      if (this.controller.signal.aborted) {
+        throw new Error();
+      }
+      const ack = await this.control.heartbeat(this.controller.signal);
+      const now = this.now();
+      if (this.controller.signal.aborted || now >= sent + ack.presenceTtlMs) {
+        throw new Error();
+      }
+      this.presenceDeadline = sent + ack.presenceTtlMs;
+      this.cancelTimer('heartbeat');
+      if (this.controller.signal.aborted) {
+        throw new Error();
+      }
+      this.heartbeatTimer = this.timers.schedule(
+        () => {
+          this.heartbeatTimer = null;
+          if (this.state !== 'STOPPED') {
+            void this.heartbeat().catch(() => undefined);
+          }
+        },
+        Math.max(0, sent + ack.heartbeatIntervalMs - now),
+      );
+    } catch {
+      void this.stop();
+      throw new Error('Runner heartbeat failed.');
+    }
+  }
+
+  private scheduleClaim(delayMs: number): void {
+    if (this.state !== 'RUNNING') {
+      return;
+    }
+    this.cancelTimer('claim');
+    if (this.controller.signal.aborted) {
+      return;
+    }
+    try {
+      this.claimTimer = this.timers.schedule(() => {
+        this.claimTimer = null;
+        void this.poll();
+      }, delayMs);
+    } catch {
+      void this.stop();
+    }
+  }
+
+  private async poll(): Promise<void> {
+    if (this.state !== 'RUNNING' || this.polling) {
+      return;
+    }
+    this.polling = true;
+    try {
+      if (
+        this.entries.size >= this.maxTracked ||
+        [...this.entries.values()].filter((entry) => entry.busy).length >=
+          this.capacity
+      ) {
+        return;
+      }
+      if (this.now() >= this.presenceDeadline) {
+        await this.heartbeat();
+      }
+      if (this.controller.signal.aborted || this.state !== 'RUNNING') {
+        return;
+      }
+      this.claimController = new AbortController();
+      const { grant } = await this.control.claim(this.claimController.signal);
+      if (
+        this.state === 'RUNNING' &&
+        !this.claimController.signal.aborted &&
+        grant
+      ) {
+        this.accept(grant);
+      }
+    } catch (error) {
+      // A lost claim ack can be resolved by the next same-boot poll. No nested retry.
+      if (
+        this.state === 'RUNNING' &&
+        (!(error instanceof RunnerHttpError) || error.kind !== 'UNAVAILABLE')
+      ) {
+        void this.stop();
+      }
+    } finally {
+      this.polling = false;
+      this.claimController = null;
+      this.scheduleClaim(this.pollIntervalMs);
+    }
+  }
+
+  private accept(grant: RunnerDispatchGrant): void {
+    if (!this.canLaunch()) {
+      throw new RunnerHttpError('INVALID');
+    }
+    const known = this.entries.get(grant.assignmentId);
+    if (known) {
+      if (JSON.stringify(known.grant) !== JSON.stringify(grant)) {
+        throw new RunnerHttpError('INVALID');
+      }
+      return;
+    }
+    if (
+      [...this.entries.values()].some(
+        (entry) =>
+          entry.grant.executionId === grant.executionId ||
+          entry.grant.attemptId === grant.attemptId,
+      )
+    ) {
+      // Replacement needs durable fencing, effect reconciliation and retirement.
+      throw new RunnerHttpError('INVALID');
+    }
+    if (Date.parse(grant.expiresAt) <= Date.now()) {
+      throw new RunnerHttpError('INVALID');
+    }
+    const command: RunnerLeaseCommand = {
+      bootId: this.processIdentity.bootId,
+      registrationRevision: this.processIdentity.registrationRevision,
+      nonce: randomBytes(32).toString('base64url'),
+      token: {
+        assignmentId: grant.assignmentId,
+        executionId: grant.executionId,
+        attemptId: grant.attemptId,
+        runnerId: grant.runnerId,
+        generation: grant.generation,
+        epoch: grant.epoch,
+      },
+    };
+    const lifecycle = new RunnerAssignmentLifecycle(command, {
+      ownerSubject: this.owner,
+      supervisor: this.supervisor,
+      http: this.http,
+      clock: this.clock,
+      timers: this.timers,
+      canLaunch: () => this.canLaunch(),
+    });
+    const entry: Entry = {
+      grant: structuredClone(grant),
+      command,
+      lifecycle,
+      busy: true,
+      task: Promise.resolve(),
+    };
+    this.entries.set(grant.assignmentId, entry);
+    entry.task = this.execute(entry);
+  }
+
+  private async execute(entry: Entry): Promise<void> {
+    try {
+      if (this.state !== 'RUNNING') {
+        throw new Error();
+      }
+      await entry.lifecycle.start();
+      await this.step(entry, (signal) =>
+        this.control.reportStarted(entry.command, signal),
+      );
+      const context: RunnerStepContext = {
+        signal: entry.lifecycle.signal,
+        runStep: (work) => this.step(entry, work),
+      };
+      await this.step(entry, () =>
+        this.runtime.execute(structuredClone(entry.grant), context),
+      );
+    } catch {
+      // Local failure/ambiguity is not an execution outcome or a retry authorization.
+    } finally {
+      const evidence = await entry.lifecycle.stop();
+      entry.busy = evidence.state !== 'TERMINATED';
+    }
+  }
+
+  private async step<T>(
+    entry: Entry,
+    work: (signal: AbortSignal) => Promise<T>,
+  ): Promise<T> {
+    const now = this.now();
+    this.checkDrain(now);
+    if (this.state === 'STOPPED' || now >= this.presenceDeadline) {
+      void this.stop();
+      throw new Error('Runner process authority unavailable.');
+    }
+    return entry.lifecycle.runStep(work);
+  }
+
+  private checkDrain(now: number): void {
+    if (this.drainDeadline !== null && now >= this.drainDeadline) {
+      void this.stop();
+      throw new Error('Runner drain deadline expired.');
+    }
+  }
+
+  private canLaunch(): boolean {
+    if (this.state !== 'RUNNING') {
+      return false;
+    }
+    const now = this.now();
+    this.checkDrain(now);
+    if (now >= this.presenceDeadline) {
+      void this.stop();
+      return false;
+    }
+    return true;
+  }
+
+  private now(): number {
+    let now: number;
+    try {
+      now = this.clock.nowMs();
+    } catch {
+      void this.stop();
+      throw new Error('Runner clock failed.');
+    }
+    if (!Number.isFinite(now) || now < this.lastNow) {
+      void this.stop();
+      throw new Error('Runner clock failed.');
+    }
+    this.lastNow = now;
+    return now;
+  }
+
+  private cancelTimer(kind: 'heartbeat' | 'claim'): void {
+    const timer = kind === 'heartbeat' ? this.heartbeatTimer : this.claimTimer;
+    if (kind === 'heartbeat') {
+      this.heartbeatTimer = null;
+    } else {
+      this.claimTimer = null;
+    }
+    if (timer !== null) {
+      try {
+        this.timers.cancel(timer);
+      } catch {
+        if (this.state !== 'STOPPED') {
+          void this.stop();
+        }
+      }
+    }
+  }
+}
