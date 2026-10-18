@@ -10,6 +10,7 @@ import {
 import { RunnerAssignmentLifecycle } from './runner-assignment-lifecycle.js';
 import { RunnerControlHttpClient } from './runner-control-http-client.js';
 import { RunnerDispatchHttpClient } from './runner-dispatch-http-client.js';
+import type { RunnerEvidenceCollector } from './runner-evidence-collector.js';
 import {
   RunnerReportHttpClient,
   type RunnerResultProposal,
@@ -68,6 +69,8 @@ export interface RunnerWorkerOptions {
   /** Host composition translates SIGTERM/deployment shutdown into this signal. */
   shutdownSignal?: AbortSignal;
   drainGraceMs?: number;
+  /** Trusted host owns encrypted storage, replay, key recovery and collector shutdown. */
+  evidenceCollector?: RunnerEvidenceCollector;
 }
 
 interface Entry {
@@ -104,6 +107,7 @@ export class RunnerWorker {
   private readonly runtime: RunnerWorkerOptions['runtime'];
   private readonly control: RunnerControlHttpClient;
   private readonly supervisor: LocalSandboxSupervisor;
+  private readonly evidenceCollector: RunnerEvidenceCollector | undefined;
   private readonly controller = new AbortController();
   private readonly entries = new Map<string, Entry>();
   private state: 'NEW' | 'STARTING' | 'RUNNING' | 'DRAINING' | 'STOPPED' =
@@ -155,6 +159,13 @@ export class RunnerWorker {
     this.timers = options.timers ?? nativeTimers;
     this.http = { ...options.http };
     this.runtime = options.runtime;
+    this.evidenceCollector = options.evidenceCollector;
+    if (
+      this.evidenceCollector &&
+      !this.evidenceCollector.owns(options.runnerId, this.owner)
+    ) {
+      throw new Error('Runner evidence collector owner mismatch.');
+    }
     this.control = new RunnerControlHttpClient(
       this.processIdentity,
       this.owner,
@@ -195,6 +206,9 @@ export class RunnerWorker {
       this.starting = Promise.resolve().then(async () => {
         try {
           if (this.controller.signal.aborted) {
+            throw new Error();
+          }
+          if (this.evidenceCollector && !this.evidenceCollector.readyForWork) {
             throw new Error();
           }
           await this.heartbeat();
@@ -380,6 +394,7 @@ export class RunnerWorker {
     this.polling = true;
     try {
       if (
+        (this.evidenceCollector && !this.evidenceCollector.readyForWork) ||
         this.entries.size >= this.maxTracked ||
         [...this.entries.values()].filter((entry) => entry.busy).length >=
           this.capacity
@@ -587,8 +602,8 @@ export class RunnerWorker {
     evidence: UsageCommand,
     signal?: AbortSignal,
   ): Promise<EvidenceReceipt> {
-    // No queue or unbounded retained payloads. The trusted bridge must retain
-    // failed/ambiguous evidence durably and may explicitly replay the same ID.
+    // Optional trusted collector persists before delivery. Without it, the
+    // bridge still owns durable retention of failed/ambiguous evidence.
     if (this.evidencePending >= 8) {
       void entry.lifecycle.stop();
       throw new Error('Runner evidence concurrency limit reached.');
@@ -596,6 +611,12 @@ export class RunnerWorker {
     this.evidencePending++;
     entry.evidencePending++;
     try {
+      if (this.evidenceCollector) {
+        return await this.evidenceCollector.report(
+          { token: entry.command.token, evidence },
+          signal,
+        );
+      }
       return await new RunnerReportHttpClient(
         entry.command,
         this.owner,
@@ -620,6 +641,10 @@ export class RunnerWorker {
       void this.stop();
       throw new Error('Runner process authority unavailable.');
     }
+    if (this.evidenceCollector && !this.evidenceCollector.readyForWork) {
+      void entry.lifecycle.stop();
+      throw new Error('Runner evidence collection unavailable.');
+    }
     return entry.lifecycle.runStep(work);
   }
 
@@ -631,7 +656,10 @@ export class RunnerWorker {
   }
 
   private canLaunch(): boolean {
-    if (this.state !== 'RUNNING') {
+    if (
+      this.state !== 'RUNNING' ||
+      (this.evidenceCollector && !this.evidenceCollector.readyForWork)
+    ) {
       return false;
     }
     const now = this.now();

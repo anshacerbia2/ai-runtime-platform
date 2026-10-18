@@ -4,6 +4,8 @@
 
 ## Cara membaca dokumentasi
 
+Checkpoint 19 Oktober 2026: optional [`RunnerEvidenceCollector`](../../apps/runner/src/runner-evidence-collector.ts) dan Linux encrypted file spool menambahkan durable write-before-send untuk late quarantine evidence, valid-receipt deletion dan explicit bounded replay. Backlog/key/storage failure menolak paid work lintas assignment; worker stop tidak menghapus spool atau membuka kembali context. Linux CI mencakup process SIGKILL dan lost committed ACK/reopen via API B dengan PostgreSQL dedup; Windows hanya orchestration/worker/backend refusal. Ini memperluas checkpoint reporting di bawah yang belum mempunyai spool. Production cipher/KMS, collector I/O isolation dan host flush lifetime, persistent volume/node-loss recovery, retention/deletion, result-candidate persistence, stop receipts dan runtime/sandbox tetap pending. [Semantik dan batas](../development/M3.md#bounded-evidence-collector-dan-encrypted-file-spool). ADR dan production wiring tidak berubah.
+
 Untuk menjawab “apa yang berjalan sekarang”, gunakan source, migration, kontrak HTTP yang terdaftar, dan hasil pengujian pada revisi yang sama. Dokumentasi kondisi aktual mengikuti bukti tersebut. [ADR](../adr/README.md) tetap menyimpan alasan keputusan dan perubahan historis; [rancangan target](../architecture/ARCHITECTURE.md) dan [PLAN](../PLAN.md) menyimpan pekerjaan yang belum terwujud. Selisih terhadap target ditandai sebagai gap, bukan diam-diam dianggap sudah terpenuhi atau dibuang.
 
 ## Ringkasan capability

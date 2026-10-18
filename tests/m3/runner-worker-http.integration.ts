@@ -1,10 +1,117 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { randomBytes } from 'node:crypto';
+import { chmodSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { FileEvidenceSpool } from '../../apps/runner/src/file-evidence-spool.js';
+import {
+  RunnerEvidenceCollector,
+  type RunnerEvidenceCollectorOptions,
+} from '../../apps/runner/src/runner-evidence-collector.js';
+import { fixtureCipher } from '../../apps/runner/test/support/evidence-fixture.js';
 import {
   stopInstance,
   until,
   workerFixture,
 } from './worker-coordinators.fixture.js';
+
+test(
+  'durable encrypted evidence survives lost committed ACK and collector reopen, deduplicating through API B',
+  { timeout: 45_000, skip: process.platform !== 'linux' },
+  async (t) => {
+    const directory = mkdtempSync(join(tmpdir(), 'worker-collector-'));
+    chmodSync(directory, 0o700);
+    let spool: FileEvidenceSpool | undefined;
+    let options: RunnerEvidenceCollectorOptions | undefined;
+    t.after(() => {
+      spool?.close();
+      rmSync(directory, { recursive: true, force: true });
+    });
+    const h = await workerFixture(t, {
+      dropEvidenceAck: true,
+      createEvidenceCollector: async (identity) => {
+        spool = new FileEvidenceSpool({
+          directory,
+          maxRecords: 4,
+          maxBytes: 262144,
+        });
+        options = {
+          ...identity,
+          spool,
+          cipher: fixtureCipher(randomBytes(32)),
+        };
+        return RunnerEvidenceCollector.open(options);
+      },
+    });
+    await h.start();
+    await assert.rejects(h.context.reportEvidence(h.evidence()));
+    assert.equal(h.evidenceCollector!.readyForWork, false);
+    assert.equal(spool!.ids().length, 1);
+    const original = await h.db.runnerEvidence.findFirstOrThrow({
+      where: { executionId: h.executionId },
+    });
+    let paid = 0;
+    await assert.rejects(
+      h.context.runStep(async () => {
+        paid++;
+      }),
+    );
+    assert.equal(paid, 0);
+    await h.worker.stop();
+    spool!.close();
+    h.switchToPeer();
+    await stopInstance(h.instances[0]!);
+    spool = new FileEvidenceSpool({
+      directory,
+      maxRecords: 4,
+      maxBytes: 262144,
+    });
+    const recovered = await RunnerEvidenceCollector.open({
+      ...options!,
+      spool,
+    });
+    assert.equal(await recovered.flush(), 1);
+    assert.deepEqual(spool.ids(), []);
+    assert.equal(recovered.readyForWork, true);
+    const rows = await h.db.runnerEvidence.findMany({
+      where: { executionId: h.executionId },
+    });
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0]!.id, original.id);
+    assert.equal(h.executions, 1);
+    assert.equal(h.launches, 1);
+    assert.equal(
+      h.traffic.filter((r) => r.path.endsWith('/evidence') && r.dropped).length,
+      1,
+    );
+    assert.ok(
+      h.traffic.some(
+        (r) =>
+          r.target === 1 && r.path.endsWith('/evidence') && r.status === 202,
+      ),
+    );
+    const reservation = await h.db.reservation.findFirstOrThrow({
+      where: { executionId: h.executionId },
+    });
+    assert.equal(reservation.heldUnits, 10n);
+    assert.equal(reservation.state, 'RESERVED');
+    assert.equal(
+      await h.db.ledgerEntry.count({ where: { executionId: h.executionId } }),
+      0,
+    );
+    assert.equal(
+      await h.db.usageObservation.count({
+        where: { executionId: h.executionId },
+      }),
+      0,
+    );
+    assert.equal(
+      h.traffic.some((r) => r.type === 'result.proposed'),
+      false,
+    );
+  },
+);
 
 test(
   'lost claim ACK and API A exit preserve one assignment/boot/nonce as worker continues on API B',

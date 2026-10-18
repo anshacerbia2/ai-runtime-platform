@@ -13,8 +13,87 @@ import type { RunnerResultProposal } from '../src/runner-report-http-client.js';
 import { RunnerWorker, type RunnerStepContext } from '../src/runner-worker.js';
 import type { LeaseTimerPort } from '../src/runner-lease-loop.js';
 import { materializePluginBundle } from '../src/plugin-bundle.js';
+import { RunnerEvidenceCollector } from '../src/runner-evidence-collector.js';
+import { fixtureCipher } from './support/evidence-fixture.js';
 
 const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
+
+test('worker persists failed evidence, blocks spend on all assignments and allows explicit replay after stop', async (t) => {
+  const rows = new Map<string, Uint8Array>();
+  let available = false;
+  let sends = 0;
+  const collector = await RunnerEvidenceCollector.open({
+    runnerId: 'worker-one',
+    ownerSubject: 'owner-one',
+    cipher: fixtureCipher(new Uint8Array(32).fill(7)),
+    spool: {
+      ids: () => [...rows.keys()],
+      read: (id) => Uint8Array.from(rows.get(id)!),
+      put: (id, bytes) => {
+        rows.set(id, Uint8Array.from(bytes));
+      },
+      remove: (id) => {
+        rows.delete(id);
+      },
+    },
+    http: {
+      origin: 'https://runner-api.example',
+      timeoutMs: 100,
+      bearerToken: async () => 'fixture-token',
+      fetchImpl: async () => {
+        sends++;
+        assert.equal(rows.size, 1);
+        if (!available) {
+          throw new Error('lost ACK');
+        }
+        return Response.json(
+          {
+            id: randomUUID(),
+            state: 'QUARANTINED',
+            replayed: true,
+            stale: true,
+          },
+          { status: 202 },
+        );
+      },
+    },
+  });
+  const first = grant();
+  const second = grant();
+  const h = harness(t, {
+    grants: [first, second],
+    capacity: 2,
+    evidenceCollector: collector,
+    execute: async () => new Promise<void>(() => undefined),
+  });
+  await h.worker.start();
+  h.timers.advanceTo(0);
+  await flush();
+  h.timers.advanceTo(1000);
+  await flush();
+  assert.equal(h.contexts.length, 2);
+  await assert.rejects(h.contexts[0]!.reportEvidence(usage(first)));
+  assert.equal(rows.size, 1);
+  let paid = 0;
+  await assert.rejects(
+    h.contexts[1]!.runStep(async () => {
+      paid++;
+    }),
+  );
+  assert.equal(paid, 0);
+  await h.worker.stop();
+  available = true;
+  assert.equal(await collector.flush(), 1);
+  assert.equal(sends, 2);
+  assert.equal(rows.size, 0);
+  // Replay changes evidence delivery only. Stopped contexts cannot reopen work.
+  await assert.rejects(
+    h.contexts[1]!.runStep(async () => {
+      paid++;
+    }),
+  );
+  assert.equal(paid, 0);
+});
 
 test('unacknowledged usage evidence prevents another paid dispatch', async (t) => {
   const pending = deferred<Response>();
@@ -686,6 +765,7 @@ function harness(
     timers?: LeaseTimerPort;
     shutdownSignal?: AbortSignal;
     drainGraceMs?: number;
+    evidenceCollector?: RunnerEvidenceCollector;
   } = {},
 ) {
   const timers = new Timers();
@@ -704,6 +784,7 @@ function harness(
     pollIntervalMs: 1_000,
     shutdownSignal: options.shutdownSignal,
     drainGraceMs: options.drainGraceMs,
+    evidenceCollector: options.evidenceCollector,
     clock: { nowMs: () => timers.now },
     timers: options.timers ?? timers,
     http: {
