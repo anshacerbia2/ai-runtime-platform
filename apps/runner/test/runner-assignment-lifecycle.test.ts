@@ -17,6 +17,67 @@ import {
 const ack = { state: 'ACTIVE', leaseTtlMs: 15_000, renewIntervalMs: 5_000 };
 const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
 
+test('step authorization rechecks durable authority without waiting for scheduled renewal', async (t) => {
+  let cancelled = false;
+  let calls = 0;
+  const h = harness(t, {
+    fetchImpl: async () => {
+      calls++;
+      return cancelled
+        ? new Response(null, { status: 409 })
+        : Response.json(ack);
+    },
+  });
+  await h.lifecycle.start();
+  cancelled = true;
+  await assert.rejects(h.lifecycle.checkAuthority());
+  let dispatches = 0;
+  await assert.rejects(
+    h.lifecycle.runStep(async () => {
+      dispatches++;
+    }),
+  );
+  assert.equal(calls, 2);
+  assert.equal(dispatches, 0);
+  assert.equal(h.lifecycle.signal.aborted, true);
+});
+
+test('cancel during authority preflight prevents a late successful ack reopening the gate', async (t) => {
+  const pending = deferred<Response>();
+  let calls = 0;
+  const h = harness(t, {
+    fetchImpl: async () =>
+      ++calls === 1 ? Response.json(ack) : pending.promise,
+  });
+  await h.lifecycle.start();
+  const checking = h.lifecycle.checkAuthority();
+  await flush();
+  await h.lifecycle.stop();
+  await assert.rejects(checking);
+  pending.resolve(Response.json(ack));
+  await flush();
+  await assert.rejects(h.lifecycle.runStep(async () => undefined));
+  assert.equal(h.stopRequests, 1);
+});
+
+test('authority preflight cannot extend an expired local lease when the watchdog is delayed', async (t) => {
+  let calls = 0;
+  const h = harness(t, {
+    fetchImpl: async () => {
+      calls++;
+      if (calls === 2) {
+        h.timers.now = 15_000;
+      }
+      return Response.json(ack);
+    },
+  });
+  await h.lifecycle.start();
+  await assert.rejects(h.lifecycle.checkAuthority());
+  assert.equal(h.lifecycle.signal.aborted, true);
+  await h.lifecycle.stop();
+  assert.equal(h.stopRequests, 1);
+});
+
 function deferred<T>() {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>((done) => {

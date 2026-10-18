@@ -108,6 +108,19 @@ export class RunnerAssignmentLifecycle {
     return step(this.controller.signal);
   }
 
+  /** Fresh coordinator check of durable cancel/fence policy before new external I/O.
+   * This renews the existing exact Redis lease; it never extends the local gate.
+   */
+  async checkAuthority(): Promise<void> {
+    try {
+      await this.runStep((signal) => this.client.activate(signal));
+      await this.runStep(async () => undefined);
+    } catch {
+      void this.stop();
+      throw new Error('Runner assignment authority unavailable.');
+    }
+  }
+
   /**
    * Deny new work and abort cooperative operations before local cleanup.
    * Remote lease revocation, durable fencing and effect settlement are separate.

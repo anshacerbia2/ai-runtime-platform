@@ -124,8 +124,16 @@ export class RunnerHttpTransport {
     path: string,
     value: unknown,
     caller?: AbortSignal,
+    expectedStatus: 200 | 202 = 200,
   ): Promise<unknown> {
-    const bytes = await this.request(path, value, MAX_BYTES, false, caller);
+    const bytes = await this.request(
+      path,
+      value,
+      MAX_BYTES,
+      false,
+      caller,
+      expectedStatus,
+    );
     try {
       return JSON.parse(
         new TextDecoder('utf-8', { fatal: true }).decode(bytes),
@@ -160,6 +168,7 @@ export class RunnerHttpTransport {
     maxBytes: number,
     binary: boolean,
     caller?: AbortSignal,
+    expectedStatus: 200 | 202 = 200,
   ): Promise<Uint8Array> {
     const url = new URL(path, this.origin);
     const body = JSON.stringify(value);
@@ -225,7 +234,7 @@ export class RunnerHttpTransport {
         cache: 'no-store',
         signal: controller.signal,
       });
-      if (controller.signal.aborted || response.status !== 200) {
+      if (controller.signal.aborted || response.status !== expectedStatus) {
         void response.body?.cancel().catch(() => undefined);
         throw new RunnerHttpError(
           controller.signal.aborted ||
