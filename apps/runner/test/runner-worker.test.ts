@@ -1,14 +1,274 @@
 import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { once } from 'node:events';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test, { type TestContext } from 'node:test';
 import type { RunnerDispatchGrant } from '@ai-runtime/contracts/http';
 import { RunnerWorker, type RunnerStepContext } from '../src/runner-worker.js';
 import type { LeaseTimerPort } from '../src/runner-lease-loop.js';
+import { materializePluginBundle } from '../src/plugin-bundle.js';
 
 const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
+
+function payloadResponse(bytes: Uint8Array) {
+  return new Response(new Uint8Array(bytes), {
+    headers: {
+      'content-type': 'application/octet-stream',
+      'cache-control': 'no-store',
+      'content-length': String(bytes.length),
+    },
+  });
+}
+
+function pluginFixture(value: RunnerDispatchGrant) {
+  const content = Buffer.from('fixture instructions');
+  const bytes = Buffer.from(
+    JSON.stringify({
+      format: 'ai-runtime-plugin/v1',
+      packageId: 'draft',
+      version: '1',
+      compatibleRuntimeVersions: ['claude:1'],
+      requiredPermissions: ['artifact:write'],
+      files: [
+        {
+          path: 'instructions.md',
+          sha256: createHash('sha256').update(content).digest('hex'),
+          contentBase64: content.toString('base64'),
+        },
+      ],
+    }),
+  );
+  value.plugin = {
+    packageId: 'draft',
+    version: '1',
+    bundleDigest: createHash('sha256').update(bytes).digest('hex'),
+    runtimeVersion: 'claude:1',
+    requiredPermissions: ['artifact:write'],
+  };
+  return bytes;
+}
+
+test('lease expiry during payload delivery denies callback even before watchdog fires', async (t) => {
+  let callbacks = 0;
+  const h = harness(t, {
+    grants: [grant()],
+    delivery: async () => {
+      h.timers.now = 15_000;
+      return payloadResponse(new Uint8Array(10));
+    },
+    execute: async (_grant, context) => {
+      await context.withInputs(async () => {
+        callbacks++;
+      });
+    },
+  });
+  await h.worker.start();
+  h.timers.advanceTo(0);
+  await flush();
+  assert.equal(callbacks, 0);
+  assert.equal(h.stops, 1);
+});
+
+test('bad plugin bytes close the assignment without handing payload to runtime', async (t) => {
+  const value = grant();
+  pluginFixture(value);
+  let callbacks = 0;
+  const h = harness(t, {
+    grants: [value],
+    delivery: async (input) =>
+      payloadResponse(
+        new URL(String(input)).pathname.endsWith('/payload')
+          ? new Uint8Array(10)
+          : Buffer.from('tampered'),
+      ),
+    execute: async (_grant, context) => {
+      await context.withInputs(async () => {
+        callbacks++;
+      });
+    },
+  });
+  await h.worker.start();
+  h.timers.advanceTo(0);
+  await flush();
+  assert.equal(h.requests.filter((r) => r.path.endsWith('/plugin')).length, 1);
+  assert.equal(callbacks, 0);
+  assert.equal(h.stops, 1);
+});
+
+test('concurrent input requests stop the first handoff without a second download', async (t) => {
+  let signal: AbortSignal | undefined;
+  let callbacks = 0;
+  const h = harness(t, {
+    grants: [grant()],
+    delivery: async (_input, init) => {
+      signal = init?.signal ?? undefined;
+      return new Promise(() => undefined);
+    },
+    execute: async (_grant, context) => {
+      const first = context.withInputs(async () => {
+        callbacks++;
+      });
+      await assert.rejects(
+        context.withInputs(async () => {
+          callbacks++;
+        }),
+      );
+      await assert.rejects(first);
+    },
+  });
+  await h.worker.start();
+  h.timers.advanceTo(0);
+  await flush();
+  assert.equal(callbacks, 0);
+  assert.ok(!signal || signal.aborted);
+  assert.ok(h.requests.filter((r) => r.path.endsWith('/payload')).length <= 1);
+  assert.equal(h.stops, 1);
+});
+
+test('worker hands off scoped payload once after STARTED and erases input after callback', async (t) => {
+  const value = grant();
+  const payload = Buffer.from('private payload');
+  value.plaintextBytes = payload.length;
+  let retained: Uint8Array | undefined;
+  let calls = 0;
+  let result = 0;
+  const h = harness(t, {
+    grants: [value, value],
+    delivery: async (_input, init) => {
+      calls++;
+      const body = JSON.parse(String(init?.body));
+      assert.equal(body.envelopeId, value.envelopeId);
+      assert.equal(body.bootId, h.worker.identity.bootId);
+      const activation = h.requests.find((r) => r.path.endsWith('/activate'))!;
+      assert.deepEqual(body, {
+        ...activation.body,
+        envelopeId: value.envelopeId,
+      });
+      return payloadResponse(payload);
+    },
+    execute: async (_grant, context) => {
+      result = await context.withInputs(async (inputs, signal) => {
+        retained = inputs.payload;
+        assert.equal(signal.aborted, false);
+        assert.equal(inputs.plugin, null);
+        assert.equal(Buffer.from(inputs.payload).toString(), 'private payload');
+        return 42;
+      });
+      await assert.rejects(
+        context.withInputs(async () => {
+          throw new Error('must never dispatch twice');
+        }),
+      );
+    },
+  });
+  await h.worker.start();
+  h.timers.advanceTo(0);
+  await flush();
+  assert.equal(result, 42);
+  assert.equal(calls, 1);
+  assert.ok(retained?.every((x) => x === 0));
+  assert.ok(h.events.indexOf('reports') < h.events.indexOf('payload'));
+  h.timers.advanceTo(1_000);
+  await flush();
+  assert.equal(calls, 1);
+});
+
+test('stopped worker denies retained input context without starting a download', async (t) => {
+  const h = harness(t, { grants: [grant()] });
+  await h.worker.start();
+  h.timers.advanceTo(0);
+  await flush();
+  const context = h.contexts[0]!;
+  await h.worker.stop();
+  await assert.rejects(context.withInputs(async () => undefined));
+  assert.equal(h.requests.filter((r) => r.path.endsWith('/payload')).length, 0);
+});
+
+test('shutdown during payload download aborts handoff before trusted callback', async (t) => {
+  let release!: (response: Response) => void;
+  let callback = 0;
+  let signal: AbortSignal | undefined;
+  const h = harness(t, {
+    grants: [grant()],
+    delivery: async (_input, init) => {
+      signal = init?.signal ?? undefined;
+      return new Promise((resolve) => {
+        release = resolve;
+      });
+    },
+    execute: async (_grant, context) => {
+      await context.withInputs(async () => {
+        callback++;
+      });
+    },
+  });
+  await h.worker.start();
+  h.timers.advanceTo(0);
+  await flush();
+  assert.ok(signal);
+  await h.worker.stop();
+  assert.equal(signal.aborted, true);
+  release(payloadResponse(new Uint8Array(10)));
+  await flush();
+  assert.equal(callback, 0);
+});
+
+test('shutdown erases borrowed payload while preserving eventual callback evidence', async (t) => {
+  const pending = deferred<number>();
+  let retained: Uint8Array | undefined;
+  let result: number | undefined;
+  const h = harness(t, {
+    grants: [grant()],
+    delivery: async () => payloadResponse(new Uint8Array(10).fill(9)),
+    execute: async (_grant, context) => {
+      result = await context.withInputs(async (inputs) => {
+        retained = inputs.payload;
+        return pending.promise;
+      });
+    },
+  });
+  await h.worker.start();
+  h.timers.advanceTo(0);
+  await flush();
+  assert.equal(retained?.[0], 9);
+  await h.worker.stop();
+  assert.ok(retained?.every((x) => x === 0));
+  pending.resolve(73);
+  await flush();
+  assert.equal(result, 73);
+});
+
+test('invalid payload seals assignment before runtime can dispatch another protected step', async (t) => {
+  let callback = 0;
+  let dispatched = 0;
+  const h = harness(t, {
+    grants: [grant()],
+    delivery: async () => payloadResponse(new Uint8Array(11)),
+    execute: async (_grant, context) => {
+      await assert.rejects(
+        context.withInputs(async () => {
+          callback++;
+        }),
+      );
+      await assert.rejects(
+        context.runStep(async () => {
+          dispatched++;
+        }),
+      );
+    },
+  });
+  await h.worker.start();
+  h.timers.advanceTo(0);
+  await flush();
+  assert.equal(h.requests.filter((r) => r.path.endsWith('/payload')).length, 1);
+  assert.equal(callback, 0);
+  assert.equal(dispatched, 0);
+  assert.equal(h.stops, 1);
+});
 function deferred<T>() {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>((done) => {
@@ -74,6 +334,7 @@ function harness(
     capacity?: number;
     maxTracked?: number;
     fetchImpl?: typeof fetch;
+    delivery?: typeof fetch;
     execute?: (
       grant: RunnerDispatchGrant,
       context: RunnerStepContext,
@@ -112,6 +373,12 @@ function harness(
         const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
         requests.push({ path, body });
         events.push(path.split('/').at(-1)!);
+        if (
+          options.delivery &&
+          (path.endsWith('/payload') || path.endsWith('/plugin'))
+        ) {
+          return options.delivery(input, init);
+        }
         if (options.fetchImpl) {
           return options.fetchImpl(input, init);
         }
@@ -691,10 +958,17 @@ test('host shutdown signal drains active work and a pre-aborted signal prevents 
 });
 
 test(
-  'loopback HTTP bootstrap reaches guarded fixture runtime and drains cleanly',
+  'loopback worker delivers payload and pinned plugin to private-root materializer and drains cleanly',
   { timeout: 5_000 },
   async (t) => {
     const value = grant();
+    const payload = Buffer.from('fixture private payload');
+    value.plaintextBytes = payload.length;
+    const plugin = pluginFixture(value);
+    const root = await mkdtemp(join(tmpdir(), 'ai-runtime-handoff-'));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    let retained:
+      { payload: Uint8Array; plugin: Uint8Array | null } | undefined;
     const requests: { path: string; body: Record<string, unknown> }[] = [];
     const failures: unknown[] = [];
     const entered = deferred<void>();
@@ -734,6 +1008,20 @@ test(
             state: 'STARTED',
             protocolVersion: '1',
           };
+        } else if (path.endsWith('/payload') || path.endsWith('/plugin')) {
+          assert.deepEqual(body, {
+            ...requests.find((r) => r.path.endsWith('/activate'))!.body,
+            envelopeId: value.envelopeId,
+          });
+          assert.equal(request.headers.accept, 'application/octet-stream');
+          const bytes = path.endsWith('/payload') ? payload : plugin;
+          response.writeHead(200, {
+            'content-type': 'application/octet-stream',
+            'cache-control': 'no-store',
+            'content-length': bytes.length,
+          });
+          response.end(bytes);
+          return;
         } else {
           throw new Error('Unexpected fixture route.');
         }
@@ -784,16 +1072,39 @@ test(
         async execute(received, context) {
           assert.deepEqual(received, value);
           assert.ok(requests.at(-1)!.path.endsWith('/reports'));
-          assert.equal(
-            await context.runStep(async () => 'fixture-effect-receipt'),
-            'fixture-effect-receipt',
-          );
-          entered.resolve();
-          await new Promise<void>((resolve) =>
-            context.signal.addEventListener('abort', () => resolve(), {
-              once: true,
-            }),
-          );
+          await context.withInputs(async (inputs, signal) => {
+            retained = inputs;
+            assert.equal(
+              Buffer.from(inputs.payload).toString(),
+              payload.toString(),
+            );
+            assert.ok(inputs.plugin);
+            const pinned = received.plugin!;
+            const materialized = await context.runStep(() =>
+              materializePluginBundle(root, inputs.plugin!, {
+                packageId: pinned.packageId,
+                version: pinned.version,
+                digest: pinned.bundleDigest,
+                state: 'ACTIVE',
+                runtimeVersion: pinned.runtimeVersion,
+                allowedPermissions: pinned.requiredPermissions,
+              }),
+            );
+            assert.equal(
+              (
+                await readFile(join(materialized.directory, 'instructions.md'))
+              ).toString(),
+              'fixture instructions',
+            );
+            assert.equal(
+              await context.runStep(async () => 'fixture-effect-receipt'),
+              'fixture-effect-receipt',
+            );
+            entered.resolve();
+            await new Promise<void>((resolve) =>
+              signal.addEventListener('abort', () => resolve(), { once: true }),
+            );
+          });
         },
       },
     });
@@ -807,12 +1118,14 @@ test(
     await entered.promise;
     assert.deepEqual(
       requests.map((r) => r.path.split('/').at(-1)),
-      ['heartbeat', 'claim', 'activate', 'reports'],
+      ['heartbeat', 'claim', 'activate', 'reports', 'payload', 'plugin'],
     );
     assert.deepEqual(failures, []);
     assert.equal(launches, 1);
     assert.equal((await worker.drain(10))[0]!.evidence.state, 'TERMINATED');
     assert.equal(stops, 1);
+    assert.ok(retained?.payload.every((x) => x === 0));
+    assert.ok(retained?.plugin?.every((x) => x === 0));
     assert.equal(timers.pending, 0);
   },
 );

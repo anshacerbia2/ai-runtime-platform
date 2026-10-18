@@ -15,50 +15,75 @@ export class RunnerHttpError extends Error {
 
 const MAX_BYTES = 65_536;
 
-async function boundedJson(response: Response): Promise<unknown> {
+async function boundedBytes(
+  response: Response,
+  maxBytes: number,
+  binary: boolean,
+  signal: AbortSignal,
+): Promise<Uint8Array> {
   const length = response.headers.get('content-length');
+  const contentType = binary
+    ? /^application\/octet-stream(?:\s*;|\s*$)/i
+    : /^application\/json(?:\s*;|\s*$)/i;
   if (
+    signal.aborted ||
     response.redirected ||
     !response.body ||
-    !/^application\/json(?:\s*;|\s*$)/i.test(
-      response.headers.get('content-type') ?? '',
-    ) ||
-    (length !== null && (!/^\d+$/.test(length) || Number(length) > MAX_BYTES))
+    !contentType.test(response.headers.get('content-type') ?? '') ||
+    (length !== null && (!/^\d+$/.test(length) || Number(length) > maxBytes)) ||
+    (binary &&
+      (length === null ||
+        Number(length) < 1 ||
+        !response.headers
+          .get('cache-control')
+          ?.split(',')
+          .some((x) => x.trim().toLowerCase() === 'no-store') ||
+        !['', 'identity'].includes(
+          response.headers.get('content-encoding')?.toLowerCase() ?? '',
+        )))
   ) {
     void response.body?.cancel().catch(() => undefined);
     throw new RunnerHttpError('INVALID');
   }
   const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
+  // One bounded allocation also caps metadata overhead for tiny stream chunks.
+  const body = new Uint8Array(binary ? Number(length) : maxBytes);
   let bytes = 0;
+  const cancel = () => {
+    body.fill(0);
+    void reader.cancel().catch(() => undefined);
+  };
+  signal.addEventListener('abort', cancel, { once: true });
   try {
     for (;;) {
       const { done, value } = await reader.read();
       if (done) {
         break;
       }
-      bytes += value.byteLength;
-      if (bytes > MAX_BYTES) {
-        throw new RunnerHttpError('INVALID');
+      try {
+        if (signal.aborted || bytes + value.byteLength > body.byteLength) {
+          throw new RunnerHttpError('INVALID');
+        }
+        body.set(value, bytes);
+        bytes += value.byteLength;
+      } finally {
+        value.fill(0);
       }
-      chunks.push(value);
     }
+    if (
+      signal.aborted ||
+      (binary && length !== null && bytes !== Number(length))
+    ) {
+      throw new RunnerHttpError('INVALID');
+    }
+    return body.slice(0, bytes);
   } catch (error) {
     void reader.cancel().catch(() => undefined);
     throw error;
   } finally {
+    signal.removeEventListener('abort', cancel);
+    body.fill(0);
     reader.releaseLock();
-  }
-  const body = new Uint8Array(bytes);
-  let offset = 0;
-  for (const chunk of chunks) {
-    body.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  try {
-    return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(body));
-  } catch {
-    throw new RunnerHttpError('INVALID');
   }
 }
 
@@ -100,6 +125,42 @@ export class RunnerHttpTransport {
     value: unknown,
     caller?: AbortSignal,
   ): Promise<unknown> {
+    const bytes = await this.request(path, value, MAX_BYTES, false, caller);
+    try {
+      return JSON.parse(
+        new TextDecoder('utf-8', { fatal: true }).decode(bytes),
+      );
+    } catch {
+      throw new RunnerHttpError('INVALID');
+    } finally {
+      bytes.fill(0);
+    }
+  }
+
+  /** Caller owns returned bytes and must erase them after use. */
+  postBinary(
+    path: string,
+    value: unknown,
+    maxBytes: number,
+    caller?: AbortSignal,
+  ): Promise<Uint8Array> {
+    if (
+      !Number.isSafeInteger(maxBytes) ||
+      maxBytes < 1 ||
+      maxBytes > 16_777_216
+    ) {
+      return Promise.reject(new RunnerHttpError('INVALID'));
+    }
+    return this.request(path, value, maxBytes, true, caller);
+  }
+
+  private async request(
+    path: string,
+    value: unknown,
+    maxBytes: number,
+    binary: boolean,
+    caller?: AbortSignal,
+  ): Promise<Uint8Array> {
     const url = new URL(path, this.origin);
     const body = JSON.stringify(value);
     if (
@@ -154,9 +215,10 @@ export class RunnerHttpTransport {
         method: 'POST',
         headers: {
           authorization: `Bearer ${token}`,
-          accept: 'application/json',
+          accept: binary ? 'application/octet-stream' : 'application/json',
           'content-type': 'application/json',
           'x-runner-protocol': '1',
+          ...(binary ? { 'accept-encoding': 'identity' } : {}),
         },
         body,
         redirect: 'error',
@@ -174,7 +236,7 @@ export class RunnerHttpTransport {
             : 'REJECTED',
         );
       }
-      return boundedJson(response);
+      return boundedBytes(response, maxBytes, binary, controller.signal);
     });
     try {
       return await Promise.race([work, aborted, deadline]);

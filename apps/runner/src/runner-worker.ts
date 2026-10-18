@@ -7,6 +7,7 @@ import {
 } from '@ai-runtime/contracts/http';
 import { RunnerAssignmentLifecycle } from './runner-assignment-lifecycle.js';
 import { RunnerControlHttpClient } from './runner-control-http-client.js';
+import { RunnerDispatchHttpClient } from './runner-dispatch-http-client.js';
 import {
   RunnerHttpError,
   type RunnerHttpOptions,
@@ -20,9 +21,19 @@ import {
   type TrackedStopResult,
 } from './sandbox-supervisor.js';
 
+export interface RunnerDispatchInputs {
+  /** Borrowed byte buffers, erased on abort and after callback settlement. */
+  readonly payload: Uint8Array;
+  readonly plugin: Uint8Array | null;
+}
+
 export interface RunnerStepContext {
   readonly signal: AbortSignal;
   runStep<T>(work: (signal: AbortSignal) => Promise<T>): Promise<T>;
+  /** One handoff per assignment; trusted bridge must gate each subsequent I/O. */
+  withInputs<T>(
+    work: (inputs: RunnerDispatchInputs, signal: AbortSignal) => Promise<T>,
+  ): Promise<T>;
 }
 
 export interface RunnerWorkerOptions {
@@ -54,6 +65,7 @@ interface Entry {
   lifecycle: RunnerAssignmentLifecycle;
   task: Promise<void>;
   busy: boolean;
+  inputsUsed: boolean;
 }
 
 const nativeTimers: LeaseTimerPort = {
@@ -439,6 +451,7 @@ export class RunnerWorker {
       command,
       lifecycle,
       busy: true,
+      inputsUsed: false,
       task: Promise.resolve(),
     };
     this.entries.set(grant.assignmentId, entry);
@@ -457,6 +470,7 @@ export class RunnerWorker {
       const context: RunnerStepContext = {
         signal: entry.lifecycle.signal,
         runStep: (work) => this.step(entry, work),
+        withInputs: (work) => this.withInputs(entry, work),
       };
       await this.step(entry, () =>
         this.runtime.execute(structuredClone(entry.grant), context),
@@ -466,6 +480,44 @@ export class RunnerWorker {
     } finally {
       const evidence = await entry.lifecycle.stop();
       entry.busy = evidence.state !== 'TERMINATED';
+    }
+  }
+
+  private async withInputs<T>(
+    entry: Entry,
+    work: (inputs: RunnerDispatchInputs, signal: AbortSignal) => Promise<T>,
+  ): Promise<T> {
+    if (entry.inputsUsed) {
+      void entry.lifecycle.stop();
+      throw new Error('Runner dispatch inputs already requested.');
+    }
+    entry.inputsUsed = true;
+    const signal = entry.lifecycle.signal;
+    let payload: Uint8Array | undefined;
+    let plugin: Uint8Array | null = null;
+    const erase = () => {
+      payload?.fill(0);
+      plugin?.fill(0);
+    };
+    signal.addEventListener('abort', erase, { once: true });
+    try {
+      const client = new RunnerDispatchHttpClient(
+        entry.command,
+        entry.grant,
+        this.http,
+      );
+      payload = await this.step(entry, (signal) => client.payload(signal));
+      if (entry.grant.plugin) {
+        plugin = await this.step(entry, (signal) => client.plugin(signal));
+      }
+      const inputs: RunnerDispatchInputs = { payload, plugin };
+      return await this.step(entry, (signal) => work(inputs, signal));
+    } catch {
+      void entry.lifecycle.stop();
+      throw new Error('Runner dispatch input handoff failed.');
+    } finally {
+      signal.removeEventListener('abort', erase);
+      erase();
     }
   }
 
