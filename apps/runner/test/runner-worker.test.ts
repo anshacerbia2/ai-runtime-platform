@@ -1,3 +1,4 @@
+import type { UsageCommand } from '@ai-runtime/contracts';
 import assert from 'node:assert/strict';
 import { createHash, randomUUID } from 'node:crypto';
 import { once } from 'node:events';
@@ -8,11 +9,350 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test, { type TestContext } from 'node:test';
 import type { RunnerDispatchGrant } from '@ai-runtime/contracts/http';
+import type { RunnerResultProposal } from '../src/runner-report-http-client.js';
 import { RunnerWorker, type RunnerStepContext } from '../src/runner-worker.js';
 import type { LeaseTimerPort } from '../src/runner-lease-loop.js';
 import { materializePluginBundle } from '../src/plugin-bundle.js';
 
 const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
+
+test('unacknowledged usage evidence prevents another paid dispatch', async (t) => {
+  const pending = deferred<Response>();
+  const value = grant();
+  let paid = 0;
+  let evidence: Promise<unknown> | undefined;
+  const h = harness(t, {
+    grants: [value],
+    reporting: async () => pending.promise,
+    execute: async (_grant, context) => {
+      evidence = context.reportEvidence(usage(value));
+      await assert.rejects(
+        context.runStep(async () => {
+          paid++;
+        }),
+      );
+      await evidence;
+    },
+  });
+  await h.worker.start();
+  h.timers.advanceTo(0);
+  await flush();
+  assert.equal(paid, 0);
+  pending.resolve(
+    Response.json(
+      { id: randomUUID(), state: 'QUARANTINED', replayed: false, stale: false },
+      { status: 202 },
+    ),
+  );
+  await evidence;
+  await flush();
+});
+
+const resultProposal = (): RunnerResultProposal => ({
+  outcome: 'completed',
+  digest: 'a'.repeat(64),
+  artifactIds: [],
+  summary: 'fixture result',
+});
+function usage(value: RunnerDispatchGrant): UsageCommand {
+  return {
+    executionId: value.executionId,
+    attemptId: value.attemptId,
+    sourceEventId: 'fixture-call',
+    sourceRevision: 1,
+    coverage: ['fixture-call'],
+    cumulativeUnits: null,
+    completeness: 'unknown',
+    costBasis: 'unknown',
+    reason: 'unknown remote usage',
+  };
+}
+
+test('runtime result is proposed once under retained lease and never implies local finalization', async (t) => {
+  const value = grant();
+  const h = harness(t, {
+    grants: [value, value],
+    execute: async () => resultProposal(),
+  });
+  await h.worker.start();
+  h.timers.advanceTo(0);
+  await flush();
+  const reports = h.requests.filter((r) => r.path.endsWith('/reports'));
+  assert.equal(reports.length, 2);
+  assert.equal(reports[1]!.body.type, 'result.proposed');
+  assert.deepEqual(reports[1]!.body.proposal, resultProposal());
+  assert.deepEqual(reports[1]!.body.lease, reports[0]!.body.lease);
+  assert.equal(h.stops, 1);
+  h.timers.advanceTo(1_000);
+  await flush();
+  assert.equal(
+    h.requests.filter((r) => r.body.type === 'result.proposed').length,
+    1,
+  );
+});
+
+test('durable cancel before the next provider step is checked before scheduled renewal', async (t) => {
+  const value = grant();
+  let cancelled = false;
+  let paidCalls = 0;
+  let preflights = 0;
+  const h = harness(t, {
+    grants: [value],
+    delivery: undefined,
+    reporting: undefined,
+    lease: async () => {
+      preflights++;
+      return cancelled
+        ? new Response(null, { status: 409 })
+        : Response.json({
+            state: 'ACTIVE',
+            leaseTtlMs: 15_000,
+            renewIntervalMs: 5_000,
+          });
+    },
+    execute: async (_grant, context) => {
+      cancelled = true;
+      await context.runStep(async () => {
+        paidCalls++;
+      });
+      return resultProposal();
+    },
+  });
+  await h.worker.start();
+  h.timers.advanceTo(0);
+  await flush();
+  assert.equal(preflights, 2);
+  assert.equal(paidCalls, 0);
+  assert.equal(h.stops, 1);
+  assert.equal(
+    h.requests.some((r) => r.body.type === 'result.proposed'),
+    false,
+  );
+});
+
+test('periodic durable cancel rejection aborts an in-flight step but preserves late usage intake', async (t) => {
+  const value = grant();
+  const pending = deferred<void>();
+  let cancelled = false;
+  let stepSignal: AbortSignal | undefined;
+  let receipt = false;
+  const h = harness(t, {
+    grants: [value],
+    lease: async () =>
+      cancelled
+        ? new Response(null, { status: 409 })
+        : Response.json({
+            state: 'ACTIVE',
+            leaseTtlMs: 15_000,
+            renewIntervalMs: 5_000,
+          }),
+    execute: async (_grant, context) => {
+      await context.runStep(async (signal) => {
+        stepSignal = signal;
+        await pending.promise;
+      });
+      receipt =
+        (await context.reportEvidence(usage(value))).state === 'QUARANTINED';
+      return resultProposal();
+    },
+  });
+  await h.worker.start();
+  h.timers.advanceTo(0);
+  await flush();
+  assert.ok(stepSignal);
+  cancelled = true;
+  h.timers.advanceTo(5_000);
+  await flush();
+  assert.equal(stepSignal.aborted, true);
+  pending.resolve();
+  await flush();
+  assert.equal(receipt, true);
+  assert.equal(
+    h.requests.some((r) => r.body.type === 'result.proposed'),
+    false,
+  );
+  assert.equal(
+    h.requests.filter((r) => r.path.endsWith('/evidence')).length,
+    1,
+  );
+});
+
+test('late evidence after worker stop keeps old assignment and unknown cost without live lease', async (t) => {
+  const value = grant();
+  const h = harness(t, { grants: [value] });
+  await h.worker.start();
+  h.timers.advanceTo(0);
+  await flush();
+  const context = h.contexts[0]!;
+  await h.worker.stop();
+  const evidence = usage(value);
+  const receipt = await context.reportEvidence(evidence);
+  assert.equal(receipt.state, 'QUARANTINED');
+  const body = h.requests.find((r) => r.path.endsWith('/evidence'))!.body;
+  assert.deepEqual(body.evidence, evidence);
+  assert.equal('lease' in body, false);
+  assert.equal(
+    (body.token as Record<string, unknown>).assignmentId,
+    value.assignmentId,
+  );
+  let paid = 0;
+  await assert.rejects(
+    context.runStep(async () => {
+      paid++;
+    }),
+  );
+  assert.equal(paid, 0);
+});
+
+test('evidence failure stops new paid work and explicit same-event replay remains possible', async (t) => {
+  const value = grant();
+  let calls = 0;
+  let paid = 0;
+  let replayed = false;
+  const id = randomUUID();
+  const h = harness(t, {
+    grants: [value],
+    reporting: async (input) => {
+      assert.ok(new URL(String(input)).pathname.endsWith('/evidence'));
+      calls++;
+      if (calls === 1) {
+        throw new Error('lost acknowledgement');
+      }
+      return Response.json(
+        { id, state: 'QUARANTINED', replayed: true, stale: true },
+        { status: 202 },
+      );
+    },
+    execute: async (_grant, context) => {
+      await assert.rejects(context.reportEvidence(usage(value)));
+      await assert.rejects(
+        context.runStep(async () => {
+          paid++;
+        }),
+      );
+      replayed = (await context.reportEvidence(usage(value))).replayed;
+    },
+  });
+  await h.worker.start();
+  h.timers.advanceTo(0);
+  await flush();
+  assert.equal(calls, 2);
+  assert.equal(paid, 0);
+  assert.equal(replayed, true);
+  const messages = h.requests.filter((r) => r.path.endsWith('/evidence'));
+  assert.deepEqual(messages[0]!.body, messages[1]!.body);
+});
+
+test('runtime return seals retained provider context while result acknowledgement is pending', async (t) => {
+  const ack = deferred<Response>();
+  let proposals = 0;
+  const h = harness(t, {
+    grants: [grant()],
+    reporting: async () => {
+      proposals++;
+      return ack.promise;
+    },
+    execute: async () => resultProposal(),
+  });
+  await h.worker.start();
+  h.timers.advanceTo(0);
+  await flush();
+  assert.equal(proposals, 1);
+  let paid = 0;
+  await assert.rejects(
+    h.contexts[0]!.runStep(async () => {
+      paid++;
+    }),
+  );
+  assert.equal(paid, 0);
+  await h.worker.stop();
+  ack.resolve(new Response(null, { status: 409 }));
+  await flush();
+  assert.equal(proposals, 1);
+});
+
+test('a runtime returning with unawaited provider work cannot propose a result', async (t) => {
+  const pending = deferred<void>();
+  let step: Promise<void> | undefined;
+  const h = harness(t, {
+    grants: [grant()],
+    execute: async (_grant, context) => {
+      step = context.runStep(() => pending.promise);
+      void step.catch(() => undefined);
+      return resultProposal();
+    },
+  });
+  await h.worker.start();
+  h.timers.advanceTo(0);
+  await flush();
+  pending.resolve();
+  await assert.rejects(step!);
+  assert.equal(
+    h.requests.some((r) => r.body.type === 'result.proposed'),
+    false,
+  );
+  assert.equal(h.stops, 1);
+});
+
+test('ambiguous result acknowledgement is sent once and never restarts the runtime', async (t) => {
+  let proposals = 0;
+  let executes = 0;
+  const value = grant();
+  const h = harness(t, {
+    grants: [value, value],
+    reporting: async () => {
+      proposals++;
+      throw new Error('lost proposal acknowledgement');
+    },
+    execute: async () => {
+      executes++;
+      return resultProposal();
+    },
+  });
+  await h.worker.start();
+  h.timers.advanceTo(0);
+  await flush();
+  h.timers.advanceTo(1_000);
+  await flush();
+  assert.equal(proposals, 1);
+  assert.equal(executes, 1);
+  assert.equal(h.stops, 1);
+});
+
+test('evidence concurrency is bounded after stop and overflow cannot enable paid work', async (t) => {
+  const value = grant();
+  const pending = deferred<Response>();
+  const h = harness(t, {
+    grants: [value],
+    reporting: async () => (await pending.promise).clone(),
+  });
+  await h.worker.start();
+  h.timers.advanceTo(0);
+  await flush();
+  const context = h.contexts[0]!;
+  await h.worker.stop();
+  const evidence = usage(value);
+  const active = Array.from({ length: 8 }, () =>
+    context.reportEvidence(evidence),
+  );
+  await assert.rejects(context.reportEvidence(evidence));
+  pending.resolve(
+    Response.json(
+      { id: randomUUID(), state: 'QUARANTINED', replayed: true, stale: true },
+      { status: 202 },
+    ),
+  );
+  const receipts = await Promise.all(active);
+  assert.equal(
+    receipts.every((r) => r.state === 'QUARANTINED'),
+    true,
+  );
+  assert.equal(
+    h.requests.filter((r) => r.path.endsWith('/evidence')).length,
+    8,
+  );
+  await assert.rejects(context.runStep(async () => undefined));
+});
 
 function payloadResponse(bytes: Uint8Array) {
   return new Response(new Uint8Array(bytes), {
@@ -335,10 +675,12 @@ function harness(
     maxTracked?: number;
     fetchImpl?: typeof fetch;
     delivery?: typeof fetch;
+    reporting?: typeof fetch;
+    lease?: typeof fetch;
     execute?: (
       grant: RunnerDispatchGrant,
       context: RunnerStepContext,
-    ) => Promise<void>;
+    ) => Promise<void | RunnerResultProposal>;
     launch?: () => Promise<void>;
     inspect?: () => Promise<'EXITED' | 'RUNNING' | 'UNKNOWN'>;
     timers?: LeaseTimerPort;
@@ -382,6 +724,26 @@ function harness(
         if (options.fetchImpl) {
           return options.fetchImpl(input, init);
         }
+        if (options.lease && path.endsWith('/activate')) {
+          return options.lease(input, init);
+        }
+        if (
+          options.reporting &&
+          (path.endsWith('/evidence') || body.type === 'result.proposed')
+        ) {
+          return options.reporting(input, init);
+        }
+        if (path.endsWith('/evidence')) {
+          return Response.json(
+            {
+              id: randomUUID(),
+              state: 'QUARANTINED',
+              replayed: false,
+              stale: false,
+            },
+            { status: 202 },
+          );
+        }
         if (path.endsWith('/heartbeat')) {
           return Response.json({
             ...body,
@@ -403,7 +765,8 @@ function harness(
         return Response.json({
           ...(body.token as object),
           ownerSubject: 'owner-one',
-          state: 'STARTED',
+          state:
+            body.type === 'result.proposed' ? 'RESULT_PROPOSED' : 'STARTED',
           protocolVersion: '1',
         });
       },
@@ -958,7 +1321,7 @@ test('host shutdown signal drains active work and a pre-aborted signal prevents 
 });
 
 test(
-  'loopback worker delivers payload and pinned plugin to private-root materializer and drains cleanly',
+  'loopback worker hands off inputs, checks authority, reports evidence and proposes result before cleanup',
   { timeout: 5_000 },
   async (t) => {
     const value = grant();
@@ -972,6 +1335,7 @@ test(
     const requests: { path: string; body: Record<string, unknown> }[] = [];
     const failures: unknown[] = [];
     const entered = deferred<void>();
+    const finished = deferred<void>();
     const timers = new Timers();
     const server = createServer((request, response) => {
       void (async () => {
@@ -1005,9 +1369,23 @@ test(
           result = {
             ...body.token,
             ownerSubject: 'owner-one',
-            state: 'STARTED',
+            state:
+              body.type === 'result.proposed' ? 'RESULT_PROPOSED' : 'STARTED',
             protocolVersion: '1',
           };
+        } else if (path.endsWith('/evidence')) {
+          assert.deepEqual(body.evidence, usage(value));
+          assert.equal('lease' in body, false);
+          response.writeHead(202, { 'content-type': 'application/json' });
+          response.end(
+            JSON.stringify({
+              id: randomUUID(),
+              state: 'QUARANTINED',
+              replayed: false,
+              stale: false,
+            }),
+          );
+          return;
         } else if (path.endsWith('/payload') || path.endsWith('/plugin')) {
           assert.deepEqual(body, {
             ...requests.find((r) => r.path.endsWith('/activate'))!.body,
@@ -1057,6 +1435,7 @@ test(
           return {
             async requestStop() {
               stops++;
+              finished.resolve();
             },
             async forceStop() {},
             async inspect() {
@@ -1072,7 +1451,7 @@ test(
         async execute(received, context) {
           assert.deepEqual(received, value);
           assert.ok(requests.at(-1)!.path.endsWith('/reports'));
-          await context.withInputs(async (inputs, signal) => {
+          await context.withInputs(async (inputs) => {
             retained = inputs;
             assert.equal(
               Buffer.from(inputs.payload).toString(),
@@ -1101,10 +1480,12 @@ test(
               'fixture-effect-receipt',
             );
             entered.resolve();
-            await new Promise<void>((resolve) =>
-              signal.addEventListener('abort', () => resolve(), { once: true }),
+            assert.equal(
+              (await context.reportEvidence(usage(value))).state,
+              'QUARANTINED',
             );
           });
+          return resultProposal();
         },
       },
     });
@@ -1116,9 +1497,21 @@ test(
     await worker.start();
     timers.advanceTo(0);
     await entered.promise;
+    await finished.promise;
     assert.deepEqual(
       requests.map((r) => r.path.split('/').at(-1)),
-      ['heartbeat', 'claim', 'activate', 'reports', 'payload', 'plugin'],
+      [
+        'heartbeat',
+        'claim',
+        'activate',
+        'reports',
+        'payload',
+        'plugin',
+        'activate',
+        'activate',
+        'evidence',
+        'reports',
+      ],
     );
     assert.deepEqual(failures, []);
     assert.equal(launches, 1);

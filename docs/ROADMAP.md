@@ -32,6 +32,8 @@ Satu AI Runtime Platform dengan canonical capability catalogue (`chat`, `generat
 
 M3 checkpoint 19 October 2026: programmatic worker bootstrap and scoped binary payload/plugin handoff are implemented locally. A loopback fixture reaches pinned-package materialization and bounded drain; it does not activate production endpoints or prove real sandbox/Claude execution. Next dependencies remain trusted production KMS/signer/storage composition, approved sandbox adapter and runtime bridge, durable cancel/result/evidence delivery, and stop-receipt reconciliation. [Implementation scope](implementation/CURRENT-STATE.md) and [local recipe](development/M3.md) distinguish this checkpoint from the remaining M3 gate.
 
+The subsequent local authority/reporting slice adds durable preflight through existing lease renewal, one typed result proposal, and late quarantine evidence intake. Fixture HTTP worker and separate PostgreSQL proofs preserve cancel/fence ordering and keep completion/settlement separate. Durable reporting collection/spool, fast cancel signals, stop receipts/retirement, approved sandbox/Claude execution and production delivery remain dependencies; applicable M3/M3.5 gates stay open.
+
 Keputusan aktif dirujuk melalui [ADR](adr/README.md). OpenRouter may remain primary per profile. A direct adapter proof does not automatically enable failover. Codex is an agent-runtime target, not another label for an inference API. Redis handles hot streams/heartbeat; authoritative reservations and settlement use durable transactions. Completion and accounting stay independent.
 
 ## Readiness is not inferred

@@ -1,13 +1,19 @@
+import type { UsageCommand } from '@ai-runtime/contracts';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import {
   RunnerHeartbeat,
   type RunnerDispatchGrant,
   type RunnerLeaseCommand,
+  type EvidenceReceipt,
 } from '@ai-runtime/contracts/http';
 import { RunnerAssignmentLifecycle } from './runner-assignment-lifecycle.js';
 import { RunnerControlHttpClient } from './runner-control-http-client.js';
 import { RunnerDispatchHttpClient } from './runner-dispatch-http-client.js';
+import {
+  RunnerReportHttpClient,
+  type RunnerResultProposal,
+} from './runner-report-http-client.js';
 import {
   RunnerHttpError,
   type RunnerHttpOptions,
@@ -30,6 +36,11 @@ export interface RunnerDispatchInputs {
 export interface RunnerStepContext {
   readonly signal: AbortSignal;
   runStep<T>(work: (signal: AbortSignal) => Promise<T>): Promise<T>;
+  /** Separate quarantined intake remains available after local stop/fence. */
+  reportEvidence(
+    evidence: UsageCommand,
+    signal?: AbortSignal,
+  ): Promise<EvidenceReceipt>;
   /** One handoff per assignment; trusted bridge must gate each subsequent I/O. */
   withInputs<T>(
     work: (inputs: RunnerDispatchInputs, signal: AbortSignal) => Promise<T>,
@@ -48,7 +59,7 @@ export interface RunnerWorkerOptions {
     execute(
       grant: RunnerDispatchGrant,
       context: RunnerStepContext,
-    ): Promise<void>;
+    ): Promise<void | RunnerResultProposal>;
   };
   maxTracked?: number;
   pollIntervalMs?: number;
@@ -66,6 +77,9 @@ interface Entry {
   task: Promise<void>;
   busy: boolean;
   inputsUsed: boolean;
+  runtimeFinished: boolean;
+  activeWork: number;
+  evidencePending: number;
 }
 
 const nativeTimers: LeaseTimerPort = {
@@ -105,6 +119,7 @@ export class RunnerWorker {
   private presenceDeadline = 0;
   private drainDeadline: number | null = null;
   private lastNow = 0;
+  private evidencePending = 0;
   private readonly shutdownSignal: AbortSignal | undefined;
   private readonly onShutdown: () => void;
 
@@ -452,6 +467,9 @@ export class RunnerWorker {
       lifecycle,
       busy: true,
       inputsUsed: false,
+      runtimeFinished: false,
+      activeWork: 0,
+      evidencePending: 0,
       task: Promise.resolve(),
     };
     this.entries.set(grant.assignmentId, entry);
@@ -469,15 +487,31 @@ export class RunnerWorker {
       );
       const context: RunnerStepContext = {
         signal: entry.lifecycle.signal,
-        runStep: (work) => this.step(entry, work),
+        runStep: (work) => this.externalStep(entry, work),
         withInputs: (work) => this.withInputs(entry, work),
+        reportEvidence: (evidence, signal) =>
+          this.reportEvidence(entry, evidence, signal),
       };
-      await this.step(entry, () =>
+      const proposal = await this.step(entry, () =>
         this.runtime.execute(structuredClone(entry.grant), context),
       );
+      // Seal retained runtime contexts before any await in result delivery.
+      entry.runtimeFinished = true;
+      if (proposal !== undefined) {
+        if (entry.activeWork !== 0 || entry.evidencePending !== 0) {
+          throw new Error();
+        }
+        const reporter = new RunnerReportHttpClient(
+          entry.command,
+          this.owner,
+          this.http,
+        );
+        await this.step(entry, (signal) => reporter.propose(proposal, signal));
+      }
     } catch {
       // Local failure/ambiguity is not an execution outcome or a retry authorization.
     } finally {
+      entry.runtimeFinished = true;
       const evidence = await entry.lifecycle.stop();
       entry.busy = evidence.state !== 'TERMINATED';
     }
@@ -487,11 +521,12 @@ export class RunnerWorker {
     entry: Entry,
     work: (inputs: RunnerDispatchInputs, signal: AbortSignal) => Promise<T>,
   ): Promise<T> {
-    if (entry.inputsUsed) {
+    if (entry.inputsUsed || entry.runtimeFinished) {
       void entry.lifecycle.stop();
       throw new Error('Runner dispatch inputs already requested.');
     }
     entry.inputsUsed = true;
+    entry.activeWork++;
     const signal = entry.lifecycle.signal;
     let payload: Uint8Array | undefined;
     let plugin: Uint8Array | null = null;
@@ -518,6 +553,60 @@ export class RunnerWorker {
     } finally {
       signal.removeEventListener('abort', erase);
       erase();
+      entry.activeWork--;
+    }
+  }
+
+  private async externalStep<T>(
+    entry: Entry,
+    work: (signal: AbortSignal) => Promise<T>,
+  ): Promise<T> {
+    if (entry.runtimeFinished || entry.evidencePending !== 0) {
+      if (entry.evidencePending !== 0) {
+        void entry.lifecycle.stop();
+      }
+      throw new Error('Runner runtime dispatch unavailable.');
+    }
+    entry.activeWork++;
+    try {
+      await this.step(entry, () => entry.lifecycle.checkAuthority());
+      if (entry.runtimeFinished || entry.evidencePending !== 0) {
+        if (entry.evidencePending !== 0) {
+          void entry.lifecycle.stop();
+        }
+        throw new Error('Runner runtime dispatch unavailable.');
+      }
+      return await this.step(entry, work);
+    } finally {
+      entry.activeWork--;
+    }
+  }
+
+  private async reportEvidence(
+    entry: Entry,
+    evidence: UsageCommand,
+    signal?: AbortSignal,
+  ): Promise<EvidenceReceipt> {
+    // No queue or unbounded retained payloads. The trusted bridge must retain
+    // failed/ambiguous evidence durably and may explicitly replay the same ID.
+    if (this.evidencePending >= 8) {
+      void entry.lifecycle.stop();
+      throw new Error('Runner evidence concurrency limit reached.');
+    }
+    this.evidencePending++;
+    entry.evidencePending++;
+    try {
+      return await new RunnerReportHttpClient(
+        entry.command,
+        this.owner,
+        this.http,
+      ).evidence(evidence, signal);
+    } catch {
+      void entry.lifecycle.stop();
+      throw new Error('Runner evidence delivery unavailable.');
+    } finally {
+      this.evidencePending--;
+      entry.evidencePending--;
     }
   }
 

@@ -1013,6 +1013,150 @@ test('tool-effect recovery avoids duplicate mutation before epoch fences a live 
   );
 });
 
+test('durable cancel denies renew/proposal while late evidence remains quarantined and deduplicated', async () => {
+  for (const cancelFirst of [true, false]) {
+    const nextEnvelopeId = randomUUID();
+    const nextExecutionId = randomUUID();
+    const inputDigest = randomBytes(32).toString('hex');
+    await repository.createStaged({
+      ...staged,
+      envelopeId: nextEnvelopeId,
+      executionBindingId: nextExecutionId,
+      inputDigest,
+      objectKey: `dispatch-envelopes/v1/${nextEnvelopeId}`,
+    });
+    await control.admitDispatchEnvelope(
+      principal,
+      { profileRef: `${prefix}-agent`, inputDigest },
+      `${prefix}-cancel-${cancelFirst}`,
+      { envelopeId: nextEnvelopeId, executionId: nextExecutionId },
+    );
+    const runner = await database.runnerNode.findUniqueOrThrow({
+      where: { id: runnerId },
+    });
+    const heartbeat = {
+      runnerId,
+      bootId: randomUUID(),
+      registrationRevision: runner.revision,
+    };
+    await liveness.heartbeat(runnerPrincipal, heartbeat);
+    const grant = (await dispatch.claim(runnerPrincipal, heartbeat)).grant;
+    assert.ok(grant);
+    assert.equal(grant.executionId, nextExecutionId);
+    const token = {
+      assignmentId: grant.assignmentId,
+      executionId: grant.executionId,
+      attemptId: grant.attemptId,
+      runnerId: grant.runnerId,
+      generation: grant.generation,
+      epoch: grant.epoch,
+    };
+    const lease = {
+      bootId: heartbeat.bootId,
+      registrationRevision: heartbeat.registrationRevision,
+      nonce: randomBytes(32).toString('base64url'),
+    };
+    await leaseService.activate(runnerPrincipal, { token, ...lease });
+    const reports = new RunnerAuthorityService(
+      new PrismaRunnerAuthority(database as unknown as DatabaseService),
+      leaseService,
+    );
+    await reports.report(runnerPrincipal, { type: 'started', token, lease });
+    const proposal = {
+      type: 'result.proposed' as const,
+      token,
+      lease,
+      proposal: {
+        outcome: 'completed' as const,
+        digest: 'a'.repeat(64),
+        artifactIds: [],
+        summary: 'fixture result',
+      },
+    };
+    if (!cancelFirst) {
+      assert.equal(
+        (await reports.report(runnerPrincipal, proposal)).state,
+        'RESULT_PROPOSED',
+      );
+      assert.equal(
+        (
+          await database.execution.findUniqueOrThrow({
+            where: { id: nextExecutionId },
+          })
+        ).status,
+        'RUNNING',
+      );
+    }
+    await control.cancelExecution(
+      { ...principal, scopes: ['execution:cancel', 'execution:read'] },
+      nextExecutionId,
+      'fixture cancel',
+    );
+    const stale = (error: unknown) =>
+      error instanceof ApplicationError && error.code === 'STALE_ASSIGNMENT';
+    await assert.rejects(
+      leaseService.activate(runnerPrincipal, { token, ...lease }),
+      stale,
+    );
+    await assert.rejects(reports.report(runnerPrincipal, proposal), stale);
+    const evidence = {
+      token,
+      evidence: {
+        executionId: token.executionId,
+        attemptId: token.attemptId,
+        sourceEventId: 'fixture-call',
+        sourceRevision: 1,
+        coverage: ['fixture-call'],
+        cumulativeUnits: null,
+        completeness: 'unknown' as const,
+        costBasis: 'unknown' as const,
+        reason: 'unknown remote usage',
+      },
+    };
+    const receipt = await reports.evidence(runnerPrincipal, evidence);
+    assert.equal(receipt.state, 'QUARANTINED');
+    assert.equal(receipt.replayed, false);
+    const replay = await reports.evidence(runnerPrincipal, evidence);
+    assert.equal(replay.id, receipt.id);
+    assert.equal(replay.replayed, true);
+    assert.equal(
+      await database.ledgerEntry.count({
+        where: { executionId: nextExecutionId },
+      }),
+      0,
+    );
+    assert.equal(
+      await database.usageObservation.count({
+        where: { executionId: nextExecutionId },
+      }),
+      0,
+    );
+    const recovery = new PrismaRunnerLeaseRecoveryRepository(
+      database as unknown as DatabaseService,
+    );
+    const candidate = (await recovery.scanActive(64)).find(
+      (row) => row.assignmentId === token.assignmentId,
+    );
+    assert.ok(candidate);
+    assert.equal(await recovery.fence(candidate, 'LEASE_MISSING'), true);
+    assert.equal(
+      (await reports.evidence(runnerPrincipal, evidence)).stale,
+      true,
+    );
+    assert.equal(
+      await database.runnerEvidence.count({
+        where: { assignmentId: token.assignmentId },
+      }),
+      1,
+    );
+    await leaseStore.release({
+      ...token,
+      ownerSubject: runnerPrincipal.subject,
+      nonce: lease.nonce,
+    });
+  }
+});
+
 test('revoked pinned plugin blocks lease activation and new dispatch grants', async () => {
   const executions = await Promise.all(
     Array.from({ length: 2 }, async (_, index) => {
