@@ -30,6 +30,8 @@ Satu AI Runtime Platform dengan canonical capability catalogue (`chat`, `generat
 
 ## Decisions retained
 
+M3 checkpoint 19 October 2026: programmatic worker bootstrap and scoped binary payload/plugin handoff are implemented locally. A loopback fixture reaches pinned-package materialization and bounded drain; it does not activate production endpoints or prove real sandbox/Claude execution. Next dependencies remain trusted production KMS/signer/storage composition, approved sandbox adapter and runtime bridge, durable cancel/result/evidence delivery, and stop-receipt reconciliation. [Implementation scope](implementation/CURRENT-STATE.md) and [local recipe](development/M3.md) distinguish this checkpoint from the remaining M3 gate.
+
 Keputusan aktif dirujuk melalui [ADR](adr/README.md). OpenRouter may remain primary per profile. A direct adapter proof does not automatically enable failover. Codex is an agent-runtime target, not another label for an inference API. Redis handles hot streams/heartbeat; authoritative reservations and settlement use durable transactions. Completion and accounting stay independent.
 
 ## Readiness is not inferred
@@ -62,6 +64,6 @@ Detailed work packages: [PLAN](PLAN.md). Test catalogue: [ACCEPTANCE](testing/AC
 
 - **M1:** Application Registry foundation, dedicated Keycloak client dengan Authorization Code sign-in pada external-app delivery, Next.js/BFF web tier, AI Connections, credential bindings/instances, runner registry/pools, Admin UI foundation; frontend CDD/token dan Next.js/BFF sudah diimplementasikan lokal, termasuk paginated resource views dan explicit mutation outcomes.
 - **M2:** connection-aware gateway routing; dedicated/shared connection and quota-group enforcement; production-facing shared components continue through isolated accessibility/visual-regression gates.
-- **M3:** initial pull placement memfilter process presence, policy, capability, capacity, connection, dan runner-local credential. Internal scoped payload read, tool-effect recovery/HTTP adapter, registry/pinning/materializer plugin, Ed25519 verifier, bounded S3 reader, dan lease-scoped plugin delivery tersedia tanpa runtime execution. Berikutnya: authenticated payload/plugin HTTP handoff dan production KMS/signer trust wiring, lease-driven reassignment/recovery, sandbox execution, optional workspaces, serta authorized remote tools.
+- **M3:** initial pull placement memfilter process presence, policy, capability, capacity, connection, dan runner-local credential. Internal scoped payload read, tool-effect recovery/HTTP adapter, registry/pinning/materializer plugin, Ed25519 verifier, bounded S3 reader, dan lease-scoped plugin delivery tersedia tanpa runtime execution. Berikutnya: aktivasi authenticated payload/plugin HTTP routes dan production KMS/signer trust wiring, lease-driven reassignment/recovery, sandbox execution, optional workspaces, serta authorized remote tools.
 - **M3.5:** isolation, supply-chain, shared-quota, drain/failover/fencing evidence.
 - **M4+:** onboard apps without embedding provider credentials, plugin paths, or runner addresses in application contracts.

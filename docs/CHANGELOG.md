@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased — 19 October 2026 — scoped worker payload/plugin handoff
+
+Added lease-bound binary delivery client and a one-use `RunnerStepContext.withInputs` handoff after exact STARTED acknowledgement. Payload size must match the grant; plugin bytes pass pinned digest/runtime/permission/file validation. Binary transport rejects redirect, compression, caching, missing or mismatched length, oversized and stalled bodies; credentials, request and body share one deadline with caller abort and no retry. Partial chunks and borrowed input buffers are erased on failure/abort or callback settlement. Loopback worker proof reaches private-root materialization of inert fixture files; coordinator, sandbox and runtime remain fixtures. Production routes/KMS/signer trust, real sandbox/Claude execution, durable cancel/result/evidence and stop-receipt reconciliation remain pending. Approved ADRs and production activation are unchanged.
+
 ## Unreleased — 18 October 2026 — programmatic runner worker bootstrap
 
 Added `RunnerWorker` with one process boot UUID, independent heartbeat and serialized pull polling, a retained lifecycle/nonce per assignment, local capacity, and exact STARTED acknowledgement before trusted runtime dispatch. Process presence is rechecked at driver launch and each new step. Host shutdown signals use non-extensible bounded drain before local cleanup; unconfirmed stops retain capacity and assignment tombstones are bounded without automatic eviction. Shared machine HTTP transport preserves byte/deadline/origin limits, sanitizes errors, and supports caller abort. Loopback HTTP and fault fixtures cover lost acknowledgements, duplicate/mutated grants, presence-expiry races, timer failure, and shutdown. Deployment credentials/registration, real sandbox/Claude execution, payload/plugin and durable cancel/result/evidence delivery remain pending.
