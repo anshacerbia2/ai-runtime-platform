@@ -202,7 +202,7 @@ test(
 
 test(
   'missing shared Redis lease cannot be recreated; reaper fences old worker and late evidence survives',
-  { timeout: 45_000 },
+  { timeout: 60_000 },
   async (t) => {
     const h = await workerFixture(t);
     await h.start();
@@ -236,7 +236,9 @@ test(
       h.readAssignment,
       (row) => row.state === 'FENCED',
       'durable orphan fence',
-      15_000,
+      // Query eligibility is assignment.updated_at + 15s; the API scans every
+      // 5s. Allow 5s for CI scheduling/DB latency beyond that nominal 20s bound.
+      15_000 + 5_000 + 5_000,
     );
     const execution = await h.db.execution.findUniqueOrThrow({
       where: { id: h.executionId },
