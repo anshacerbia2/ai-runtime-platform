@@ -25,6 +25,7 @@ import {
   gvisorRelease,
   runscFlags,
   parseRunscList,
+  assertLoopbackRoutes,
 } from './lib/gvisor-profile.mjs';
 
 const execute = promisify(execFile);
@@ -386,8 +387,6 @@ try {
     'test "$(/bin/busybox stat -c %s /tmp/oversize)" -ge 7340032',
     'test "$(/bin/busybox stat -c %s /tmp/oversize)" -le 8388608',
     '/bin/busybox rm /tmp/oversize',
-    'route4=$(/bin/busybox ip route); test -z "$route4"',
-    'route6=$(/bin/busybox ip -6 route); test -z "$route6"',
     'if network=$(/bin/busybox timeout 2 /bin/busybox nc -w 1 169.254.169.254 80 2>&1); then exit 1; fi',
     'echo "$network" | /bin/busybox grep -q "Network is unreachable"',
     'echo ISOLATION_OK',
@@ -405,6 +404,17 @@ try {
     hostCanary,
   ]);
   assert.equal(isolated.stdout.trim(), 'ISOLATION_OK');
+  for (const family of ['-4', '-6']) {
+    const routes = await runtime([
+      'exec',
+      graceful.identity.sandboxId,
+      '/bin/busybox',
+      'ip',
+      family,
+      'route',
+    ]);
+    assertLoopbackRoutes(routes.stdout);
+  }
   await runtime(['kill', '--all', graceful.identity.sandboxId, 'TERM']);
   await observedExit(graceful, 143);
   await remove(graceful, true);

@@ -159,3 +159,19 @@ export function parseRunscList(stdout) {
   }
   return value;
 }
+
+/** network=none retains sandbox-local loopback; it must not retain external routes. */
+export function assertLoopbackRoutes(stdout) {
+  const allowed = new Set([
+    '::1 dev lo scope link',
+    '127.0.0.0/8 dev lo scope link',
+  ]);
+  for (const line of stdout
+    .split('\n')
+    .map((line) => line.trim().replace(/\s+/g, ' '))
+    .filter(Boolean)) {
+    if (!allowed.has(line)) {
+      throw new Error('Unexpected non-loopback guest route.');
+    }
+  }
+}

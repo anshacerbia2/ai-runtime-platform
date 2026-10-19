@@ -8,7 +8,26 @@ import {
   assertFixtureState,
   runscFlags,
   parseRunscList,
+  assertLoopbackRoutes,
 } from '../lib/gvisor-profile.mjs';
+
+test('no-network gVisor may retain guest loopback but rejects any external route', () => {
+  assert.doesNotThrow(() =>
+    assertLoopbackRoutes(
+      '::1 dev lo scope link\n127.0.0.0/8 dev lo scope link\n',
+    ),
+  );
+  assert.doesNotThrow(() => assertLoopbackRoutes(''));
+  for (const route of [
+    'default via 10.0.0.1 dev eth0',
+    '10.0.0.0/8 dev eth0 scope link',
+    '::/0 dev eth0',
+    '169.254.0.0/16 dev lo scope link',
+    '127.0.0.0/8 dev eth0 scope link',
+  ]) {
+    assert.throws(() => assertLoopbackRoutes(route));
+  }
+});
 
 test('pinned runsc empty-list null is explicit while malformed observations fail closed', () => {
   assert.deepEqual(parseRunscList('null\n'), []);
