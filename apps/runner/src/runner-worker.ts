@@ -11,6 +11,10 @@ import { RunnerAssignmentLifecycle } from './runner-assignment-lifecycle.js';
 import { RunnerControlHttpClient } from './runner-control-http-client.js';
 import { RunnerDispatchHttpClient } from './runner-dispatch-http-client.js';
 import type { RunnerEvidenceCollector } from './runner-evidence-collector.js';
+import type {
+  RunnerOutcomeBinding,
+  RunnerOutcomeJournal,
+} from './runner-outcome-journal.js';
 import {
   RunnerReportHttpClient,
   type RunnerResultProposal,
@@ -71,6 +75,13 @@ export interface RunnerWorkerOptions {
   drainGraceMs?: number;
   /** Trusted host owns encrypted storage, replay, key recovery and collector shutdown. */
   evidenceCollector?: RunnerEvidenceCollector;
+  /** Separate immutable result/stop evidence; never authorizes retirement or proposal replay. */
+  outcomeJournal?: RunnerOutcomeJournal;
+}
+
+export interface RunnerWorkerStopResult extends TrackedStopResult {
+  /** Local journal persistence only, not a coordinator receipt or termination assertion. */
+  durableReceipt?: 'RECORDED' | 'UNAVAILABLE';
 }
 
 interface Entry {
@@ -83,6 +94,7 @@ interface Entry {
   runtimeFinished: boolean;
   activeWork: number;
   evidencePending: number;
+  stopping: Promise<RunnerWorkerStopResult> | null;
 }
 
 const nativeTimers: LeaseTimerPort = {
@@ -108,13 +120,14 @@ export class RunnerWorker {
   private readonly control: RunnerControlHttpClient;
   private readonly supervisor: LocalSandboxSupervisor;
   private readonly evidenceCollector: RunnerEvidenceCollector | undefined;
+  private readonly outcomeJournal: RunnerOutcomeJournal | undefined;
   private readonly controller = new AbortController();
   private readonly entries = new Map<string, Entry>();
   private state: 'NEW' | 'STARTING' | 'RUNNING' | 'DRAINING' | 'STOPPED' =
     'NEW';
   private starting: Promise<void> | null = null;
-  private stopping: Promise<readonly TrackedStopResult[]> | null = null;
-  private draining: Promise<readonly TrackedStopResult[]> | null = null;
+  private stopping: Promise<readonly RunnerWorkerStopResult[]> | null = null;
+  private draining: Promise<readonly RunnerWorkerStopResult[]> | null = null;
   private heartbeatPending: Promise<void> | null = null;
   private heartbeatTimer: unknown | null = null;
   private claimTimer: unknown | null = null;
@@ -160,11 +173,18 @@ export class RunnerWorker {
     this.http = { ...options.http };
     this.runtime = options.runtime;
     this.evidenceCollector = options.evidenceCollector;
+    this.outcomeJournal = options.outcomeJournal;
     if (
       this.evidenceCollector &&
       !this.evidenceCollector.owns(options.runnerId, this.owner)
     ) {
       throw new Error('Runner evidence collector owner mismatch.');
+    }
+    if (
+      this.outcomeJournal &&
+      !this.outcomeJournal.owns(options.runnerId, this.owner)
+    ) {
+      throw new Error('Runner outcome journal owner mismatch.');
     }
     this.control = new RunnerControlHttpClient(
       this.processIdentity,
@@ -211,6 +231,9 @@ export class RunnerWorker {
           if (this.evidenceCollector && !this.evidenceCollector.readyForWork) {
             throw new Error();
           }
+          if (this.outcomeJournal && !this.outcomeJournal.canAcceptAssignment) {
+            throw new Error();
+          }
           await this.heartbeat();
           if (this.controller.signal.aborted) {
             throw new Error();
@@ -243,7 +266,7 @@ export class RunnerWorker {
   }
 
   /** One non-extensible grace deadline, then bounded local cleanup. */
-  drain(graceMs: number): Promise<readonly TrackedStopResult[]> {
+  drain(graceMs: number): Promise<readonly RunnerWorkerStopResult[]> {
     if (!Number.isSafeInteger(graceMs) || graceMs < 0 || graceMs > 30_000) {
       throw new Error('Runner drain grace must be 0-30000 ms.');
     }
@@ -258,9 +281,9 @@ export class RunnerWorker {
     return this.draining;
   }
 
-  stop(): Promise<readonly TrackedStopResult[]> {
+  stop(): Promise<readonly RunnerWorkerStopResult[]> {
     if (!this.stopping) {
-      let finish!: (results: readonly TrackedStopResult[]) => void;
+      let finish!: (results: readonly RunnerWorkerStopResult[]) => void;
       this.stopping = new Promise((resolve) => {
         finish = resolve;
       });
@@ -272,22 +295,7 @@ export class RunnerWorker {
       this.claimController?.abort();
       this.supervisor.quiesce();
       void Promise.all(
-        [...this.entries.values()].map(async (entry) => {
-          let evidence: StopEvidence;
-          try {
-            evidence = await entry.lifecycle.stop();
-          } catch {
-            evidence = UNCONFIRMED;
-          }
-          return {
-            identity: {
-              ...entry.command.token,
-              bootId: this.processIdentity.bootId,
-              ownerSubject: this.owner,
-            },
-            evidence,
-          };
-        }),
+        [...this.entries.values()].map((entry) => this.stopEntry(entry)),
       ).then(finish);
     }
     return this.stopping;
@@ -295,7 +303,7 @@ export class RunnerWorker {
 
   private async finishDrain(
     graceMs: number,
-  ): Promise<readonly TrackedStopResult[]> {
+  ): Promise<readonly RunnerWorkerStopResult[]> {
     if (this.controller.signal.aborted) {
       return this.stop();
     }
@@ -395,6 +403,7 @@ export class RunnerWorker {
     try {
       if (
         (this.evidenceCollector && !this.evidenceCollector.readyForWork) ||
+        (this.outcomeJournal && !this.outcomeJournal.canAcceptAssignment) ||
         this.entries.size >= this.maxTracked ||
         [...this.entries.values()].filter((entry) => entry.busy).length >=
           this.capacity
@@ -476,6 +485,7 @@ export class RunnerWorker {
       timers: this.timers,
       canLaunch: () => this.canLaunch(),
     });
+    this.outcomeJournal?.track(this.outcomeBinding(command));
     const entry: Entry = {
       grant: structuredClone(grant),
       command,
@@ -485,9 +495,23 @@ export class RunnerWorker {
       runtimeFinished: false,
       activeWork: 0,
       evidencePending: 0,
+      stopping: null,
       task: Promise.resolve(),
     };
     this.entries.set(grant.assignmentId, entry);
+    if (this.outcomeJournal) {
+      // Renewal/cancel may stop the sandbox while an uncooperative runtime is
+      // still pending. Record that observation independently from runtime return.
+      lifecycle.signal.addEventListener(
+        'abort',
+        () => {
+          queueMicrotask(() => {
+            void this.stopEntry(entry);
+          });
+        },
+        { once: true },
+      );
+    }
     entry.task = this.execute(entry);
   }
 
@@ -516,6 +540,12 @@ export class RunnerWorker {
         if (entry.activeWork !== 0 || entry.evidencePending !== 0) {
           throw new Error();
         }
+        // Preserve a validated candidate even if authority was lost during runtime.
+        // An append failure denies HTTP; a retained candidate never authorizes replay.
+        await this.outcomeJournal?.captureResult(
+          this.outcomeBinding(entry.command),
+          proposal,
+        );
         const reporter = new RunnerReportHttpClient(
           entry.command,
           this.owner,
@@ -527,9 +557,69 @@ export class RunnerWorker {
       // Local failure/ambiguity is not an execution outcome or a retry authorization.
     } finally {
       entry.runtimeFinished = true;
-      const evidence = await entry.lifecycle.stop();
-      entry.busy = evidence.state !== 'TERMINATED';
+      const stopped = await this.stopEntry(entry);
+      entry.busy =
+        stopped.evidence.state !== 'TERMINATED' ||
+        stopped.durableReceipt === 'UNAVAILABLE';
     }
+  }
+
+  private outcomeBinding(command: RunnerLeaseCommand): RunnerOutcomeBinding {
+    return {
+      token: command.token,
+      bootId: command.bootId,
+      registrationRevision: command.registrationRevision,
+    };
+  }
+
+  private stopEntry(entry: Entry): Promise<RunnerWorkerStopResult> {
+    if (!entry.stopping) {
+      let finish!: (result: RunnerWorkerStopResult) => void;
+      entry.stopping = new Promise((resolve) => {
+        finish = resolve;
+      });
+      // Seal synchronously before persistence/await; concurrent stop/finally share one receipt.
+      let stopping: Promise<StopEvidence>;
+      try {
+        stopping = entry.lifecycle.stop();
+      } catch {
+        stopping = Promise.resolve(UNCONFIRMED);
+      }
+      void (async () => {
+        let evidence: StopEvidence;
+        try {
+          evidence = await stopping;
+        } catch {
+          evidence = UNCONFIRMED;
+        }
+        const result: RunnerWorkerStopResult = {
+          identity: {
+            ...entry.command.token,
+            bootId: entry.command.bootId,
+            ownerSubject: this.owner,
+          },
+          evidence,
+        };
+        if (this.outcomeJournal) {
+          try {
+            await this.outcomeJournal.recordStop(
+              this.outcomeBinding(entry.command),
+              evidence,
+            );
+            result.durableReceipt = 'RECORDED';
+          } catch {
+            result.durableReceipt = 'UNAVAILABLE';
+            this.quiesce();
+          }
+        }
+        entry.busy =
+          !entry.runtimeFinished ||
+          evidence.state !== 'TERMINATED' ||
+          result.durableReceipt === 'UNAVAILABLE';
+        finish(result);
+      })();
+    }
+    return entry.stopping;
   }
 
   private async withInputs<T>(
@@ -645,6 +735,10 @@ export class RunnerWorker {
       void entry.lifecycle.stop();
       throw new Error('Runner evidence collection unavailable.');
     }
+    if (this.outcomeJournal && !this.outcomeJournal.readyForWork) {
+      void entry.lifecycle.stop();
+      throw new Error('Runner outcome journal unavailable.');
+    }
     return entry.lifecycle.runStep(work);
   }
 
@@ -658,6 +752,7 @@ export class RunnerWorker {
   private canLaunch(): boolean {
     if (
       this.state !== 'RUNNING' ||
+      (this.outcomeJournal && !this.outcomeJournal.readyForWork) ||
       (this.evidenceCollector && !this.evidenceCollector.readyForWork)
     ) {
       return false;

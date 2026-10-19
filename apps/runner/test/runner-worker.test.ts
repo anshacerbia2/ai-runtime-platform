@@ -15,8 +15,172 @@ import type { LeaseTimerPort } from '../src/runner-lease-loop.js';
 import { materializePluginBundle } from '../src/plugin-bundle.js';
 import { RunnerEvidenceCollector } from '../src/runner-evidence-collector.js';
 import { fixtureCipher } from './support/evidence-fixture.js';
+import { RunnerOutcomeJournal } from '../src/runner-outcome-journal.js';
 
 const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
+
+async function journalFixture(maxAssignments = 2) {
+  const rows = new Map<string, Uint8Array>();
+  let failed = false;
+  const options = {
+    runnerId: 'worker-one',
+    ownerSubject: 'owner-one',
+    maxAssignments,
+    timeoutMs: 100,
+    cipher: fixtureCipher(new Uint8Array(32).fill(9)),
+    spool: {
+      limits: {
+        maxRecords: maxAssignments * 2,
+        maxBytes: maxAssignments * 131072,
+      },
+      ids: () => [...rows.keys()],
+      read: (id: string) => Uint8Array.from(rows.get(id)!),
+      put: (id: string, bytes: Uint8Array) => {
+        if (failed) {
+          throw new Error('disk failure');
+        }
+        rows.set(id, Uint8Array.from(bytes));
+      },
+      remove: () => {
+        throw new Error('no journal deletion');
+      },
+    },
+  };
+  const journal = await RunnerOutcomeJournal.open(options);
+  return {
+    journal,
+    rows,
+    options,
+    failStorage: () => {
+      failed = true;
+    },
+  };
+}
+
+test('worker durably captures candidate before ambiguous proposal and records cleanup exactly once', async (t) => {
+  const j = await journalFixture();
+  let proposed = 0;
+  const h = harness(t, {
+    grants: [grant()],
+    outcomeJournal: j.journal,
+    execute: async () => resultProposal(),
+    reporting: async () => {
+      proposed++;
+      assert.equal(j.rows.size, 1);
+      const candidate = await j.journal.read(j.journal.ids()[0]!);
+      assert.equal(candidate.type, 'result.candidate');
+      throw new Error('ACK lost after commit');
+    },
+  });
+  await h.worker.start();
+  h.timers.advanceTo(0);
+  await flush();
+  const stopped = await h.worker.stop();
+  assert.equal(proposed, 1);
+  assert.equal(j.rows.size, 2);
+  assert.equal(stopped[0]!.durableReceipt, 'RECORDED');
+  assert.equal(stopped[0]!.evidence.state, 'TERMINATED');
+  assert.equal(h.stops, 1);
+  const recovered = await RunnerOutcomeJournal.open(j.options);
+  assert.equal(recovered.readyForWork, false);
+});
+
+test('a late candidate after local stop is retained without reopening or resending the proposal', async (t) => {
+  const j = await journalFixture();
+  const result = deferred<void>();
+  const h = harness(t, {
+    grants: [grant()],
+    outcomeJournal: j.journal,
+    execute: async () => {
+      await result.promise;
+      return resultProposal();
+    },
+  });
+  await h.worker.start();
+  h.timers.advanceTo(0);
+  await flush();
+  await h.worker.stop();
+  assert.equal(j.rows.size, 1);
+  result.resolve();
+  await flush();
+  assert.equal(j.rows.size, 2);
+  assert.equal(
+    h.requests.some((r) => r.body.type === 'result.proposed'),
+    false,
+  );
+  await assert.rejects(h.contexts[0]!.runStep(async () => undefined));
+});
+
+test('journal failure denies result HTTP and exposes unavailable durable receipt while preserving local stop evidence', async (t) => {
+  const j = await journalFixture();
+  const h = harness(t, {
+    grants: [grant()],
+    outcomeJournal: j.journal,
+    execute: async () => {
+      j.failStorage();
+      return resultProposal();
+    },
+  });
+  await h.worker.start();
+  h.timers.advanceTo(0);
+  await flush();
+  const stopped = await h.worker.stop();
+  assert.equal(stopped[0]!.durableReceipt, 'UNAVAILABLE');
+  assert.equal(stopped[0]!.evidence.state, 'TERMINATED');
+  assert.equal(
+    h.requests.some((r) => r.body.type === 'result.proposed'),
+    false,
+  );
+  assert.equal(j.journal.readyForWork, false);
+});
+
+test('journal lifetime capacity prevents a second claim without evicting outcome/stop records', async (t) => {
+  const j = await journalFixture(1);
+  const h = harness(t, {
+    grants: [grant(), grant()],
+    outcomeJournal: j.journal,
+    execute: async () => resultProposal(),
+  });
+  await h.worker.start();
+  h.timers.advanceTo(0);
+  await flush();
+  h.timers.advanceTo(1000);
+  await flush();
+  assert.equal(h.launches, 1);
+  assert.equal(h.requests.filter((r) => r.path.endsWith('/claim')).length, 1);
+  assert.equal(j.rows.size, 2);
+});
+
+test('lease loss records stop evidence even when runtime never returns, without releasing its capacity', async (t) => {
+  const j = await journalFixture();
+  let activations = 0;
+  const h = harness(t, {
+    grants: [grant(), grant()],
+    outcomeJournal: j.journal,
+    lease: async () =>
+      ++activations === 1
+        ? Response.json({
+            state: 'ACTIVE',
+            leaseTtlMs: 15000,
+            renewIntervalMs: 5000,
+          })
+        : new Response(null, { status: 409 }),
+    execute: async () => new Promise<void>(() => undefined),
+  });
+  await h.worker.start();
+  h.timers.advanceTo(0);
+  await flush();
+  h.timers.advanceTo(5000);
+  await flush();
+  assert.equal(h.contexts[0]!.signal.aborted, true);
+  assert.equal(j.rows.size, 1);
+  const record = await j.journal.read(j.journal.ids()[0]!);
+  assert.ok(record.type === 'local.stop');
+  assert.equal(record.evidence.state, 'TERMINATED');
+  h.timers.advanceTo(6000);
+  await flush();
+  assert.equal(h.launches, 1);
+});
 
 test('worker persists failed evidence, blocks spend on all assignments and allows explicit replay after stop', async (t) => {
   const rows = new Map<string, Uint8Array>();
@@ -766,6 +930,7 @@ function harness(
     shutdownSignal?: AbortSignal;
     drainGraceMs?: number;
     evidenceCollector?: RunnerEvidenceCollector;
+    outcomeJournal?: RunnerOutcomeJournal;
   } = {},
 ) {
   const timers = new Timers();
@@ -785,6 +950,7 @@ function harness(
     shutdownSignal: options.shutdownSignal,
     drainGraceMs: options.drainGraceMs,
     evidenceCollector: options.evidenceCollector,
+    outcomeJournal: options.outcomeJournal,
     clock: { nowMs: () => timers.now },
     timers: options.timers ?? timers,
     http: {

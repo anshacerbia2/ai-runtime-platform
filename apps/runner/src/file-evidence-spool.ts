@@ -135,6 +135,13 @@ export class FileEvidenceSpool implements EvidenceSpool {
     return [...this.sizes.keys()];
   }
 
+  get limits(): { maxRecords: number; maxBytes: number } {
+    return {
+      maxRecords: this.options.maxRecords,
+      maxBytes: this.options.maxBytes,
+    };
+  }
+
   read(id: string): Uint8Array {
     this.checkId(id);
     const size = this.sizes.get(id);

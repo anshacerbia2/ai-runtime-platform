@@ -25,6 +25,7 @@ import {
   type RunnerWorkerOptions,
 } from '../../apps/runner/src/runner-worker.js';
 import type { RunnerEvidenceCollector } from '../../apps/runner/src/runner-evidence-collector.js';
+import type { RunnerOutcomeJournal } from '../../apps/runner/src/runner-outcome-journal.js';
 import type { RunnerHttpOptions } from '../../apps/runner/src/runner-http-transport.js';
 
 export function deferred<T>() {
@@ -149,6 +150,10 @@ export async function workerFixture(
       ownerSubject: string;
       http: RunnerHttpOptions;
     }) => Promise<RunnerEvidenceCollector>;
+    createOutcomeJournal?: (identity: {
+      runnerId: string;
+      ownerSubject: string;
+    }) => Promise<RunnerOutcomeJournal>;
   } = {},
 ) {
   const base = loadConfig();
@@ -481,6 +486,10 @@ export async function workerFixture(
     ownerSubject: 'local-runner',
     http,
   });
+  const outcomeJournal = await options.createOutcomeJournal?.({
+    runnerId,
+    ownerSubject: 'local-runner',
+  });
 
   function makeWorker(execute: RunnerWorkerOptions['runtime']['execute']) {
     const worker = new RunnerWorker({
@@ -491,6 +500,7 @@ export async function workerFixture(
       pollIntervalMs: 100,
       http,
       evidenceCollector,
+      outcomeJournal,
       driver: {
         async launch() {
           launches++;
@@ -559,6 +569,7 @@ export async function workerFixture(
   return {
     worker,
     evidenceCollector,
+    outcomeJournal,
     db,
     redis,
     instances,
