@@ -371,7 +371,7 @@ try {
   );
   assert.equal((await state(graceful)).status, 'running');
   const inspection = [
-    'set -eu',
+    'set -eux', // Fixed synthetic fixture only: retain the exact failing assertion in CI.
     'test "$(/bin/busybox id -u)" = 65532',
     'test "$(/bin/busybox env | /bin/busybox grep -c AIR_RUNTIME_HOST_CANARY || true)" = 0',
     '/bin/busybox grep -Eq "^CapEff:[[:space:]]*0+$" /proc/self/status',
