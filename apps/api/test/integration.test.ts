@@ -369,6 +369,13 @@ test('api-production composition keeps core liveness and does not register Contr
     });
     assert.equal(lab.statusCode, 404);
 
+    const toolStatus = await production.inject({
+      url: '/v1/executions/invalid/tool-operations',
+      headers,
+    });
+    assert.equal(toolStatus.statusCode, 400);
+    assert.equal(toolStatus.json().error.code, 'INVALID_REQUEST');
+
     for (const path of [
       '/api/runner/v1/dispatches/payload',
       '/api/runner/v1/dispatches/plugin',

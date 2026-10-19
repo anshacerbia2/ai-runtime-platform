@@ -38,6 +38,11 @@ import { PrismaRunnerPluginAuthorization } from '../src/modules/plugin-registry/
 import { SignedPluginPackageReader } from '../src/modules/plugin-registry/infrastructure/signed-plugin-package.reader.js';
 import { PluginPackageDeliveryService } from '../src/modules/plugin-registry/application/plugin-package-delivery.service.js';
 import { signedPluginFixture } from './fixtures/signed-plugin-package.js';
+import { createApplication } from '../dist/bootstrap.js';
+import {
+  ToolOperationPage,
+  ToolOperationStatus,
+} from '@ai-runtime/contracts/http';
 
 const config = loadConfig();
 const database = createDatabaseClient(config);
@@ -806,7 +811,7 @@ test('current runner presence autonomously claims one policy-scoped dispatch gra
   assert.equal(JSON.stringify(fencedEvent.payload).includes(nonce), false);
 });
 
-test('tool-effect recovery avoids duplicate mutation before epoch fences a live lease', async () => {
+test('tool-effect recovery avoids duplicate mutation before epoch fences a live lease', async (t) => {
   const nextEnvelopeId = randomUUID();
   const nextExecutionId = randomUUID();
   const inputDigest = randomBytes(32).toString('hex');
@@ -956,6 +961,25 @@ test('tool-effect recovery avoids duplicate mutation before epoch fences a live 
     (await broker.execute(concurrentIntent, input, concurrentReceiver)).state,
     'COMMITTED',
   );
+  const noEffectIntent = { ...intent, operationId: randomUUID() };
+  await effects.prepare(noEffectIntent);
+  assert.equal(await effects.claim(noEffectIntent), true);
+  await effects.recordOutcome(noEffectIntent, {
+    ...committed,
+    state: 'NO_EFFECT',
+  });
+  const unsettled = [];
+  for (const state of ['PREPARED', 'DISPATCHING', 'UNKNOWN'] as const) {
+    const pending = { ...intent, operationId: randomUUID() };
+    await effects.prepare(pending);
+    if (state !== 'PREPARED') {
+      await effects.claim(pending);
+    }
+    if (state === 'UNKNOWN') {
+      await effects.recordOutcome(pending, { state });
+    }
+    unsettled.push({ operationId: pending.operationId, state });
+  }
   const altered = Buffer.from('different mutation');
   await assert.rejects(
     broker.execute(
@@ -1001,6 +1025,214 @@ test('tool-effect recovery avoids duplicate mutation before epoch fences a live 
   assert.ok(candidate);
   assert.equal(await recovery.fence(candidate, 'EPOCH_LOST'), true);
   assert.equal(await recovery.fence(candidate, 'EPOCH_LOST'), false);
+  const appToken = randomUUID();
+  const foreignToken = randomUUID();
+  const httpConfig = {
+    ...config,
+    localOperatorToken: randomUUID(),
+    localRunnerToken: randomUUID(),
+    applications: [
+      { id: applicationId, name: 'Tool status owner', token: appToken },
+      {
+        id: `${prefix}-foreign`,
+        name: 'Foreign tool status caller',
+        token: foreignToken,
+      },
+    ],
+  };
+  const apiA = await createApplication(httpConfig);
+  t.after(() => apiA.close());
+  const apiB = await createApplication(httpConfig);
+  t.after(() => apiB.close());
+  await database.controlApplication.create({
+    data: {
+      id: `${prefix}-foreign`,
+      displayName: 'Foreign tool status caller',
+      environment: 'local',
+      keycloakClientId: `${prefix}-foreign-client`,
+    },
+  });
+  t.after(() =>
+    database.controlApplication
+      .deleteMany({ where: { id: `${prefix}-foreign` } })
+      .then(() => undefined),
+  );
+  await database.application.createMany({
+    data: httpConfig.applications.map((app) => ({
+      id: app.id,
+      displayName: app.name,
+      tokenSha256: createHash('sha256').update(app.token).digest('hex'),
+    })),
+  });
+  t.after(() =>
+    database.application
+      .deleteMany({
+        where: { id: { in: httpConfig.applications.map((app) => app.id) } },
+      })
+      .then(() => undefined),
+  );
+  const basePath = `/v1/executions/${intent.executionId}/tool-operations`;
+  const read = (path: string, token: string = appToken, server = apiA) =>
+    server.inject({
+      method: 'GET',
+      url: path,
+      headers: {
+        host: `${config.apiHost}:${config.apiPort}`,
+        authorization: `Bearer ${token}`,
+      },
+    });
+  const status = async (
+    operationId: string,
+    expected: string,
+    server = apiA,
+  ) => {
+    const response = await read(`${basePath}/${operationId}`, appToken, server);
+    assert.equal(response.statusCode, 200, response.body);
+    const result = ToolOperationStatus.parse(response.json());
+    assert.equal(result.state, expected);
+    assert.equal(result.executionId, intent.executionId);
+    assert.equal(result.operationId, operationId);
+    assert.deepEqual(
+      Object.keys(response.json()).sort(),
+      [
+        'operationId',
+        'executionId',
+        'toolRef',
+        'requestDigest',
+        'state',
+        'receipt',
+        'receiverRetentionUntil',
+        'updatedAt',
+      ].sort(),
+    );
+    return result;
+  };
+  const committedStatus = await status(intent.operationId, 'COMMITTED', apiB);
+  assert.deepEqual(committedStatus.receipt, {
+    ref: committed.receiptRef,
+    digest: committed.receiptDigest,
+  });
+  for (const pending of unsettled) {
+    await status(pending.operationId, pending.state, apiB);
+  }
+  assert.equal((await read(`${basePath}/${randomUUID()}`)).statusCode, 404);
+  const empty = await read(`/v1/executions/${executionId}/tool-operations`);
+  assert.equal(empty.statusCode, 200, empty.body);
+  assert.deepEqual(ToolOperationPage.parse(empty.json()).items, []);
+  await status(noEffectIntent.operationId, 'NO_EFFECT', apiB);
+  const expectedIds = [
+    intent.operationId,
+    concurrentIntent.operationId,
+    noEffectIntent.operationId,
+    ...unsettled.map((item) => item.operationId),
+  ].sort();
+  const seen: string[] = [];
+  let after: string | null = null;
+  do {
+    const response = await read(
+      `${basePath}?limit=1${after ? `&after=${after}` : ''}`,
+      appToken,
+      apiB,
+    );
+    assert.equal(response.statusCode, 200, response.body);
+    const page = ToolOperationPage.parse(response.json());
+    assert.equal(page.limit, 1);
+    seen.push(...page.items.map((item) => item.operationId));
+    after = page.nextAfter;
+  } while (after);
+  assert.deepEqual(seen, expectedIds);
+  // A cursor is only a keyset boundary; it cannot change execution/application scope.
+  assert.deepEqual(
+    (
+      await read(
+        `/v1/executions/${executionId}/tool-operations?after=${intent.operationId}`,
+      )
+    ).json().items,
+    [],
+  );
+  for (const token of [
+    httpConfig.localOperatorToken,
+    httpConfig.localRunnerToken,
+  ]) {
+    assert.equal((await read(basePath, token)).statusCode, 403);
+    assert.equal(
+      (await read(`${basePath}/${intent.operationId}`, token)).statusCode,
+      403,
+    );
+  }
+  assert.equal((await read(basePath, '')).statusCode, 401);
+  for (const path of [basePath, `${basePath}/${intent.operationId}`]) {
+    const foreign = await read(path, foreignToken);
+    const missing = await read(path.replace(intent.executionId, randomUUID()));
+    assert.equal(foreign.statusCode, 404);
+    assert.equal(missing.statusCode, 404);
+    assert.deepEqual(
+      { ...foreign.json().error, request_id: undefined },
+      { ...missing.json().error, request_id: undefined },
+    );
+  }
+  assert.equal(
+    (
+      await read(
+        `/v1/executions/${executionId}/tool-operations/${intent.operationId}`,
+      )
+    ).statusCode,
+    404,
+  );
+  for (const query of [
+    'limit=0',
+    'limit=101',
+    'limit=1&limit=2',
+    'after=bad',
+    'application_id=other',
+  ]) {
+    assert.equal((await read(`${basePath}?${query}`)).statusCode, 400);
+  }
+  assert.equal(
+    (await read(`${basePath}/${intent.operationId}?application_id=other`))
+      .statusCode,
+    400,
+  );
+  assert.equal((await read(`${basePath}/invalid`)).statusCode, 400);
+  // Fencing and elapsed receiver retention never erase an already-observed effect.
+  await database.toolEffect.updateMany({
+    where: { applicationId, executionId: intent.executionId },
+    data: { receiverRetentionUntil: new Date(Date.now() - 1_000) },
+  });
+  const snapshot = async () => ({
+    execution: await database.execution.findUniqueOrThrow({
+      where: { id: intent.executionId },
+    }),
+    attempt: await database.attempt.findUniqueOrThrow({
+      where: { id: intent.attemptId },
+    }),
+    effects: await database.toolEffect.findMany({
+      where: { executionId: intent.executionId },
+      orderBy: { operationId: 'asc' },
+    }),
+    reservations: await database.reservation.findMany({
+      where: { executionId: intent.executionId },
+    }),
+    ledger: await database.ledgerEntry.count({
+      where: { executionId: intent.executionId },
+    }),
+    observations: await database.usageObservation.count({
+      where: { executionId: intent.executionId },
+    }),
+    audit: await database.auditEntry.count({ where: { applicationId } }),
+    outbox: await database.outboxEvent.count({ where: { applicationId } }),
+  });
+  const beforeReads = await snapshot();
+  await status(intent.operationId, 'COMMITTED', apiA);
+  for (const pending of unsettled) {
+    await status(pending.operationId, pending.state, apiB);
+  }
+  const recoveredPage = await read(basePath, appToken, apiB);
+  assert.equal(recoveredPage.statusCode, 200, recoveredPage.body);
+  assert.equal(ToolOperationPage.parse(recoveredPage.json()).items.length, 6);
+  assert.deepEqual(await snapshot(), beforeReads);
+  assert.equal(invoked, 1);
+  assert.equal(statusChecks, 2);
   await assert.rejects(
     broker.execute({ ...intent, operationId: randomUUID() }, input, receiver),
     (error) =>

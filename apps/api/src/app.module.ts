@@ -8,6 +8,7 @@ import { ContractLabModule } from './modules/contract-lab/contract-lab.module.js
 import { CoreHealthModule } from './modules/core-health/core-health.module.js';
 import { ControlPlaneModule } from './modules/control-plane/control-plane.module.js';
 import { GatewayModule } from './modules/gateway/gateway.module.js';
+import { ToolEffectsModule } from './modules/tool-effects/tool-effects.module.js';
 import { HttpExceptionFilter } from './shared/presentation/http-exception.filter.js';
 
 @Module({})
@@ -24,6 +25,7 @@ export class AppModule {
           : [ContractLabModule]),
         ControlPlaneModule,
         GatewayModule,
+        ToolEffectsModule,
       ],
       providers: [
         { provide: APP_GUARD, useClass: LocalAuthGuard },

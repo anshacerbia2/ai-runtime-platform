@@ -62,6 +62,8 @@ Tambahkan per-app/pool concurrency, rate limits, token/output bounds, deadline, 
 
 ### P3 — Claude Agent Runtime MVP
 
+Checkpoint tool-operation reads: aplikasi dapat list/read durable status operasinya melalui backend API terisolasi per execution/aplikasi. Unknown dan terminal receipts dipertahankan setelah fence/retention expiry tanpa invoke/retry/settlement. Ini menutup bagian read API untuk rekonsiliasi aplikasi; authorized invocation, receiver conformance, runtime/sandbox dan retirement tetap dependency M3. [Scope](development/M3.md#application-tool-operation-status). Tidak ada keputusan arsitektur baru.
+
 Checkpoint coordinator outcomes: durable quarantined stop intake dan read-only canonical result matching tersedia, dengan exact original process binding, audit/outbox atomik dan explicit runner client. Independent stop/effect verification, safe journal/tombstone retirement dan reassignment tetap belum aktif; production identity/KMS/storage serta sandbox/runtime tetap berikutnya. [Semantik](development/M3.md#coordinator-stop-receipt-dan-result-reconciliation). Tidak ada perubahan ADR.
 
 Checkpoint outcome journal 19 Oktober 2026 menyediakan encrypted candidate sebelum result HTTP dan immutable local stop evidence dengan reserved capacity, bounded cipher wait dan fail-closed recovery. Local journal tidak mengotorisasi retry/finalization/reassignment; coordinator receipt intake/reconciliation/retirement tetap berikutnya bersama production host/KMS/storage/retention dan sandbox/runtime. [Semantik](development/M3.md#durable-result-candidate-dan-local-stop-journal). Ini memperluas collector checkpoint di bawah tanpa mengubah ADR.

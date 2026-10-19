@@ -13,6 +13,7 @@ import * as control from './control-plane.js';
 import { resourceContract } from './resources.js';
 import { runnerContract, assignmentContract } from './runner.js';
 import { gatewayContract, browserGatewayContract } from './gateway.js';
+import { toolOperationContract } from './tool-operations.js';
 
 const c = initContract();
 
@@ -63,6 +64,7 @@ export const HistoryQuery = z
 export const apiContract = c.router(
   {
     gateway: gatewayContract,
+    toolOperations: toolOperationContract,
     resources: resourceContract,
     runner: runnerContract,
     assignments: assignmentContract,
