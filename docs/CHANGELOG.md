@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased — 19 October 2026 — persistent runsc launch reservations
+
+Added async private Linux reservation storage with strict assignment/bundle/config-digest metadata, exclusive session lock, no-clobber fsync commit, bounded intake and fail-closed corruption handling. Stale locks deny takeover; recovered stores only read/replay and block fresh work. Linux tests cover pre-spawn SIGKILL/no-rerun and filesystem conflicts; real gVisor conformance replaces ad hoc markers and checks clean reopen after owned-tree cleanup. Declared digests are not image verification; native live-orphan recovery, power/volume/node-loss proof, actual VPS, Claude/credentials/egress, retention and O03 approval remain open. No API, migration or ADR change. [Scope](development/RUNSC-LAUNCH-STORE.md).
+
 ## Unreleased — 19 October 2026 — gVisor driver/supervisor lifecycle
 
 Added `RunscSandboxDriver` over an explicit trusted host port, with deterministic assignment naming, full binding, reservation-before-spawn/no-rerun semantics and independent delete/cgroup-subtree/absence inspection. Supervisor propagates an authority/stop/drain guard through asynchronous preparation to synchronous spawn, retaining pending creation for cleanup. Linux conformance builds the runner and tests the real driver/supervisor against pinned runsc for recovery, graceful/forced child stop and fast exit. The only host remains a disposable inert fixture with fsynced markers; production host/image verification, crash proof, Claude/credentials/broker, retirement and O03 approval remain open. No migration, API or ADR change. [Scope](development/RUNSC-DRIVER.md).

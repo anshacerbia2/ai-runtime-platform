@@ -41,6 +41,8 @@ const { RunscSandboxDriver, runscBindingAnnotation, runscSandboxId } =
   await import('../apps/runner/dist/runsc-sandbox-driver.js');
 const { LocalSandboxSupervisor } =
   await import('../apps/runner/dist/sandbox-supervisor.js');
+const { FileRunscLaunchStore } =
+  await import('../apps/runner/dist/file-runsc-launch-store.js');
 for (const file of [runtimePath, busyboxPath]) {
   assert.ok(
     typeof file === 'string' && isAbsolute(file),
@@ -108,6 +110,8 @@ await mkdir(root, { mode: 0o700 });
 const hostCanary = join(workspace, 'host-only-canary');
 await writeFile(hostCanary, 'host-only-probe-file', { mode: 0o644 });
 const fixtures = [];
+let launchStore;
+const driverBundles = join(workspace, 'driver-bundles');
 const observations = [];
 const report = {
   format: 'ai-runtime-gvisor-conformance/v1',
@@ -184,7 +188,10 @@ async function fixture(mode, binding) {
   const identity = binding
     ? { ...binding, sandboxId: runscSandboxId(binding) }
     : fixtureIdentity(randomUUID());
-  const bundle = join(workspace, identity.sandboxId);
+  const bundle = join(binding ? driverBundles : workspace, identity.sandboxId);
+  if (binding) {
+    await mkdir(bundle, { mode: 0o700 });
+  }
   await mkdir(join(bundle, 'rootfs', 'bin'), { recursive: true, mode: 0o755 });
   for (const directory of ['tmp', 'proc', 'dev']) {
     await mkdir(join(bundle, 'rootfs', directory), { mode: 0o755 });
@@ -467,8 +474,17 @@ try {
     'gVisor fixture PASS: term-ignoring-child-forced-stop-cgroup-empty',
   );
 
-  // Single disposable host owner only. This is NOT a production disk journal,
-  // image verifier, crash lock takeover, or worker credential/egress composition.
+  // Real private reservation store; runtime/bundle provisioning remains a
+  // disposable host fixture, not a production image verifier or host recovery.
+  await mkdir(driverBundles, { mode: 0o700 });
+  const reservations = join(workspace, 'driver-reservations');
+  await mkdir(reservations, { mode: 0o700 });
+  const storeOptions = {
+    directory: reservations,
+    bundleRoot: driverBundles,
+    maxRecords: 256,
+  };
+  launchStore = await FileRunscLaunchStore.open(storeOptions);
   let driverMode = 'graceful';
   let starts = 0;
   const owned = (record) => {
@@ -478,18 +494,7 @@ try {
     assert.ok(found, 'Driver may only address a fixture owned by this probe.');
     return found;
   };
-  const markerPath = (id) => join(workspace, id, 'launch.json');
-  const lookup = async (id) => {
-    assert.match(id, /^airt-runner-[a-f0-9]{64}$/);
-    try {
-      return JSON.parse(await readFile(markerPath(id), 'utf8'));
-    } catch (error) {
-      if (error.code === 'ENOENT') {
-        return null;
-      }
-      throw error;
-    }
-  };
+  const lookup = async (id) => (await launchStore.lookup(id))?.record ?? null;
   const host = {
     lookup,
     async reserve(identity, id) {
@@ -504,21 +509,14 @@ try {
         sandboxId: id,
         bundle: item.bundle,
       };
-      // Persist both config and immutable reservation before the first spawn.
+      // Bundle producer persists config before the store commits its reservation.
       const config = await open(join(item.bundle, 'config.json'), 'r');
       try {
         await config.sync();
       } finally {
         await config.close();
       }
-      const marker = await open(markerPath(id), 'wx', 0o600);
-      try {
-        await marker.writeFile(JSON.stringify(record));
-        await marker.sync();
-      } finally {
-        await marker.close();
-      }
-      for (const directory of [item.bundle, workspace]) {
+      for (const directory of [item.bundle, driverBundles]) {
         const handle = await open(directory, 'r');
         try {
           await handle.sync();
@@ -526,7 +524,11 @@ try {
           await handle.close();
         }
       }
-      return { record, fresh: true };
+      const configDigest = `sha256:${createHash('sha256')
+        .update(await readFile(join(item.bundle, 'config.json')))
+        .digest('hex')}`;
+      const saved = await launchStore.reserve(record, configDigest);
+      return { record: saved.reservation.record, fresh: saved.fresh };
     },
     start(record) {
       const item = owned(record);
@@ -694,6 +696,39 @@ try {
   console.log(
     'gVisor driver PASS: failed startup retains recovery without rerun or success evidence',
   );
+  // All attached monitors are reaped and all owned trees inspected before
+  // releasing storage ownership. Reopening never grants fresh work implicitly.
+  for (const item of fixtures.filter((entry) =>
+    entry.identity.sandboxId.startsWith('airt-runner-'),
+  )) {
+    await item.completion;
+    await remove(item, true);
+  }
+  await launchStore.close();
+  launchStore = await FileRunscLaunchStore.open(storeOptions);
+  assert.equal(launchStore.recoveryRequired, true);
+  await new RunscSandboxDriver(host).launch(grant);
+  assert.equal(starts, 4, 'Disk store reopen cannot cause a second launch.');
+  const newGrant = binding();
+  const newId = runscSandboxId(newGrant);
+  await assert.rejects(
+    launchStore.reserve(
+      {
+        identity: newGrant,
+        sandboxId: newId,
+        bundle: join(driverBundles, newId),
+      },
+      `sha256:${'0'.repeat(64)}`,
+    ),
+    /recovery/,
+  );
+  observations.push({
+    case: 'file-store-reopen-no-rerun-no-fresh-work',
+    outcome: 'PASS',
+  });
+  console.log(
+    'gVisor driver PASS: real reservation store reopen blocks fresh work and rerun',
+  );
 } catch (error) {
   failure = error;
 }
@@ -713,6 +748,7 @@ async function cleanup() {
       `Cleanup unconfirmed; retained owned probe workspace ${workspace}`,
     );
   }
+  await launchStore?.close();
   const expectedParent = await realpath(tmpdir());
   const cleanupTarget = await realpath(workspace);
   assert.ok(

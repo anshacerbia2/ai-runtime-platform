@@ -24,6 +24,8 @@
 
 ## Current-source gaps retained explicitly
 
+O03/O06 storage checkpoint: [private launch reservations](../development/RUNSC-LAUNCH-STORE.md) now provide Linux async persistence, exclusive lock and fail-closed recovered replay. The stored config digest is declared metadata, not image verification. Pre-spawn SIGKILL does not approve live-orphan host recovery, production unlock, retirement, encryption/retention or actual VPS behavior; these decisions remain OPEN.
+
 O03 deployment input 19 Oktober 2026: owner memilih Linux VM/VPS; gVisor `runsc`/`systrap` menjadi kandidat eksperimen pertama. [Disposable Linux conformance probe](../security/SANDBOX-EVALUATION.md#linux-vmvps-experiment) menyiapkan lifecycle/isolation/resource observations; [driver/supervisor lifecycle](../development/RUNSC-DRIVER.md) kini diuji dengan real runsc dan fixture host, tanpa production host/activation. Actual VPS/kernel/capacity, approved agent image, Claude compatibility, broker egress, host-crash recovery dan security/runtime disposition masih diperlukan; O03 tidak ditutup oleh pilihan hosting atau green CI.
 
 Code has receipts, resource APIs and manual runner authority, but not runtime execution. Remaining contract gaps include full typed model-event payloads/SSE framing, API/provider deadline propagation, independent-language SDK conformance, and a real supported-version rollout for runner agents. Future-state enums differ from current M1 physical state vocabulary; migration/consumer mapping must precede use of those future values.
