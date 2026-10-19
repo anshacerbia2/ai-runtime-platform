@@ -296,6 +296,7 @@ try {
   assert.equal((await state(ordinary)).status, 'stopped');
   await remove(ordinary);
   observations.push({ case: 'ordinary-exit', outcome: 'PASS' });
+  console.log('gVisor fixture PASS: ordinary-exit');
 
   const graceful = await fixture('graceful');
   // Competing creates must leave one container and must not destroy the winner.
@@ -368,6 +369,9 @@ try {
     case: 'duplicate-create-recovery-isolation-graceful-stop',
     outcome: 'PASS',
   });
+  console.log(
+    'gVisor fixture PASS: duplicate-create-recovery-isolation-graceful-stop',
+  );
 
   const forced = await fixture('forced');
   await create(forced);
@@ -397,10 +401,13 @@ try {
     case: 'term-ignoring-child-forced-stop-cgroup-empty',
     outcome: 'PASS',
   });
+  console.log(
+    'gVisor fixture PASS: term-ignoring-child-forced-stop-cgroup-empty',
+  );
 } catch (error) {
   failure = error;
 }
-{
+async function cleanup() {
   const errors = [];
   for (const owned of fixtures.filter((item) => !item.deleted)) {
     try {
@@ -411,7 +418,7 @@ try {
   }
   if (errors.length) {
     throw new AggregateError(
-      [...(failure ? [failure] : []), ...errors],
+      errors,
       `Cleanup unconfirmed; retained owned probe workspace ${workspace}`,
     );
   }
@@ -424,7 +431,24 @@ try {
       ) &&
       !relative(expectedParent, cleanupTarget).includes(sep),
   );
+  // Pinned runsc caches a bind-mounted empty network namespace inside its private root.
+  // Only unmount that exact owned cache after all owned containers/cgroups are clean.
+  const namespaceCache = join(cleanupTarget, 'state', 'null-netns');
+  const mounted = (await readFile('/proc/self/mountinfo', 'utf8'))
+    .split('\n')
+    .some((line) => line.split(' ')[4] === namespaceCache);
+  if (mounted) {
+    await command('/usr/bin/umount', ['--', namespaceCache]);
+  }
   await rm(cleanupTarget, { recursive: true });
+}
+try {
+  await cleanup();
+} catch (error) {
+  throw new AggregateError(
+    [...(failure ? [failure] : []), error],
+    `Probe/cleanup failed; owned workspace ${workspace}`,
+  );
 }
 if (failure) {
   throw failure;
