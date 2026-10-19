@@ -4,6 +4,8 @@
 
 ## Cara membaca dokumentasi
 
+Checkpoint driver 19 Oktober 2026: `RunscSandboxDriver` mengimplementasikan port supervisor/worker dengan exact binding, deterministic assignment ID, reservation-before-spawn/no-rerun, final spawn authority/stop/drain guard dan independent cleanup/subtree inspection. Linux gate mengomposisikan driver/supervisor dengan real runsc serta disposable fixed bundle/fsynced marker. Ini belum production host/image/storage, hard crash, full worker/shared-store lease-fence, Claude/broker atau actual VPS; O03 tetap OPEN. [Scope dan dependency](../development/RUNSC-DRIVER.md).
+
 Checkpoint sandbox 19 Oktober 2026: target hosting owner adalah Linux VM/VPS; disposable gVisor `systrap` conformance probe dan job Linux terpisah tersedia untuk real-runtime fixture evidence. Gate memakai pinned package/checksum, no-network least-privilege OCI config, actual cgroup cap reads, duplicate identity/lifecycle dan graceful/forced cleanup checks. Ini bukan worker adapter, Claude runtime, real VPS acceptance atau O03 closure. [Scope](../security/SANDBOX-EVALUATION.md#linux-vmvps-experiment).
 
 Checkpoint tool status 19 Oktober 2026: application-scoped backend GET list/status tersedia untuk durable tool operations, berscope `execution:read`, dengan bounded UUID keyset pagination dan tanpa input/lease/receiver-key disclosure. Kelima state serta receipt pairs tetap terbaca setelah fence/retention expiry; read tidak memanggil receiver atau mengubah state/accounting. Real PostgreSQL/two-API tests memeriksa isolation, bounds dan read-only snapshots. Authorized invocation/runner integration dan live receiver/sandbox/runtime tetap pending. [Scope](../development/M3.md#application-tool-operation-status).

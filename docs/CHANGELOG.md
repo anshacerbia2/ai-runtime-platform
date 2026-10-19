@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased — 19 October 2026 — gVisor driver/supervisor lifecycle
+
+Added `RunscSandboxDriver` over an explicit trusted host port, with deterministic assignment naming, full binding, reservation-before-spawn/no-rerun semantics and independent delete/cgroup-subtree/absence inspection. Supervisor propagates an authority/stop/drain guard through asynchronous preparation to synchronous spawn, retaining pending creation for cleanup. Linux conformance builds the runner and tests the real driver/supervisor against pinned runsc for recovery, graceful/forced child stop and fast exit. The only host remains a disposable inert fixture with fsynced markers; production host/image verification, crash proof, Claude/credentials/broker, retirement and O03 approval remain open. No migration, API or ADR change. [Scope](development/RUNSC-DRIVER.md).
+
 ## Unreleased — 19 October 2026 — real gVisor Linux fixture gate
 
 Added a separate `gvisor-conformance` quality workflow job and explicit disposable-host CLI probe for the selected Linux VM/VPS deployment direction. CI verifies the checksum of pinned gVisor release-20261012.0 including required sidecars, then exercises inert static BusyBox fixtures through the real systrap/no-network runtime with read-only rootfs, least privilege and cgroup/tmpfs caps. Cases cover ordinary exit, duplicate create/start, exact annotation observations, basic containment, graceful stop and TERM-ignoring child forced termination with cgroup-empty/delete checks. Unit policy/host/foreign-binding tests run cross-platform; unsupported local hosts refuse without sandbox mutation. No worker driver/production image/Claude/broker activation, ADR change, reassignment or O03 closure is implied. Actual VPS and broader hostile/crash/compatibility gates remain pending.

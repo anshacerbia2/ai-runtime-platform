@@ -31,7 +31,7 @@ These are candidates, not ranked defaults. If Kubernetes is the target, compare 
 
 ## Linux VM/VPS experiment
 
-[`scripts/probe-gvisor.mjs`](../../scripts/probe-gvisor.mjs) adalah opt-in fixture conformance, bukan adapter worker atau installer VPS. Command menolak selain Linux 5.6+ x64/arm64 dengan root dan flag `--disposable-linux-host`; target CI adalah Ubuntu 24.04 x64. Host harus menyediakan cgroup v2 CPU/memory/pids controllers, root-owned binaries, serta static BusyBox. Tidak ada fallback Docker/runc/host-process execution untuk fixture. Trusted CLI `runsc` dijalankan host-side; program fixture hanya berjalan di sandbox.
+[`scripts/probe-gvisor.mjs`](../../scripts/probe-gvisor.mjs) adalah opt-in fixture conformance, bukan installer VPS. [Driver/supervisor lifecycle](../development/RUNSC-DRIVER.md) kini juga diuji dengan real runsc melalui disposable fixture host; production host/worker composition belum diaktifkan. Command menolak selain Linux 5.6+ x64/arm64 dengan root dan flag `--disposable-linux-host`; target CI adalah Ubuntu 24.04 x64. Host harus menyediakan cgroup v2 CPU/memory/pids controllers, root-owned binaries, serta static BusyBox. Tidak ada fallback Docker/runc/host-process execution untuk fixture. Trusted CLI `runsc` dijalankan host-side; program fixture hanya berjalan di sandbox.
 
 CI memakai [rilis `release-20261012.0`](https://github.com/google/gvisor/releases/tag/release-20261012.0), paket x86_64 `gvisor-x86_64.tar.bz2` dengan SHA-256 `180dd277f657c1478f09490e8a9a595f7378257510b43d1d3694a769aef9ed02`, diunduh melalui HTTPS dan diverifikasi sebelum ekstraksi. Paket mencakup `runsc` dan `gvisor-bin/` sidecars; [installation guidance](https://gvisor.dev/docs/user_guide/install/) menjelaskan perubahan distribusi multifile. Runtime binary dan BusyBox rootfs fixture di-hash lagi dan dicatat bersama kernel/version/architecture/controller dalam JSON log. BusyBox berasal dari signed Ubuntu package pada image CI; fingerprint dicatat, tetapi ini belum approved/pinned production agent image atau supply-chain gate plugin.
 
@@ -48,6 +48,8 @@ Rootfs write probe sengaja memakai directory DAC-writable agar kegagalan tidak h
 Recipe pada disposable Linux VM yang sudah dipersiapkan:
 
 ```sh
+npm ci
+npm run build -w @ai-runtime/runner
 sudo -n /absolute/path/to/node scripts/probe-gvisor.mjs \
   --disposable-linux-host /absolute/path/to/runsc /absolute/path/to/static-busybox
 ```

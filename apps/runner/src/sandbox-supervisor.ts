@@ -20,9 +20,17 @@ export interface SandboxHandle {
 
 export interface SandboxDriver {
   /** A deterministic assignment ID must make launch idempotent across retries. */
-  launch(identity: SandboxIdentity): Promise<SandboxHandle>;
+  launch(
+    identity: SandboxIdentity,
+    guard?: SandboxLaunchGuard,
+  ): Promise<SandboxHandle>;
   /** Discover an existing sandbox after supervisor restart; return its recorded binding. */
   recover(identity: SandboxIdentity): Promise<RecoveredSandbox | null>;
+}
+
+export interface SandboxLaunchGuard {
+  /** Recheck synchronously at spawn after any asynchronous host preparation. */
+  canLaunch(): boolean;
 }
 
 export interface RecoveredSandbox {
@@ -161,7 +169,13 @@ export class LocalSandboxSupervisor {
       if (canLaunch && !canLaunch()) {
         throw new Error('Sandbox launch authority was lost.');
       }
-      return this.driver.launch({ ...captured });
+      return this.driver.launch(
+        { ...captured },
+        {
+          canLaunch: () =>
+            !this.quiesced && !entry.stopping && (!canLaunch || canLaunch()),
+        },
+      );
     });
     return this.deliverStarted(entry);
   }
