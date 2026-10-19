@@ -14,6 +14,28 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  gvisor-conformance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '24'
+      - name: Install pinned gVisor package and inert static fixture
+        run: |
+          set -euo pipefail
+          curl --fail --location --silent --show-error --output "$RUNNER_TEMP/gvisor.tar.bz2" \
+            https://github.com/google/gvisor/releases/download/release-20261012.0/gvisor-x86_64.tar.bz2
+          echo "180dd277f657c1478f09490e8a9a595f7378257510b43d1d3694a769aef9ed02  $RUNNER_TEMP/gvisor.tar.bz2" | sha256sum --check -
+          sudo mkdir -p "$RUNNER_TEMP/gvisor"
+          sudo tar -xjf "$RUNNER_TEMP/gvisor.tar.bz2" -C "$RUNNER_TEMP/gvisor"
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends busybox-static
+      - name: Probe real gVisor lifecycle, isolation and cgroup caps
+        run: sudo -n "$(command -v node)" scripts/probe-gvisor.mjs --disposable-linux-host "$RUNNER_TEMP/gvisor/runsc" /bin/busybox
   quality:
     runs-on: ubuntu-latest
     timeout-minutes: 15

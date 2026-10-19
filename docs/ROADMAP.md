@@ -8,6 +8,8 @@ NestJS + Fastify + Prisma + PostgreSQL, React/Next.js App Router + BFF, TypeScri
 
 ## Sudah tersedia sebelum milestone runtime
 
+Linux VM/VPS is the owner-stated runner deployment direction. A pinned gVisor `systrap` disposable Linux fixture probe and separate CI job exercise real runtime lifecycle/basic containment/resource caps. This is an O03 candidate experiment; worker-driver integration, Claude compatibility, production images/broker egress, actual VPS and hard-crash evidence remain open. [Scope](security/SANDBOX-EVALUATION.md#linux-vmvps-experiment).
+
 Application backend tool-operation list/status reads are implemented with scoped authorization, bounded UUID pagination and durable uncertainty/receipt semantics after fencing. Reads do not invoke receivers or change execution/accounting. Authorized invocation, runner integration, receiver conformance and real sandbox/runtime remain M3 work. [Scope](development/M3.md#application-tool-operation-status).
 
 Coordinator outcome intake now adds immutable quarantined stop receipts and read-only canonical result matching under the original process binding. An explicit runner client supports lost-ACK reconciliation without new result proposals or deleting journals. This advances coordinator receipt intake below; independent stop/effect verification, authorized retirement/reassignment and production runtime/identity/storage remain open. [Scope](development/M3.md#coordinator-stop-receipt-dan-result-reconciliation).

@@ -24,6 +24,8 @@
 
 ## Current-source gaps retained explicitly
 
+O03 deployment input 19 Oktober 2026: owner memilih Linux VM/VPS; gVisor `runsc`/`systrap` menjadi kandidat eksperimen pertama. [Disposable Linux conformance probe](../security/SANDBOX-EVALUATION.md#linux-vmvps-experiment) menyiapkan lifecycle/isolation/resource observations tanpa mengaktifkan worker adapter. Actual VPS/kernel/capacity, approved agent image, Claude compatibility, broker egress, host-crash recovery dan security/runtime disposition masih diperlukan; O03 tidak ditutup oleh pilihan hosting atau green CI.
+
 Code has receipts, resource APIs and manual runner authority, but not runtime execution. Remaining contract gaps include full typed model-event payloads/SSE framing, API/provider deadline propagation, independent-language SDK conformance, and a real supported-version rollout for runner agents. Future-state enums differ from current M1 physical state vocabulary; migration/consumer mapping must precede use of those future values.
 
 The built-in docs viewer renders Mermaid as code, not diagrams; component workbench/accessibility completeness is not established by page screenshots. These are documented boundaries, not silent new implementation commitments. [Current state](../implementation/CURRENT-STATE.md) supplies source references.
