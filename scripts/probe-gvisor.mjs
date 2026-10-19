@@ -97,10 +97,11 @@ assert.match(
 const workspace = await mkdtemp(
   join(await realpath(tmpdir()), 'airt-gvisor-probe-'),
 );
+await chmod(workspace, 0o755); // Nonsecret host canary must be DAC-readable for a meaningful isolation probe.
 const root = join(workspace, 'state');
 await mkdir(root, { mode: 0o700 });
 const hostCanary = join(workspace, 'host-only-canary');
-await writeFile(hostCanary, 'host-only-probe-file', { mode: 0o600 });
+await writeFile(hostCanary, 'host-only-probe-file', { mode: 0o644 });
 const fixtures = [];
 const observations = [];
 const report = {
@@ -373,8 +374,8 @@ try {
     'set -eu',
     'test "$(/bin/busybox id -u)" = 65532',
     'test "$(/bin/busybox env | /bin/busybox grep -c AIR_RUNTIME_HOST_CANARY || true)" = 0',
-    '! /bin/busybox grep -q "CapEff:.*[1-9a-f]" /proc/self/status',
-    '/bin/busybox grep -q "NoNewPrivs:.*1" /proc/self/status',
+    '/bin/busybox grep -Eq "^CapEff:[[:space:]]*0+$" /proc/self/status',
+    '/bin/busybox grep -Eq "^NoNewPrivs:[[:space:]]*1$" /proc/self/status',
     'test ! -r "$1"',
     'test ! -S /var/run/docker.sock',
     'test ! -S /run/containerd/containerd.sock',
@@ -382,10 +383,13 @@ try {
     '/bin/busybox ln -s "$1" /tmp/escape',
     'test ! -r /tmp/escape',
     '! /bin/busybox dd if=/dev/zero of=/tmp/oversize bs=1048576 count=9 2>/dev/null',
+    'test "$(/bin/busybox stat -c %s /tmp/oversize)" -ge 7340032',
+    'test "$(/bin/busybox stat -c %s /tmp/oversize)" -le 8388608',
     '/bin/busybox rm /tmp/oversize',
-    'test -z "$(/bin/busybox ip route)"',
-    'test -z "$(/bin/busybox ip -6 route)"',
-    '! /bin/busybox timeout 2 /bin/busybox nc -w 1 169.254.169.254 80',
+    'route4=$(/bin/busybox ip route); test -z "$route4"',
+    'route6=$(/bin/busybox ip -6 route); test -z "$route6"',
+    'if network=$(/bin/busybox timeout 2 /bin/busybox nc -w 1 169.254.169.254 80 2>&1); then exit 1; fi',
+    'echo "$network" | /bin/busybox grep -q "Network is unreachable"',
     'echo ISOLATION_OK',
   ].join('\n');
   const isolated = await runtime([
