@@ -199,7 +199,13 @@ async function fixture(mode, binding) {
       .digest('hex'),
     report.fingerprints.busybox,
   );
-  const spec = fixtureSpec(identity, mode);
+  const spec = fixtureSpec(
+    identity,
+    mode === 'startup-failure' ? 'ordinary' : mode,
+  );
+  if (mode === 'startup-failure') {
+    spec.process.args = ['/bin/airt-fixture-executable-does-not-exist'];
+  }
   if (binding) {
     spec.annotations[runscBindingAnnotation] = JSON.stringify(binding);
   }
@@ -527,8 +533,10 @@ try {
       starts++;
       attachedRun(item); // Initiates the CLI synchronously, no detached waiter.
       let settled = false;
+      let exitCode = null;
       const finished = item.completion.then((result) => {
         settled = true;
+        exitCode = result.code;
         return result.code === null ? 'LOST' : 'REAPED';
       });
       const ready = (async () => {
@@ -549,6 +557,11 @@ try {
             // original monitor remains responsible for creation/exit observation.
           }
           await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+        // Numeric runsc failure can be a pre-start CLI error, not guest startup.
+        // Only zero is accepted for a fast exit without a running observation.
+        if (exitCode !== 0) {
+          throw new Error('Runtime startup unconfirmed.');
         }
       })();
       return { ready, finished };
@@ -654,6 +667,33 @@ try {
   await until(async () => (await ordinaryHandle.inspect()) === 'EXITED');
   observations.push({ case: 'driver-fast-ordinary-exit', outcome: 'PASS' });
   console.log('gVisor driver PASS: fast ordinary exit with attached monitor');
+
+  driverMode = 'startup-failure';
+  const failedGrant = binding();
+  await assert.rejects(supervisor.start(failedGrant), /startup unconfirmed/);
+  assert.deepEqual(await supervisor.stop(failedGrant), {
+    state: 'UNCONFIRMED',
+    method: null,
+  });
+  const failedRecord = await lookup(runscSandboxId(failedGrant));
+  const failureResult = await owned(failedRecord).completion;
+  assert.ok(failureResult.code !== null && failureResult.code !== 0);
+  await assert.rejects(driver.launch(failedGrant), /startup unconfirmed/);
+  const failedHandle = (await driver.recover(failedGrant)).handle;
+  // Drain any cleanup already queued by supervisor stop before host teardown.
+  await failedHandle.inspect();
+  assert.equal(
+    starts,
+    4,
+    'Failed startup cannot cause another runtime launch.',
+  );
+  observations.push({
+    case: 'driver-unconfirmed-startup-retained-cleanup',
+    outcome: 'PASS',
+  });
+  console.log(
+    'gVisor driver PASS: failed startup retains recovery without rerun or success evidence',
+  );
 } catch (error) {
   failure = error;
 }

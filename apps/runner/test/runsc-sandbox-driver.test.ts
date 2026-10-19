@@ -354,6 +354,45 @@ test('stop during runtime creation waits for observable launch before cleanup', 
   assert.equal(f.counts().signals, 2);
 });
 
+test('unconfirmed startup cannot report a successful launch and retains a recoverable cleanup handle', async () => {
+  const f = fixture();
+  const start = f.host.start;
+  f.host.start = (record) => ({
+    ...start(record),
+    ready: Promise.reject(new Error('startup unconfirmed')),
+  });
+  const driver = new RunscSandboxDriver(f.host);
+  const binding = identity();
+  await assert.rejects(driver.launch(binding), /startup unconfirmed/);
+  await assert.rejects(driver.launch(binding), /startup unconfirmed/);
+  const recovered = await driver.recover(binding);
+  assert.ok(recovered);
+  f.setEmpty(true);
+  await recovered.handle.forceStop();
+  assert.equal(await recovered.handle.inspect(), 'EXITED');
+  assert.equal(f.counts().starts, 1);
+});
+
+test('supervisor recovers cleanup after startup rejection while preserving the original uncertainty', async () => {
+  const f = fixture();
+  const start = f.host.start;
+  f.host.start = (record) => ({
+    ...start(record),
+    ready: Promise.reject(new Error('startup unconfirmed')),
+  });
+  const supervisor = new LocalSandboxSupervisor(new RunscSandboxDriver(f.host));
+  const binding = identity();
+  await assert.rejects(supervisor.start(binding), /startup unconfirmed/);
+  const evidence = await supervisor.stop(binding);
+  f.setEmpty(true);
+  for (let i = 0; i < 10 && f.counts().destroys === 0; i++) {
+    await tick();
+  }
+  assert.deepEqual(evidence, { state: 'UNCONFIRMED', method: null });
+  assert.equal(f.counts().destroys, 1);
+  assert.equal(f.counts().starts, 1);
+});
+
 test('deterministic IDs bind assignment and reject malformed identities before host I/O', async () => {
   const f = fixture();
   const driver = new RunscSandboxDriver(f.host);

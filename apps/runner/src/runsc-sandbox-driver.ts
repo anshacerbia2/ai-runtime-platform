@@ -39,11 +39,16 @@ export interface RunscSandboxHost {
   lookup(sandboxId: string): Promise<RunscLaunchRecord | null>;
   /**
    * Synchronously spawn attached runsc run (no await/queue/detach in this method).
+   * Once spawn is attempted, return its monitor even when child startup fails.
    * REAPED means the original monitor exited with a numeric status; LOST includes
    * errors/signals/timeouts. Neither means official execution completion.
    */
   start(record: RunscLaunchRecord): {
-    /** Resolve once running is observable or monitor reaped; no premature timeout rejection. */
+    /**
+     * Resolve after exact running observation or confirmed fast successful exit.
+     * On uncertain startup, reject only after the original monitor is reaped;
+     * never reject early while creation can still emerge.
+     */
     ready: Promise<void>;
     finished: Promise<'REAPED' | 'LOST'>;
   };
@@ -97,6 +102,7 @@ export function runscSandboxId(identity: SandboxIdentity): string {
 interface Entry {
   identity: SandboxIdentity;
   handle: Promise<SandboxHandle | null>;
+  recoverable: SandboxHandle | null;
 }
 
 /** Local lifecycle only. Does not grant authority, settle usage or permit retry. */
@@ -118,7 +124,12 @@ export class RunscSandboxDriver implements SandboxDriver {
 
   async recover(identity: SandboxIdentity): Promise<RecoveredSandbox | null> {
     const entry = this.entry(identity, false);
-    const handle = await entry.handle;
+    const handle = await entry.handle.catch((error: unknown) => {
+      if (entry.recoverable) {
+        return entry.recoverable;
+      }
+      throw error;
+    });
     return handle ? { identity: { ...entry.identity }, handle } : null;
   }
 
@@ -142,6 +153,7 @@ export class RunscSandboxDriver implements SandboxDriver {
     // Seal synchronously, before reserve/lookup can yield or throw. Never remove.
     const entry: Entry = {
       identity: captured,
+      recoverable: null,
       handle: Promise.resolve().then(async () => {
         const reservation = launch
           ? await this.host.reserve(captured, id)
@@ -164,6 +176,7 @@ export class RunscSandboxDriver implements SandboxDriver {
         }
         const record = Object.freeze({ ...supplied, identity: captured });
         const handle = new RunscHandle(this.host, record);
+        entry.recoverable = handle;
         if (reservation.fresh) {
           // No asynchronous boundary is permitted between this guard and spawn.
           if (guard && !guard.canLaunch()) {

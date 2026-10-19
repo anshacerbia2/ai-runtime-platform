@@ -231,19 +231,25 @@ export class LocalSandboxSupervisor {
     }
     if (!entry.stopping) {
       entry.stopping = entry.started
-        ? this.stopStarted(entry.started)
+        ? this.stopStarted(entry.identity, entry.started)
         : this.stopRecovered(entry.identity);
     }
     return entry.stopping;
   }
 
   private async stopStarted(
+    identity: SandboxIdentity,
     started: Promise<SandboxHandle>,
   ): Promise<StopEvidence> {
     const handle = await within(started, this.deadlines.launchMs);
     if (!handle) {
       // A late launch is still asked to stop, but cannot certify this stop call.
-      void started.then((late) => this.terminate(late)).catch(() => {});
+      void started
+        .then(
+          (late) => this.terminate(late),
+          () => this.stopRecovered(identity),
+        )
+        .catch(() => {});
       return UNCONFIRMED;
     }
     return this.terminate(handle);
