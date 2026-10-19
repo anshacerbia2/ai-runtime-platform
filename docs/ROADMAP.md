@@ -8,6 +8,8 @@ NestJS + Fastify + Prisma + PostgreSQL, React/Next.js App Router + BFF, TypeScri
 
 ## Sudah tersedia sebelum milestone runtime
 
+Application backend tool-operation list/status reads are implemented with scoped authorization, bounded UUID pagination and durable uncertainty/receipt semantics after fencing. Reads do not invoke receivers or change execution/accounting. Authorized invocation, runner integration, receiver conformance and real sandbox/runtime remain M3 work. [Scope](development/M3.md#application-tool-operation-status).
+
 Coordinator outcome intake now adds immutable quarantined stop receipts and read-only canonical result matching under the original process binding. An explicit runner client supports lost-ACK reconciliation without new result proposals or deleting journals. This advances coordinator receipt intake below; independent stop/effect verification, authorized retirement/reassignment and production runtime/identity/storage remain open. [Scope](development/M3.md#coordinator-stop-receipt-dan-result-reconciliation).
 
 The outcome-journal checkpoint adds encrypted result candidates and immutable local stop evidence, including late results, bounded key-provider waits and two reserved slots before launch. Linux tests cover candidate-only/post-stop SIGKILL and journal reopen after a committed result ACK is lost. Recovery remains fail closed; coordinator receipt/reconciliation/retirement and production host/KMS/storage/retention remain dependencies. This advances the result-candidate dependency below without closing sandbox/runtime gates or changing ADRs. [Scope](development/M3.md#durable-result-candidate-dan-local-stop-journal).

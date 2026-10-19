@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — 19 October 2026 — application tool-operation status reads
+
+Added application-scoped backend GET routes to list an execution's durable tool operations and read one operation, under `execution:read`. Bounded UUID keyset pagination exposes all five persisted states and receipt pairs while omitting assignment/lease/receiver-key details and input bytes. Missing and inaccessible resources return the same 404; runner/operator principals are denied. Reads remain available after fencing and receiver-retention expiry without invoking a receiver, resolving UNKNOWN, finalizing execution or changing accounting. Contract/auth tests and real PostgreSQL/two-API integration cover isolation, pagination, all states and unchanged storage/receiver-call counts. Invocation authorization/runner integration, live receiver conformance and sandbox/runtime remain pending; no migration or ADR change.
+
+Serialized integration test files that share a PostgreSQL schema, preventing API reapers with private in-memory lease stores from fencing another file's deliberately expired fixture. Concurrency scenarios inside individual tests and the separate shared-Redis worker HTTP gate remain concurrent.
+
 ## Unreleased — 19 October 2026 — coordinator stop receipts and result matching
 
 Added machine-only quarantined stop intake and read-only canonical proposal-digest reconciliation, plus an explicit runner HTTP client without retries or journal retirement. Additive migration 0026 records original claim registration revision for new assignments and stores scoped immutable stop receipts; legacy process revision is never inferred. Exact original token/boot/revision/owner is required without live lease/presence or current registry eligibility. Receipt/audit/outbox commit atomically; duplicate evidence replays and conflicting content is rejected. Receipt/match does not change execution/attempt authority, compute, budgets, verified usage, ledger or final results. PostgreSQL, HTTP authorization, client and multi-coordinator tests cover rollback, fencing, old registry identity, lost ACK and no duplicate proposal. Independent stop verification, retirement, production credentials/KMS/storage and real sandbox/runtime remain open; no ADR change.
