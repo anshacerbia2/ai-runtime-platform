@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { chmodSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { FileEvidenceSpool } from '../../apps/runner/src/file-evidence-spool.js';
+import { RunnerOutcomeHttpClient } from '../../apps/runner/src/runner-outcome-http-client.js';
 import {
   RunnerOutcomeJournal,
   type RunnerOutcomeJournalOptions,
@@ -495,6 +496,25 @@ test(
         records.find((record) => record.type === 'local.stop')!.evidence.state,
         'TERMINATED',
       );
+      h.switchToPeer();
+      const client = new RunnerOutcomeHttpClient(candidate.binding, h.http);
+      const matched = await client.reconcileResult(candidate.proposal);
+      assert.equal(matched.state, 'MATCHED');
+      assert.equal(
+        (
+          await client.reconcileResult({
+            ...candidate.proposal,
+            summary: 'different summary',
+          })
+        ).state,
+        'CONFLICT',
+      );
+      const localStop = records.find((record) => record.type === 'local.stop')!;
+      const receipt = await client.stop(localStop.evidence);
+      assert.equal(receipt.state, 'QUARANTINED');
+      assert.equal((await client.stop(localStop.evidence)).id, receipt.id);
+      assert.equal(recovered.ids().length, 2);
+      assert.equal(recovered.readyForWork, false);
     }
     assert.equal(h.executions, 1);
     assert.equal(h.launches, 1);
@@ -517,6 +537,112 @@ test(
       (await h.db.execution.findUniqueOrThrow({ where: { id: h.executionId } }))
         .status,
       'RUNNING',
+    );
+  },
+);
+
+test(
+  'lost committed stop ACK replays through API B after cancel without changing authority or budget',
+  { timeout: 45000 },
+  async (t) => {
+    const h = await workerFixture(t, { dropStopAck: true });
+    await h.start();
+    const row = await h.readAssignment();
+    const binding = {
+      token: {
+        assignmentId: row.id,
+        executionId: row.executionId,
+        attemptId: row.attemptId,
+        runnerId: row.runnerId,
+        generation: row.generation,
+        epoch: row.epoch,
+      },
+      bootId: h.worker.identity.bootId,
+      registrationRevision: 1,
+    };
+    const client = new RunnerOutcomeHttpClient(binding, h.http);
+    assert.equal(
+      (
+        await client.reconcileResult({
+          outcome: 'completed',
+          digest: 'a'.repeat(64),
+          artifactIds: [],
+          summary: 'not yet proposed',
+        })
+      ).state,
+      'NOT_RECORDED',
+    );
+    const stopped = await h.worker.stop();
+    const evidence = stopped[0]!.evidence;
+    await h.redis.del(`ai-runtime:m3:lease:${h.executionId}`);
+    await assert.rejects(client.stop(evidence));
+    assert.equal(
+      await h.db.runnerStopReceipt.count({
+        where: { executionId: h.executionId },
+      }),
+      1,
+    );
+    h.switchToPeer();
+    await stopInstance(h.instances[0]!);
+    await h.cancel();
+    const controlBefore = await h.db.execution.findUniqueOrThrow({
+      where: { id: h.executionId },
+    });
+    const attemptBefore = await h.db.attempt.findUniqueOrThrow({
+      where: { id: row.attemptId },
+    });
+    const receipt = await client.stop(evidence);
+    assert.equal(receipt.replayed, true);
+    assert.equal(receipt.stale, true);
+    const controlAfter = await h.db.execution.findUniqueOrThrow({
+      where: { id: h.executionId },
+    });
+    const attemptAfter = await h.db.attempt.findUniqueOrThrow({
+      where: { id: row.attemptId },
+    });
+    assert.deepEqual(controlAfter, controlBefore);
+    assert.deepEqual(attemptAfter, attemptBefore);
+    await assert.rejects(
+      new RunnerOutcomeHttpClient(
+        { ...binding, bootId: randomUUID() },
+        h.http,
+      ).stop(evidence),
+    );
+    assert.equal(
+      await h.db.runnerStopReceipt.count({
+        where: { executionId: h.executionId },
+      }),
+      1,
+    );
+    assert.equal(
+      await h.db.outboxEvent.count({
+        where: {
+          aggregateId: receipt.id,
+          topic: 'runner.stop-evidence-received',
+        },
+      }),
+      1,
+    );
+    const reservation = await h.db.reservation.findFirstOrThrow({
+      where: { executionId: h.executionId },
+    });
+    assert.equal(reservation.heldUnits, 10n);
+    assert.equal(
+      await h.db.ledgerEntry.count({ where: { executionId: h.executionId } }),
+      0,
+    );
+    assert.equal(
+      await h.db.usageObservation.count({
+        where: { executionId: h.executionId },
+      }),
+      0,
+    );
+    assert.equal(h.executions, 1);
+    assert.equal(h.launches, 1);
+    assert.equal(
+      h.traffic.filter((item) => item.path.endsWith('/stops') && item.dropped)
+        .length,
+      1,
     );
   },
 );

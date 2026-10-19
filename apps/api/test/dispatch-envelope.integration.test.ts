@@ -4,6 +4,7 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { createDatabaseClient } from '../src/infrastructure/database/client.js';
 import { loadConfig } from '../src/infrastructure/config/environment-config.js';
 import type { DatabaseService } from '../src/infrastructure/database/database.service.js';
+import type { Prisma } from '../src/infrastructure/database/generated/client.js';
 import { PrismaDispatchEnvelopeRepository } from '../src/modules/dispatch-envelope/infrastructure/prisma-dispatch-envelope.repository.js';
 import { DispatchEnvelopeError } from '../src/modules/dispatch-envelope/application/dispatch-envelope.service.js';
 import { PrismaM1Repository } from '../src/modules/control-plane/infrastructure/prisma-m1.repository.js';
@@ -16,6 +17,9 @@ import { RunnerLivenessService } from '../src/modules/control-plane/application/
 import { PrismaRunnerLivenessRegistry } from '../src/modules/control-plane/infrastructure/prisma-runner-liveness.registry.js';
 import { InMemoryRunnerPresenceStore } from '../src/modules/control-plane/infrastructure/in-memory-runner-presence.store.js';
 import { PrismaRunnerAuthority } from '../src/modules/control-plane/infrastructure/prisma-runner-authority.js';
+import { PrismaRunnerOutcomeAuthority } from '../src/modules/control-plane/infrastructure/prisma-runner-outcome.authority.js';
+import { RunnerOutcomeService } from '../src/modules/control-plane/application/runner-outcome.service.js';
+import { canonicalJson } from '@ai-runtime/contracts';
 import { PrismaRunnerLeaseAuthority } from '../src/modules/control-plane/infrastructure/prisma-runner-lease.authority.js';
 import { InMemoryRunnerLeaseStore } from '../src/modules/control-plane/infrastructure/in-memory-runner-lease.store.js';
 import { RunnerLeaseService } from '../src/modules/control-plane/application/runner-lease.service.js';
@@ -235,6 +239,18 @@ after(async () => {
   await database.$executeRaw`DELETE FROM control.tool_effects WHERE application_id = ${applicationId}`;
   await database.runnerEvidence.deleteMany({
     where: { execution: { applicationId } },
+  });
+  await database.runnerStopReceipt.deleteMany({
+    where: {
+      executionId: {
+        in: (
+          await database.execution.findMany({
+            where: { applicationId },
+            select: { id: true },
+          })
+        ).map((row) => row.id),
+      },
+    },
   });
   await database.runnerAssignment.deleteMany({
     where: { execution: { applicationId } },
@@ -1062,6 +1078,19 @@ test('durable cancel denies renew/proposal while late evidence remains quarantin
       leaseService,
     );
     await reports.report(runnerPrincipal, { type: 'started', token, lease });
+    const outcomes = new RunnerOutcomeService(
+      new PrismaRunnerOutcomeAuthority(database as unknown as DatabaseService),
+    );
+    const outcomeBinding = {
+      token,
+      bootId: heartbeat.bootId,
+      registrationRevision: heartbeat.registrationRevision,
+    };
+    const absent = await outcomes.reconcileResult(runnerPrincipal, {
+      ...outcomeBinding,
+      proposalDigest: 'b'.repeat(64),
+    });
+    assert.equal(absent.state, 'NOT_RECORDED');
     const proposal = {
       type: 'result.proposed' as const,
       token,
@@ -1091,6 +1120,182 @@ test('durable cancel denies renew/proposal while late evidence remains quarantin
       { ...principal, scopes: ['execution:cancel', 'execution:read'] },
       nextExecutionId,
       'fixture cancel',
+    );
+    const proposalDigest = createHash('sha256')
+      .update(canonicalJson(proposal.proposal))
+      .digest('hex');
+    const reconciled = await outcomes.reconcileResult(runnerPrincipal, {
+      ...outcomeBinding,
+      proposalDigest,
+    });
+    assert.equal(reconciled.state, cancelFirst ? 'NOT_RECORDED' : 'MATCHED');
+    assert.equal(reconciled.stale, true);
+    if (!cancelFirst) {
+      assert.equal(
+        (
+          await outcomes.reconcileResult(runnerPrincipal, {
+            ...outcomeBinding,
+            proposalDigest: 'b'.repeat(64),
+          })
+        ).state,
+        'CONFLICT',
+      );
+    }
+    const stopReport = {
+      ...outcomeBinding,
+      evidence: { state: 'UNCONFIRMED' as const, method: null },
+    };
+    const originalRevision = (
+      await database.runnerAssignment.findUniqueOrThrow({
+        where: { id: token.assignmentId },
+      })
+    ).claimRegistrationRevision;
+    assert.equal(originalRevision, heartbeat.registrationRevision);
+    await assert.rejects(
+      outcomes.stop({ ...runnerPrincipal, subject: 'other-owner' }, stopReport),
+    );
+    await assert.rejects(
+      outcomes.stop(runnerPrincipal, { ...stopReport, bootId: randomUUID() }),
+    );
+    await assert.rejects(
+      outcomes.stop(runnerPrincipal, {
+        ...stopReport,
+        registrationRevision: heartbeat.registrationRevision + 1,
+      }),
+    );
+    await database.runnerAssignment.update({
+      where: { id: token.assignmentId },
+      data: { claimRegistrationRevision: null },
+    });
+    await assert.rejects(outcomes.stop(runnerPrincipal, stopReport));
+    await database.runnerAssignment.update({
+      where: { id: token.assignmentId },
+      data: { claimRegistrationRevision: originalRevision },
+    });
+    const auditBefore = await database.auditEntry.count({
+      where: { applicationId, action: 'runner.stop-evidence-quarantined' },
+    });
+    const failingAuthority = new PrismaRunnerOutcomeAuthority({
+      $transaction: (
+        work: (tx: Prisma.TransactionClient) => Promise<unknown>,
+      ) =>
+        database.$transaction((tx) =>
+          work(
+            new Proxy(tx, {
+              get(target, property) {
+                if (property === 'outboxEvent') {
+                  return {
+                    create: async () => {
+                      throw new Error('injected outbox unavailable');
+                    },
+                  };
+                }
+                const value = Reflect.get(target, property);
+                return typeof value === 'function' ? value.bind(target) : value;
+              },
+            }),
+          ),
+        ),
+    } as unknown as DatabaseService);
+    await assert.rejects(
+      failingAuthority.stop(runnerPrincipal, stopReport),
+      /injected outbox unavailable/,
+    );
+    assert.equal(
+      await database.runnerStopReceipt.count({
+        where: { assignmentId: token.assignmentId },
+      }),
+      0,
+    );
+    assert.equal(
+      await database.auditEntry.count({
+        where: { applicationId, action: 'runner.stop-evidence-quarantined' },
+      }),
+      auditBefore,
+    );
+    await assert.rejects(
+      database.runnerStopReceipt.create({
+        data: {
+          id: randomUUID(),
+          assignmentId: token.assignmentId,
+          executionId: token.executionId,
+          attemptId: token.attemptId,
+          bootId: outcomeBinding.bootId,
+          registrationRevision: outcomeBinding.registrationRevision,
+          evidenceState: 'TERMINATED',
+          terminationMethod: null,
+          digest: 'a'.repeat(64),
+        },
+      }),
+    );
+    const attemptBeforeStop = await database.attempt.findUniqueOrThrow({
+      where: { id: token.attemptId },
+    });
+    const executionBeforeStop = await database.execution.findUniqueOrThrow({
+      where: { id: token.executionId },
+    });
+    // A current registry revision/status change cannot rewrite the original claim.
+    await database.runnerNode.update({
+      where: { id: runnerId },
+      data: { revision: runner.revision + 1, status: 'DISABLED' },
+    });
+    const stopped = await outcomes.stop(runnerPrincipal, stopReport);
+    await database.runnerNode.update({
+      where: { id: runnerId },
+      data: { revision: runner.revision, status: runner.status },
+    });
+    assert.deepEqual(
+      await database.attempt.findUniqueOrThrow({
+        where: { id: token.attemptId },
+      }),
+      attemptBeforeStop,
+    );
+    assert.deepEqual(
+      await database.execution.findUniqueOrThrow({
+        where: { id: token.executionId },
+      }),
+      executionBeforeStop,
+    );
+    const duplicates = await Promise.all(
+      Array.from({ length: 5 }, () =>
+        outcomes.stop(runnerPrincipal, stopReport),
+      ),
+    );
+    assert.ok(
+      duplicates.every((item) => item.id === stopped.id && item.replayed),
+    );
+    await assert.rejects(
+      outcomes.stop(runnerPrincipal, {
+        ...stopReport,
+        evidence: { state: 'TERMINATED', method: 'OBSERVED' },
+      }),
+      (error: unknown) =>
+        error instanceof ApplicationError &&
+        error.code === 'IDEMPOTENCY_CONFLICT',
+    );
+    assert.equal(
+      await database.runnerStopReceipt.count({
+        where: { assignmentId: token.assignmentId },
+      }),
+      1,
+    );
+    assert.equal(
+      await database.outboxEvent.count({
+        where: {
+          aggregateId: stopped.id,
+          topic: 'runner.stop-evidence-received',
+        },
+      }),
+      1,
+    );
+    assert.equal(
+      await database.auditEntry.count({
+        where: {
+          resourceId: stopped.id,
+          action: 'runner.stop-evidence-quarantined',
+        },
+      }),
+      1,
     );
     const stale = (error: unknown) =>
       error instanceof ApplicationError && error.code === 'STALE_ASSIGNMENT';
@@ -1139,6 +1344,27 @@ test('durable cancel denies renew/proposal while late evidence remains quarantin
     );
     assert.ok(candidate);
     assert.equal(await recovery.fence(candidate, 'LEASE_MISSING'), true);
+    assert.equal(
+      (await outcomes.stop(runnerPrincipal, stopReport)).stale,
+      true,
+    );
+    assert.equal(
+      (
+        await outcomes.reconcileResult(runnerPrincipal, {
+          ...outcomeBinding,
+          proposalDigest,
+        })
+      ).state,
+      cancelFirst ? 'NOT_RECORDED' : 'MATCHED',
+    );
+    assert.equal(
+      (
+        await database.attempt.findUniqueOrThrow({
+          where: { id: token.attemptId },
+        })
+      ).authority,
+      'FENCED',
+    );
     assert.equal(
       (await reports.evidence(runnerPrincipal, evidence)).stale,
       true,

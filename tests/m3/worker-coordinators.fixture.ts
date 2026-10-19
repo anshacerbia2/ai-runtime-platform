@@ -145,6 +145,7 @@ export async function workerFixture(
     dropClaimAck?: boolean;
     dropProposalAck?: boolean;
     dropEvidenceAck?: boolean;
+    dropStopAck?: boolean;
     createEvidenceCollector?: (identity: {
       runnerId: string;
       ownerSubject: string;
@@ -205,6 +206,7 @@ export async function workerFixture(
   let dropClaimAck = options.dropClaimAck ?? false;
   let dropProposalAck = options.dropProposalAck ?? false;
   let dropEvidenceAck = options.dropEvidenceAck ?? false;
+  let dropStopAck = options.dropStopAck ?? false;
   let grant: RunnerDispatchGrant | undefined;
   let context: RunnerStepContext | undefined;
   const entered = deferred<void>();
@@ -246,6 +248,7 @@ export async function workerFixture(
     }
     // Exact fixture scope only; no FLUSHDB, global epoch reset, or application seed reset.
     await db.runnerEvidence.deleteMany({ where: { executionId } });
+    await db.runnerStopReceipt.deleteMany({ where: { executionId } });
     await db.dispatchEnvelope.deleteMany({ where: { applicationId } });
     await db.runnerAssignment.deleteMany({ where: { executionId } });
     await db.outboxEvent.deleteMany({ where: { applicationId } });
@@ -436,6 +439,9 @@ export async function workerFixture(
         (reply) => {
           const dropped =
             (reply.statusCode === 202 &&
+              dropStopAck &&
+              path.endsWith('/stops')) ||
+            (reply.statusCode === 202 &&
               dropEvidenceAck &&
               path.endsWith('/evidence')) ||
             (reply.statusCode === 200 &&
@@ -451,6 +457,8 @@ export async function workerFixture(
           if (dropped) {
             if (path.endsWith('/claim')) {
               dropClaimAck = false;
+            } else if (path.endsWith('/stops')) {
+              dropStopAck = false;
             } else if (path.endsWith('/evidence')) {
               dropEvidenceAck = false;
             } else {
@@ -568,6 +576,7 @@ export async function workerFixture(
     );
   return {
     worker,
+    http,
     evidenceCollector,
     outcomeJournal,
     db,

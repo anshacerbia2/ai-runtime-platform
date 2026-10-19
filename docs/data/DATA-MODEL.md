@@ -4,6 +4,8 @@
 
 ## Physical models yang sudah ada
 
+Migration [0026](../../prisma/migrations/0026_runner_stop_receipts/migration.sql) menambahkan nullable original claim registration revision dan `RunnerStopReceipt` (`control.runner_stop_receipts`). Metadata stop immutable, scoped lewat composite FK assignment/execution/attempt, unique assignment/boot/revision, valid evidence-state/method combinations dan quarantine-only state. Receipt/audit/outbox atomik; tidak ada trigger atau writer yang mengubah attempt compute/authority atau ledger dari self-report. Historical revision tidak di-backfill. [Semantik intake/reconciliation](../development/M3.md#coordinator-stop-receipt-dan-result-reconciliation).
+
 Tabel berikut berasal dari [Prisma schema](../../prisma/schema.prisma), bukan dari nama konseptual pada baseline. Migration SQL [0001](../../prisma/migrations/0001_baseline/migration.sql)–[0015](../../prisma/migrations/0015_agent_admission_source/migration.sql) memuat DDL dan custom constraints untuk M0, M1, runner authority, local M2 gateway, dan dispatch-envelope foundation. LegacySchemaMigration adalah provenance read-only, bukan feature execution.
 
 | Prisma model            | Physical table                   |
@@ -37,6 +39,7 @@ Tabel berikut berasal dari [Prisma schema](../../prisma/schema.prisma), bukan da
 | `ManagementReceipt`     | `control.management_receipts`    |
 | `RunnerAssignment`      | `control.runner_assignments`     |
 | `RunnerEvidence`        | `control.runner_evidence`        |
+| `RunnerStopReceipt`     | `control.runner_stop_receipts`   |
 | `DispatchEnvelope`      | `control.dispatch_envelopes`     |
 
 M0 idempotency berada pada ContractCheck; M1 admission key/digest berada pada Execution, bukan tabel idempotency_records generik. Cancel intent disimpan sebagai timestamp pada Execution dan outbox event, bukan cancel_intents terpisah. ProfileAlias.version untuk concurrency berbeda dari revision profile yang dipilih. ManagementReceipt menyimpan caller-scoped key, digest dan historical response atomik dengan mutation/audit; deferred trigger mencegah incomplete commit. Window replay tujuh hari tidak otomatis menghapus record/key.

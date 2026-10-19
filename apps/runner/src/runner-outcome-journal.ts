@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import {
-  AssignmentToken,
-  RunnerHeartbeat,
+  RunnerOutcomeBinding,
+  RunnerStopEvidence,
   RunnerReport,
 } from '@ai-runtime/contracts/http';
 import type {
@@ -11,11 +11,7 @@ import type {
 import type { RunnerResultProposal } from './runner-report-http-client.js';
 import type { StopEvidence } from './sandbox-supervisor.js';
 
-export interface RunnerOutcomeBinding {
-  token: AssignmentToken;
-  bootId: string;
-  registrationRevision: number;
-}
+export type { RunnerOutcomeBinding } from '@ai-runtime/contracts/http';
 
 export type RunnerOutcomeRecord =
   | {
@@ -64,34 +60,11 @@ function object(
 }
 
 function bindingOf(input: unknown): RunnerOutcomeBinding {
-  const value = object(input, ['token', 'bootId', 'registrationRevision']);
-  const token = AssignmentToken.parse(value.token);
-  const heartbeat = RunnerHeartbeat.parse({
-    runnerId: token.runnerId,
-    bootId: value.bootId,
-    registrationRevision: value.registrationRevision,
-  });
-  return {
-    token,
-    bootId: heartbeat.bootId,
-    registrationRevision: heartbeat.registrationRevision,
-  };
+  return RunnerOutcomeBinding.parse(input);
 }
 
 function stopOf(input: unknown): StopEvidence {
-  const value = object(input, ['state', 'method']);
-  if (value.state === 'UNCONFIRMED' && value.method === null) {
-    return { state: 'UNCONFIRMED', method: null };
-  }
-  if (
-    value.state === 'TERMINATED' &&
-    (value.method === 'GRACEFUL' ||
-      value.method === 'FORCED' ||
-      value.method === 'OBSERVED')
-  ) {
-    return { state: 'TERMINATED', method: value.method };
-  }
-  throw failure();
+  return RunnerStopEvidence.parse(input);
 }
 
 /** Immutable local evidence, not coordinator authority, retirement or a proposal retry queue. */

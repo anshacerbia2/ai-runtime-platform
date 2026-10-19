@@ -56,6 +56,51 @@ export const RunnerLeaseCommand = RunnerLeaseIdentity.extend({
   token: AssignmentToken,
 }).strict();
 export type RunnerLeaseCommand = z.infer<typeof RunnerLeaseCommand>;
+export const RunnerOutcomeBinding = z
+  .object({
+    token: AssignmentToken,
+    bootId: z.uuid(),
+    registrationRevision,
+  })
+  .strict();
+export type RunnerOutcomeBinding = z.infer<typeof RunnerOutcomeBinding>;
+export const RunnerStopEvidence = z.discriminatedUnion('state', [
+  z
+    .object({
+      state: z.literal('TERMINATED'),
+      method: z.enum(['GRACEFUL', 'FORCED', 'OBSERVED']),
+    })
+    .strict(),
+  z.object({ state: z.literal('UNCONFIRMED'), method: z.null() }).strict(),
+]);
+export const RunnerStopReport = RunnerOutcomeBinding.extend({
+  evidence: RunnerStopEvidence,
+}).strict();
+export type RunnerStopReport = z.infer<typeof RunnerStopReport>;
+export const RunnerStopReceipt = z.object({
+  id: z.uuid(),
+  binding: RunnerOutcomeBinding,
+  evidence: RunnerStopEvidence,
+  state: z.literal('QUARANTINED'),
+  replayed: z.boolean(),
+  stale: z.boolean(),
+});
+export type RunnerStopReceipt = z.infer<typeof RunnerStopReceipt>;
+export const RunnerResultReconciliationRequest = RunnerOutcomeBinding.extend({
+  proposalDigest: z.string().regex(/^[a-f0-9]{64}$/),
+}).strict();
+export type RunnerResultReconciliationRequest = z.infer<
+  typeof RunnerResultReconciliationRequest
+>;
+export const RunnerResultReconciliation = z.object({
+  binding: RunnerOutcomeBinding,
+  proposalDigest: z.string().regex(/^[a-f0-9]{64}$/),
+  state: z.enum(['MATCHED', 'NOT_RECORDED', 'CONFLICT']),
+  stale: z.boolean(),
+});
+export type RunnerResultReconciliation = z.infer<
+  typeof RunnerResultReconciliation
+>;
 export const RunnerPayloadHandoffCommand = RunnerLeaseCommand.extend({
   envelopeId: z.uuid(),
 }).strict();
@@ -259,6 +304,26 @@ export const runnerContract = c.router({
     headers: z.object({ 'x-runner-protocol': z.literal('1') }),
     body: LateEvidence,
     responses: { 202: EvidenceReceipt },
+  },
+  stop: {
+    method: 'POST',
+    path: '/api/runner/v1/stops',
+    headers: z.object({ 'x-runner-protocol': z.literal('1') }),
+    body: RunnerStopReport,
+    metadata: {
+      behavior: { replay: 'none', maxAttempts: 1, maxResponseBytes: 65_536 },
+    },
+    responses: { 202: RunnerStopReceipt },
+  },
+  reconcileResult: {
+    method: 'POST',
+    path: '/api/runner/v1/results/reconcile',
+    headers: z.object({ 'x-runner-protocol': z.literal('1') }),
+    body: RunnerResultReconciliationRequest,
+    metadata: {
+      behavior: { replay: 'none', maxAttempts: 1, maxResponseBytes: 65_536 },
+    },
+    responses: { 200: RunnerResultReconciliation },
   },
 });
 export const assignmentContract = c.router({
