@@ -62,6 +62,8 @@ Tambahkan per-app/pool concurrency, rate limits, token/output bounds, deadline, 
 
 ### P3 — Claude Agent Runtime MVP
 
+Checkpoint bundle 20 Oktober 2026 menambahkan full-tree rootfs content verification dari trusted manifest pin, readonly independent copies dan fixed OCI policy, dipakai real gVisor conformance sebelum reservation/dispatch. Production image approval/provenance dan native host lifecycle/recovery masih dependency; content hashing bukan penutupan O03 atau Claude compatibility. [Scope](development/VERIFIED-RUNSC-BUNDLES.md).
+
 Checkpoint private launch storage: async Linux reservations dengan exclusive lock, no-clobber fsync commit dan fail-closed recovered read/replay kini dipakai real gVisor probe. Pre-spawn process-crash proof tidak mengizinkan automatic unlock/retirement/reassignment. Native live-orphan recovery, verified image, Claude/credential/egress dan actual VPS tetap berikutnya. [Scope](development/RUNSC-LAUNCH-STORE.md).
 
 Checkpoint sandbox candidate: Linux VM/VPS sudah dipilih owner sebagai hosting direction. Real gVisor `systrap` fixture gate menguji lifecycle/basic containment dan applied resource limits pada ephemeral Linux CI. [Driver/supervisor lifecycle](development/RUNSC-DRIVER.md) kini tersedia dengan real runsc fixture host. Production host/storage lock/image verification, full worker lease integration, Claude compatibility, broker egress, hard-crash/VPS-specific evidence serta O03 disposition tetap berikutnya. [Eksperimen](security/SANDBOX-EVALUATION.md#linux-vmvps-experiment). Tidak ada perubahan ADR.

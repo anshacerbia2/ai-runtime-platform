@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased — 20 October 2026 — pinned rootfs bundle production
+
+Added strict canonical rootfs manifests, trusted content pins and an async Linux OCI bundle producer/verifier. It checks the complete regular-file tree, copies to independent readonly inodes, emits a fixed least-privilege config and binds full assignment/rootfs digest to persisted config digest. Existing/partial bundles never authorize fresh preparation after reopen. Real gVisor fixtures now use this producer, independently pin BusyBox bytes and deny same-size rootfs tampering before reservation/dispatch. Content pins are not production provenance/image approval; native host/recovery, Claude/credential/egress and actual VPS gates remain open. No API, migration or ADR change. [Scope](development/VERIFIED-RUNSC-BUNDLES.md).
+
 ## Unreleased — 19 October 2026 — persistent runsc launch reservations
 
 Added async private Linux reservation storage with strict assignment/bundle/config-digest metadata, exclusive session lock, no-clobber fsync commit, bounded intake and fail-closed corruption handling. Stale locks deny takeover; recovered stores only read/replay and block fresh work. Linux tests cover pre-spawn SIGKILL/no-rerun and filesystem conflicts; real gVisor conformance replaces ad hoc markers and checks clean reopen after owned-tree cleanup. Declared digests are not image verification; native live-orphan recovery, power/volume/node-loss proof, actual VPS, Claude/credentials/egress, retention and O03 approval remain open. No API, migration or ADR change. [Scope](development/RUNSC-LAUNCH-STORE.md).

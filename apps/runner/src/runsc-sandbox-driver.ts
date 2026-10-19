@@ -73,7 +73,9 @@ const identityKeys = [
   'epoch',
 ] as const;
 
-function capture(identity: SandboxIdentity): SandboxIdentity {
+export function captureRunscIdentity(
+  identity: SandboxIdentity,
+): SandboxIdentity {
   for (const key of identityKeys) {
     const value = identity[key];
     if (key === 'generation' || key === 'epoch') {
@@ -95,7 +97,7 @@ function sameIdentity(a: SandboxIdentity, b: SandboxIdentity): boolean {
 
 /** One lifetime name per assignment; changing boot/epoch cannot select a new name. */
 export function runscSandboxId(identity: SandboxIdentity): string {
-  const binding = capture(identity);
+  const binding = captureRunscIdentity(identity);
   return `airt-runner-${createHash('sha256').update(binding.assignmentId).digest('hex')}`;
 }
 
@@ -138,7 +140,7 @@ export class RunscSandboxDriver implements SandboxDriver {
     launch: boolean,
     guard?: SandboxLaunchGuard,
   ): Entry {
-    const captured = capture(identity);
+    const captured = captureRunscIdentity(identity);
     const id = runscSandboxId(captured);
     const existing = this.entries.get(id);
     if (existing) {
@@ -164,7 +166,7 @@ export class RunscSandboxDriver implements SandboxDriver {
         const supplied = reservation.record;
         if (
           supplied.sandboxId !== id ||
-          !sameIdentity(capture(supplied.identity), captured)
+          !sameIdentity(captureRunscIdentity(supplied.identity), captured)
         ) {
           throw new Error('Recorded sandbox identity mismatch.');
         }
