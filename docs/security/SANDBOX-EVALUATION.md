@@ -4,6 +4,8 @@
 
 ## Decision inputs
 
+Target deployment yang dinyatakan owner pada 19 Oktober 2026 adalah **Linux VM/VPS**. Kandidat uji pertama adalah gVisor `runsc` dengan `systrap`, sesuai [platform guidance untuk VM](https://gvisor.dev/docs/user_guide/platforms/). Ini mempersempit eksperimen O03; bukan penetapan distro/arsitektur VPS, provider, region, threat tier, resource production, atau persetujuan runtime untuk data sensitif. ADR-0011 tetap berlaku dan O03 tetap OPEN.
+
 Record these for the actual runner pool before comparing candidates:
 
 | Input                                                                                     | Why it changes the choice                                                                           |
@@ -26,6 +28,31 @@ Do not infer these from local Windows tests or from the existence of a container
 | Firecracker with a dedicated orchestrator | A microVM boundary can be managed independently of Kubernetes.                                                                                                 | [Production host guidance](https://github.com/firecracker-microvm/firecracker/blob/main/docs/prod-host-setup.md) requires KVM and a jailer or equivalent controls. The platform would own image, network, lifecycle, discovery, and recovery integration; count that operational scope explicitly.                                                                     |
 
 These are candidates, not ranked defaults. If Kubernetes is the target, compare gVisor and Kata on the same pinned agent/plugin workload and hostile fixtures first. If the runner pool is not Kubernetes, assess the actual orchestration path before treating Firecracker as simpler. No candidate passes because of its product name.
+
+## Linux VM/VPS experiment
+
+[`scripts/probe-gvisor.mjs`](../../scripts/probe-gvisor.mjs) adalah opt-in fixture conformance, bukan adapter worker atau installer VPS. Command menolak selain Linux 5.6+ x64/arm64 dengan root dan flag `--disposable-linux-host`; target CI adalah Ubuntu 24.04 x64. Host harus menyediakan cgroup v2 CPU/memory/pids controllers, root-owned binaries, serta static BusyBox. Tidak ada fallback Docker/runc/host-process execution untuk fixture. Trusted CLI `runsc` dijalankan host-side; program fixture hanya berjalan di sandbox.
+
+CI memakai [rilis `release-20261012.0`](https://github.com/google/gvisor/releases/tag/release-20261012.0), paket x86_64 `gvisor-x86_64.tar.bz2` dengan SHA-256 `180dd277f657c1478f09490e8a9a595f7378257510b43d1d3694a769aef9ed02`, diunduh melalui HTTPS dan diverifikasi sebelum ekstraksi. Paket mencakup `runsc` dan `gvisor-bin/` sidecars; [installation guidance](https://gvisor.dev/docs/user_guide/install/) menjelaskan perubahan distribusi multifile. Runtime binary dan BusyBox rootfs fixture di-hash lagi dan dicatat bersama kernel/version/architecture/controller dalam JSON log. BusyBox berasal dari signed Ubuntu package pada image CI; fingerprint dicatat, tetapi ini belum approved/pinned production agent image atau supply-chain gate plugin.
+
+Konfigurasi eksperimen tetap: `--platform=systrap --network=none`, rootfs read-only, UID/GID 65532, no-new-privileges, capability sets kosong, tanpa host bind mount/socket/hook, tmpfs `/tmp` 8 MiB dengan noexec/nodev/nosuid, memory cgroup 256 MiB, pids 32 dan CPU quota 50000/100000. Nilai tersebut hanya fixture limits. Probe membaca nilai cgroup yang diterapkan dan memeriksa oversize tmpfs write gagal; ini belum load/neighbor/OOM/fork-exhaustion acceptance untuk workload produksi.
+
+Empat eksperimen menjalankan ordinary exit; concurrent same-ID create yang menyisakan tepat satu container; state observation dari proses CLI baru, duplicate-start rejection, exact fixture annotations, basic environment/filesystem/no-external-network checks dan graceful stop; lalu TERM-ignoring parent/child dengan forced all-process KILL. TERM ACK sendiri harus meninggalkan fixture running. Probe mempertahankan attached `runsc run` parent/waiter untuk setiap fixture yang mengeksekusi program, dan memeriksa exit code 0/143/137 sesuai kasus. Setelah monitor selesai, probe memerlukan runtime delete berhasil, tidak ada proses di seluruh subtree cgroup yang dimiliki, dan container tidak lagi terdaftar. Missing state atau ACK tidak dijadikan stop proof. Jika cleanup gagal, probe gagal dan mempertahankan workspace untuk inspeksi; tidak menghapus runtime metadata yang belum terkonfirmasi bersih.
+
+Pinned `runsc list --format=json` memakai `null` untuk daftar kosong; parser menerima bentuk itu secara eksplisit dan tetap menolak output malformed. Runtime juga menyimpan bind-mounted `null-netns` di private state root. Setelah semua container/cgroup milik probe bersih, cleanup memverifikasi absolute owned workspace dan hanya meng-unmount cache tersebut sebelum menghapus workspace. Error utama dan cleanup dipertahankan bersama agar kegagalan containment tidak tertutupi error teardown.
+
+Eksperimen awal mereproduksi fast-exit race: detached create/start diikuti `wait` dari proses lain dapat menjawab exit status unavailable setelah sandbox berhenti. Attached monitor dipertahankan agar status tersebut benar-benar diamati oleh parent-nya. Ini tidak menyediakan durable recovery setelah monitor/host crash; future driver masih harus mempertahankan uncertainty dan memakai independent termination evidence. Tidak ada fallback yang menebak exit code atau menyamakan missing state dengan successful completion.
+
+Rootfs write probe sengaja memakai directory DAC-writable agar kegagalan tidak hanya disebabkan UID nonroot. Host canary file/environment, symlink escape menuju canary, runtime socket absence, IPv4/IPv6 loopback-only routes dan metadata-IP connection rejection adalah containment checks dasar. `network=none` tetap mempunyai guest-local loopback sesuai [networking contract](https://gvisor.dev/docs/user_guide/networking/); parser menolak external/default route dan interface selain loopback, bukan menuntut tidak ada route sama sekali. Ini **bukan** penetration test lengkap, egress allow-list untuk broker, compatibility Claude/Node/native dependencies, multi-app hostile workload, hard supervisor crash/lost-ACK injection, node loss, disk/power-loss recovery, lease/fence integration atau izin retirement/reassignment. Binding fixture memakai UUID sintetis dan bukan assignment platform yang aktif.
+
+Recipe pada disposable Linux VM yang sudah dipersiapkan:
+
+```sh
+sudo -n /absolute/path/to/node scripts/probe-gvisor.mjs \
+  --disposable-linux-host /absolute/path/to/runsc /absolute/path/to/static-busybox
+```
+
+Atau `npm run test:sandbox:gvisor -- --disposable-linux-host ...` dari sesi root yang memang diotorisasi untuk host disposable tersebut. Command tidak memasang paket atau mengubah daemon host; workflow CI memasang runtime hanya pada ephemeral runner-nya sendiri. Tidak ada credential/data aplikasi, provider call atau Claude runtime. JSON `ai-runtime-gvisor-conformance/v1` mencatat outcome dan fingerprint dalam job log. Unit policy tests berjalan di Windows/Linux melalui tooling suite; real-runtime evidence hanya berasal dari job `gvisor-conformance` pada commit yang sama. Pass di GitHub-hosted VM tidak menggantikan pengujian VPS yang akan dipakai pilot.
 
 ## Common acceptance experiment
 

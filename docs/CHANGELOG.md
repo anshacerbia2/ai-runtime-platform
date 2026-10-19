@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased — 19 October 2026 — real gVisor Linux fixture gate
+
+Added a separate `gvisor-conformance` quality workflow job and explicit disposable-host CLI probe for the selected Linux VM/VPS deployment direction. CI verifies the checksum of pinned gVisor release-20261012.0 including required sidecars, then exercises inert static BusyBox fixtures through the real systrap/no-network runtime with read-only rootfs, least privilege and cgroup/tmpfs caps. Cases cover ordinary exit, duplicate create/start, exact annotation observations, basic containment, graceful stop and TERM-ignoring child forced termination with cgroup-empty/delete checks. Unit policy/host/foreign-binding tests run cross-platform; unsupported local hosts refuse without sandbox mutation. No worker driver/production image/Claude/broker activation, ADR change, reassignment or O03 closure is implied. Actual VPS and broader hostile/crash/compatibility gates remain pending.
+
 ## Unreleased — 19 October 2026 — application tool-operation status reads
 
 Added application-scoped backend GET routes to list an execution's durable tool operations and read one operation, under `execution:read`. Bounded UUID keyset pagination exposes all five persisted states and receipt pairs while omitting assignment/lease/receiver-key details and input bytes. Missing and inaccessible resources return the same 404; runner/operator principals are denied. Reads remain available after fencing and receiver-retention expiry without invoking a receiver, resolving UNKNOWN, finalizing execution or changing accounting. Contract/auth tests and real PostgreSQL/two-API integration cover isolation, pagination, all states and unchanged storage/receiver-call counts. Invocation authorization/runner integration, live receiver conformance and sandbox/runtime remain pending; no migration or ADR change.
