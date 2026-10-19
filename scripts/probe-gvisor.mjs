@@ -448,6 +448,7 @@ try {
   throw new AggregateError(
     [...(failure ? [failure] : []), error],
     `Probe/cleanup failed; owned workspace ${workspace}`,
+    { cause: error },
   );
 }
 if (failure) {
