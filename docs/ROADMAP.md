@@ -8,6 +8,8 @@ NestJS + Fastify + Prisma + PostgreSQL, React/Next.js App Router + BFF, TypeScri
 
 ## Sudah tersedia sebelum milestone runtime
 
+Checkpoint evidence collector 19 October 2026 adds optional durable encrypted write-before-send and explicit quarantine replay, with Linux file-spool process-crash tests and real API/PostgreSQL lost-ACK dedup proof. Backlog blocks further spend. This advances the reporting durability dependency below; production KMS/collector host lifecycle, I/O isolation, persistent-volume/node-loss recovery, retention, result-candidate durability and stop receipts remain open alongside sandbox/runtime delivery. No production activation or ADR change. [Scope](development/M3.md#bounded-evidence-collector-dan-encrypted-file-spool).
+
 Local M1 sekarang mencakup resource-oriented reads/mutations, receipt/retry, explicit serialization mapping, dan runner assignment/fencing/quarantine kernel. Ini merupakan fondasi untuk M3, bukan M3 agent execution yang sudah selesai. [Kondisi aktual](implementation/CURRENT-STATE.md) memuat scope tepat; [request closure](reviews/REQUEST-CLOSURE.md) memuat keputusan kontrak yang sudah diimplementasikan.
 
 ## North star

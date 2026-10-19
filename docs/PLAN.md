@@ -62,6 +62,8 @@ Tambahkan per-app/pool concurrency, rate limits, token/output bounds, deadline, 
 
 ### P3 — Claude Agent Runtime MVP
 
+Checkpoint collector 19 Oktober 2026: optional durable write-before-send evidence collector dan Linux encrypted bounded spool tersedia sebagai komponen programatik, dengan explicit replay ke quarantine existing. Pending/backlog/key/storage failure menolak spend baru; tidak mengotorisasi result retry atau settlement. Linux CI mencakup process crash dan committed-ACK loss/reopen/replay melalui coordinator B. Production cipher/KMS, collector I/O isolation dan host flush lifetime, persistent-volume/node-loss/retention proof, result-candidate persistence, stop receipts dan real sandbox/runtime tetap dependency berikutnya. Ini memperluas baseline reporting di bawah tanpa mengubah ADR atau pilihan deployment. [Detail dan batas](development/M3.md#bounded-evidence-collector-dan-encrypted-file-spool).
+
 **Status:** IN PROGRESS — coordination lease/presence, encrypted dispatch envelope, connection-locality-aware initial pull placement, lease-gated start/result reports, bounded lease-loss suspension, epoch pause/fence/reopen, internal scoped payload read, tool-effect intent/status recovery, registry/pinning/materializer plugin, Ed25519 stored-package verification, bounded S3 reader, internal lease-scoped plugin delivery, dan boundary supervisor lokal tersedia; production activation untuk payload/plugin HTTP handoff, real Redis failover chaos, automatic reassignment, production signer trust/provenance wiring, sandbox execution, authorized tool broker, artifact promotion, production KMS, dan retention approval masih pending.
 
 **Dependency:** P1; P2 common contracts. **Owner roles:** runtime + security + Scribe owner.

@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased — 19 October 2026 — bounded durable runner evidence collection
+
+Added an optional trusted `RunnerEvidenceCollector` and Linux encrypted file spool. Accepted usage is persisted before HTTP and removed only after valid quarantine receipt; explicit replay preserves old assignment/event identity and unknown cost. Backlog, pending intake and storage/key failures block new paid work across worker assignments. Storage has exclusive ownership, private bounded files and file/directory fsync, without TTL eviction or automatic crash-lock takeover. Tests cover ACK/storage failures, conflicts, caller mutation, Linux SIGKILL recovery and committed-ACK loss/reopen through real API B with PostgreSQL dedup. Cipher/key delivery is injected with no production default; synchronous file I/O isolation, persistent storage/power-loss/node-loss proof, retention, production credentials/KMS, result-candidate persistence and stop receipts remain pending. No API/migration/ADR or sandbox decision changes.
+
 ## Unreleased — 19 October 2026 — worker HTTP multi-coordinator integration gate
 
 Added `test:runner:http` to quality CI, connecting the worker through a fault-injecting loopback proxy to two independent full API processes sharing PostgreSQL/Redis. Scenarios exercise lost claim/result acknowledgements, API A exit with continuation on B under the same assignment/boot/nonce, cross-API durable cancel, missing lease no-recreate and API reaper fencing, held reservation and late evidence dedup without ledger verification, and no automatic replacement. The harness requires disposable-service opt-in, scoped cleanup and bounded child-process teardown. Runtime/sandbox and local authentication remain fixtures; no payload/KMS/plugin production route, strict nonlocal epoch, real Redis failover, live Claude, completion/settlement or durable reporting spool is introduced. Production source and adopted ADRs are unchanged.

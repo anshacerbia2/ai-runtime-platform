@@ -24,6 +24,8 @@ import {
   type RunnerStepContext,
   type RunnerWorkerOptions,
 } from '../../apps/runner/src/runner-worker.js';
+import type { RunnerEvidenceCollector } from '../../apps/runner/src/runner-evidence-collector.js';
+import type { RunnerHttpOptions } from '../../apps/runner/src/runner-http-transport.js';
 
 export function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -138,7 +140,16 @@ async function listen(server: Server): Promise<string> {
 /** Two real API processes and shared PostgreSQL/Redis. Sandbox/runtime alone are fixtures. */
 export async function workerFixture(
   t: TestContext,
-  options: { dropClaimAck?: boolean; dropProposalAck?: boolean } = {},
+  options: {
+    dropClaimAck?: boolean;
+    dropProposalAck?: boolean;
+    dropEvidenceAck?: boolean;
+    createEvidenceCollector?: (identity: {
+      runnerId: string;
+      ownerSubject: string;
+      http: RunnerHttpOptions;
+    }) => Promise<RunnerEvidenceCollector>;
+  } = {},
 ) {
   const base = loadConfig();
   const redisUrl = base.runner.coordinationRedisUrl;
@@ -185,10 +196,10 @@ export async function workerFixture(
   const instances: Instance[] = [];
   const workers: RunnerWorker[] = [];
   let proxy: Server | undefined;
-  let origin = '';
   let target = 0;
   let dropClaimAck = options.dropClaimAck ?? false;
   let dropProposalAck = options.dropProposalAck ?? false;
+  let dropEvidenceAck = options.dropEvidenceAck ?? false;
   let grant: RunnerDispatchGrant | undefined;
   let context: RunnerStepContext | undefined;
   const entered = deferred<void>();
@@ -419,9 +430,12 @@ export async function workerFixture(
         },
         (reply) => {
           const dropped =
-            reply.statusCode === 200 &&
-            ((dropClaimAck && path.endsWith('/claim')) ||
-              (dropProposalAck && message.type === 'result.proposed'));
+            (reply.statusCode === 202 &&
+              dropEvidenceAck &&
+              path.endsWith('/evidence')) ||
+            (reply.statusCode === 200 &&
+              ((dropClaimAck && path.endsWith('/claim')) ||
+                (dropProposalAck && message.type === 'result.proposed')));
           traffic.push({
             target: selected,
             path,
@@ -432,6 +446,8 @@ export async function workerFixture(
           if (dropped) {
             if (path.endsWith('/claim')) {
               dropClaimAck = false;
+            } else if (path.endsWith('/evidence')) {
+              dropEvidenceAck = false;
             } else {
               dropProposalAck = false;
             }
@@ -453,7 +469,18 @@ export async function workerFixture(
       upstream.end(body);
     })().catch(() => response.destroy());
   });
-  origin = await listen(proxy);
+  const origin = await listen(proxy);
+  const http: RunnerHttpOptions = {
+    origin,
+    allowHttpLoopbackForTests: true,
+    timeoutMs: 3_000,
+    bearerToken: async () => runnerToken,
+  };
+  const evidenceCollector = await options.createEvidenceCollector?.({
+    runnerId,
+    ownerSubject: 'local-runner',
+    http,
+  });
 
   function makeWorker(execute: RunnerWorkerOptions['runtime']['execute']) {
     const worker = new RunnerWorker({
@@ -462,12 +489,8 @@ export async function workerFixture(
       registrationRevision: 1,
       capacity: 1,
       pollIntervalMs: 100,
-      http: {
-        origin,
-        allowHttpLoopbackForTests: true,
-        timeoutMs: 3_000,
-        bearerToken: async () => runnerToken,
-      },
+      http,
+      evidenceCollector,
       driver: {
         async launch() {
           launches++;
@@ -535,6 +558,7 @@ export async function workerFixture(
     );
   return {
     worker,
+    evidenceCollector,
     db,
     redis,
     instances,
