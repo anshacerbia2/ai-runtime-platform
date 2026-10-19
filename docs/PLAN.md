@@ -62,7 +62,7 @@ Tambahkan per-app/pool concurrency, rate limits, token/output bounds, deadline, 
 
 ### P3 — Claude Agent Runtime MVP
 
-Checkpoint sandbox candidate: Linux VM/VPS sudah dipilih owner sebagai hosting direction. Real gVisor `systrap` fixture gate menguji lifecycle/basic containment dan applied resource limits pada ephemeral Linux CI. Worker adapter, approved agent image/Claude compatibility, broker egress, hard-crash/VPS-specific evidence serta O03 disposition tetap berikutnya. [Eksperimen](security/SANDBOX-EVALUATION.md#linux-vmvps-experiment). Tidak ada perubahan ADR.
+Checkpoint sandbox candidate: Linux VM/VPS sudah dipilih owner sebagai hosting direction. Real gVisor `systrap` fixture gate menguji lifecycle/basic containment dan applied resource limits pada ephemeral Linux CI. [Driver/supervisor lifecycle](development/RUNSC-DRIVER.md) kini tersedia dengan real runsc fixture host. Production host/storage lock/image verification, full worker lease integration, Claude compatibility, broker egress, hard-crash/VPS-specific evidence serta O03 disposition tetap berikutnya. [Eksperimen](security/SANDBOX-EVALUATION.md#linux-vmvps-experiment). Tidak ada perubahan ADR.
 
 Checkpoint tool-operation reads: aplikasi dapat list/read durable status operasinya melalui backend API terisolasi per execution/aplikasi. Unknown dan terminal receipts dipertahankan setelah fence/retention expiry tanpa invoke/retry/settlement. Ini menutup bagian read API untuk rekonsiliasi aplikasi; authorized invocation, receiver conformance, runtime/sandbox dan retirement tetap dependency M3. [Scope](development/M3.md#application-tool-operation-status). Tidak ada keputusan arsitektur baru.
 

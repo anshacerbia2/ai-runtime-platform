@@ -37,6 +37,10 @@ assertProbeHost({
   uid: process.geteuid?.(),
   disposable: optIn === '--disposable-linux-host',
 });
+const { RunscSandboxDriver, runscBindingAnnotation, runscSandboxId } =
+  await import('../apps/runner/dist/runsc-sandbox-driver.js');
+const { LocalSandboxSupervisor } =
+  await import('../apps/runner/dist/sandbox-supervisor.js');
 for (const file of [runtimePath, busyboxPath]) {
   assert.ok(
     typeof file === 'string' && isAbsolute(file),
@@ -176,8 +180,10 @@ async function cgroupProcesses(directory, depth = 0) {
   }
   return [...new Set(pids)];
 }
-async function fixture(mode) {
-  const identity = fixtureIdentity(randomUUID());
+async function fixture(mode, binding) {
+  const identity = binding
+    ? { ...binding, sandboxId: runscSandboxId(binding) }
+    : fixtureIdentity(randomUUID());
   const bundle = join(workspace, identity.sandboxId);
   await mkdir(join(bundle, 'rootfs', 'bin'), { recursive: true, mode: 0o755 });
   for (const directory of ['tmp', 'proc', 'dev']) {
@@ -193,11 +199,19 @@ async function fixture(mode) {
       .digest('hex'),
     report.fingerprints.busybox,
   );
-  await writeFile(
-    join(bundle, 'config.json'),
-    JSON.stringify(fixtureSpec(identity, mode)),
-    { mode: 0o600 },
+  const spec = fixtureSpec(
+    identity,
+    mode === 'startup-failure' ? 'ordinary' : mode,
   );
+  if (mode === 'startup-failure') {
+    spec.process.args = ['/bin/airt-fixture-executable-does-not-exist'];
+  }
+  if (binding) {
+    spec.annotations[runscBindingAnnotation] = JSON.stringify(binding);
+  }
+  await writeFile(join(bundle, 'config.json'), JSON.stringify(spec), {
+    mode: 0o600,
+  });
   const result = {
     identity,
     bundle,
@@ -451,6 +465,234 @@ try {
   });
   console.log(
     'gVisor fixture PASS: term-ignoring-child-forced-stop-cgroup-empty',
+  );
+
+  // Single disposable host owner only. This is NOT a production disk journal,
+  // image verifier, crash lock takeover, or worker credential/egress composition.
+  let driverMode = 'graceful';
+  let starts = 0;
+  const owned = (record) => {
+    const found = fixtures.find(
+      (item) => item.identity.sandboxId === record.sandboxId,
+    );
+    assert.ok(found, 'Driver may only address a fixture owned by this probe.');
+    return found;
+  };
+  const markerPath = (id) => join(workspace, id, 'launch.json');
+  const lookup = async (id) => {
+    assert.match(id, /^airt-runner-[a-f0-9]{64}$/);
+    try {
+      return JSON.parse(await readFile(markerPath(id), 'utf8'));
+    } catch (error) {
+      if (error.code === 'ENOENT') {
+        return null;
+      }
+      throw error;
+    }
+  };
+  const host = {
+    lookup,
+    async reserve(identity, id) {
+      const previous = await lookup(id);
+      if (previous) {
+        return { record: previous, fresh: false };
+      }
+      const item = await fixture(driverMode, identity);
+      assert.equal(item.identity.sandboxId, id);
+      const record = {
+        identity: { ...identity },
+        sandboxId: id,
+        bundle: item.bundle,
+      };
+      // Persist both config and immutable reservation before the first spawn.
+      const config = await open(join(item.bundle, 'config.json'), 'r');
+      try {
+        await config.sync();
+      } finally {
+        await config.close();
+      }
+      const marker = await open(markerPath(id), 'wx', 0o600);
+      try {
+        await marker.writeFile(JSON.stringify(record));
+        await marker.sync();
+      } finally {
+        await marker.close();
+      }
+      for (const directory of [item.bundle, workspace]) {
+        const handle = await open(directory, 'r');
+        try {
+          await handle.sync();
+        } finally {
+          await handle.close();
+        }
+      }
+      return { record, fresh: true };
+    },
+    start(record) {
+      const item = owned(record);
+      starts++;
+      attachedRun(item); // Initiates the CLI synchronously, no detached waiter.
+      let settled = false;
+      let exitCode = null;
+      const finished = item.completion.then((result) => {
+        settled = true;
+        exitCode = result.code;
+        return result.code === null ? 'LOST' : 'REAPED';
+      });
+      const ready = (async () => {
+        // Do not abandon creation on an observation deadline: stop must retain
+        // the handle until the attached monitor is reaped or creation is visible.
+        while (!settled) {
+          try {
+            const listed = parseRunscList(
+              (await runtime(['list', '--format=json'])).stdout,
+            );
+            const row = listed.find((entry) => entry.id === record.sandboxId);
+            if (row?.status === 'running') {
+              await state(item);
+              return;
+            }
+          } catch {
+            // A fast exit can remove state between list and state. The bounded
+            // original monitor remains responsible for creation/exit observation.
+          }
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+        // Numeric runsc failure can be a pre-start CLI error, not guest startup.
+        // Only zero is accepted for a fast exit without a running observation.
+        if (exitCode !== 0) {
+          throw new Error('Runtime startup unconfirmed.');
+        }
+      })();
+      return { ready, finished };
+    },
+    async state(record) {
+      const rows = parseRunscList(
+        (await runtime(['list', '--format=json'])).stdout,
+      );
+      if (!rows.some((row) => row.id === record.sandboxId)) {
+        return null;
+      }
+      return JSON.parse((await runtime(['state', record.sandboxId])).stdout);
+    },
+    async signalAll(record, signal) {
+      await runtime(['kill', '--all', record.sandboxId, signal]);
+    },
+    async destroy(record) {
+      await runtime(['delete', '--force', record.sandboxId]);
+    },
+    async cgroupEmpty(record) {
+      return (await cgroupProcesses(owned(record).cgroup)).length === 0;
+    },
+  };
+  const binding = () => ({
+    assignmentId: randomUUID(),
+    executionId: randomUUID(),
+    attemptId: randomUUID(),
+    runnerId: 'driver-fixture-runner',
+    ownerSubject: 'driver-fixture-owner',
+    bootId: randomUUID(),
+    generation: 1,
+    epoch: 1,
+  });
+  const driver = new RunscSandboxDriver(host);
+  const supervisor = new LocalSandboxSupervisor(driver);
+  const grant = binding();
+  const [handle, replay] = await Promise.all([
+    supervisor.start(grant),
+    supervisor.start({ ...grant }),
+  ]);
+  assert.equal(handle, replay);
+  assert.equal(starts, 1);
+  // Fresh driver/supervisor reads the durable marker and the actual runtime state.
+  // This models local supervisor replacement, NOT a hard process/node crash.
+  await assert.rejects(
+    new RunscSandboxDriver(host).recover({ ...grant, bootId: randomUUID() }),
+    /identity/,
+  );
+  const recoveredDriver = new RunscSandboxDriver(host);
+  const recoveredHandle = await recoveredDriver.launch(grant);
+  assert.equal(starts, 1, 'Recovery must never make a second runtime call.');
+  assert.equal(await recoveredHandle.inspect(), 'RUNNING');
+  const restarted = new LocalSandboxSupervisor(recoveredDriver);
+  assert.equal((await restarted.stop(grant)).state, 'TERMINATED');
+  await observedExit(owned(await lookup(runscSandboxId(grant))), 143);
+  await until(async () => (await handle.inspect()) === 'EXITED');
+  await new RunscSandboxDriver(host).launch(grant);
+  assert.equal(starts, 1, 'Deleted runtime plus retained marker cannot rerun.');
+  const missing = (await new RunscSandboxDriver(host).recover(grant)).handle;
+  assert.equal(
+    await missing.inspect(),
+    'UNKNOWN',
+    'Fresh monitor-less absence is not stop proof.',
+  );
+  observations.push({
+    case: 'driver-supervisor-recovery-no-rerun-graceful',
+    outcome: 'PASS',
+  });
+  console.log(
+    'gVisor driver PASS: supervisor recovery, graceful stop, no rerun',
+  );
+
+  driverMode = 'forced';
+  const forcedGrant = binding();
+  const forcedHandle = await supervisor.start(forcedGrant);
+  const forcedRecord = await lookup(runscSandboxId(forcedGrant));
+  await until(
+    async () =>
+      JSON.parse(
+        (await runtime(['ps', '--format=json', forcedRecord.sandboxId])).stdout,
+      ).length >= 2,
+  );
+  await forcedHandle.requestStop();
+  assert.equal(
+    await forcedHandle.inspect(),
+    'RUNNING',
+    'Driver cannot turn TERM ACK into exit proof.',
+  );
+  assert.equal((await supervisor.stop(forcedGrant)).state, 'TERMINATED');
+  await observedExit(owned(forcedRecord), 137);
+  observations.push({
+    case: 'driver-supervisor-child-forced-stop',
+    outcome: 'PASS',
+  });
+  console.log(
+    'gVisor driver PASS: TERM-ignoring child, forced stop and subtree inspection',
+  );
+
+  driverMode = 'ordinary';
+  const ordinaryGrant = binding();
+  const ordinaryHandle = await supervisor.start(ordinaryGrant);
+  await observedExit(owned(await lookup(runscSandboxId(ordinaryGrant))), 0);
+  await until(async () => (await ordinaryHandle.inspect()) === 'EXITED');
+  observations.push({ case: 'driver-fast-ordinary-exit', outcome: 'PASS' });
+  console.log('gVisor driver PASS: fast ordinary exit with attached monitor');
+
+  driverMode = 'startup-failure';
+  const failedGrant = binding();
+  await assert.rejects(supervisor.start(failedGrant), /startup unconfirmed/);
+  assert.deepEqual(await supervisor.stop(failedGrant), {
+    state: 'UNCONFIRMED',
+    method: null,
+  });
+  const failedRecord = await lookup(runscSandboxId(failedGrant));
+  const failureResult = await owned(failedRecord).completion;
+  assert.ok(failureResult.code !== null && failureResult.code !== 0);
+  await assert.rejects(driver.launch(failedGrant), /startup unconfirmed/);
+  const failedHandle = (await driver.recover(failedGrant)).handle;
+  // Drain any cleanup already queued by supervisor stop before host teardown.
+  await failedHandle.inspect();
+  assert.equal(
+    starts,
+    4,
+    'Failed startup cannot cause another runtime launch.',
+  );
+  observations.push({
+    case: 'driver-unconfirmed-startup-retained-cleanup',
+    outcome: 'PASS',
+  });
+  console.log(
+    'gVisor driver PASS: failed startup retains recovery without rerun or success evidence',
   );
 } catch (error) {
   failure = error;

@@ -151,7 +151,9 @@ export function parseRunscList(stdout) {
         !row ||
         typeof row !== 'object' ||
         typeof row.id !== 'string' ||
-        !/^airt-probe-[0-9a-f-]{36}$/.test(row.id) ||
+        !/^(?:airt-probe-[0-9a-f-]{36}|airt-runner-[a-f0-9]{64})$/.test(
+          row.id,
+        ) ||
         !['created', 'running', 'stopped', 'paused'].includes(row.status),
     )
   ) {

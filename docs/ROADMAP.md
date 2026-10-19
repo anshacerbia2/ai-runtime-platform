@@ -8,7 +8,7 @@ NestJS + Fastify + Prisma + PostgreSQL, React/Next.js App Router + BFF, TypeScri
 
 ## Sudah tersedia sebelum milestone runtime
 
-Linux VM/VPS is the owner-stated runner deployment direction. A pinned gVisor `systrap` disposable Linux fixture probe and separate CI job exercise real runtime lifecycle/basic containment/resource caps. This is an O03 candidate experiment; worker-driver integration, Claude compatibility, production images/broker egress, actual VPS and hard-crash evidence remain open. [Scope](security/SANDBOX-EVALUATION.md#linux-vmvps-experiment).
+Linux VM/VPS is the owner-stated runner deployment direction. A pinned gVisor `systrap` disposable Linux fixture probe and separate CI job exercise real runtime lifecycle/basic containment/resource caps. [Driver/supervisor lifecycle](development/RUNSC-DRIVER.md) now composes with real runsc through a disposable host fixture. Production host/storage/image verification, full worker lease integration, Claude compatibility, broker egress, actual VPS and hard-crash evidence remain open; O03 is still experimental. [Scope](security/SANDBOX-EVALUATION.md#linux-vmvps-experiment).
 
 Application backend tool-operation list/status reads are implemented with scoped authorization, bounded UUID pagination and durable uncertainty/receipt semantics after fencing. Reads do not invoke receivers or change execution/accounting. Authorized invocation, runner integration, receiver conformance and real sandbox/runtime remain M3 work. [Scope](development/M3.md#application-tool-operation-status).
 
