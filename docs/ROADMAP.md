@@ -8,6 +8,8 @@ NestJS + Fastify + Prisma + PostgreSQL, React/Next.js App Router + BFF, TypeScri
 
 ## Sudah tersedia sebelum milestone runtime
 
+Private Linux launch storage now persists immutable binding/config-digest metadata before spawn, with exclusive ownership, bounded async I/O and fail-closed lock/reopen semantics. Pre-spawn SIGKILL and real runsc storage-reopen conformance advance M3; verified images, native live-orphan host recovery, Claude/egress and actual VPS remain dependencies. [Scope](development/RUNSC-LAUNCH-STORE.md).
+
 Linux VM/VPS is the owner-stated runner deployment direction. A pinned gVisor `systrap` disposable Linux fixture probe and separate CI job exercise real runtime lifecycle/basic containment/resource caps. [Driver/supervisor lifecycle](development/RUNSC-DRIVER.md) now composes with real runsc through a disposable host fixture. Production host/storage/image verification, full worker lease integration, Claude compatibility, broker egress, actual VPS and hard-crash evidence remain open; O03 is still experimental. [Scope](security/SANDBOX-EVALUATION.md#linux-vmvps-experiment).
 
 Application backend tool-operation list/status reads are implemented with scoped authorization, bounded UUID pagination and durable uncertainty/receipt semantics after fencing. Reads do not invoke receivers or change execution/accounting. Authorized invocation, runner integration, receiver conformance and real sandbox/runtime remain M3 work. [Scope](development/M3.md#application-tool-operation-status).
