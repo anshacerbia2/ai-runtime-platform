@@ -6,6 +6,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { FileEvidenceSpool } from '../../apps/runner/src/file-evidence-spool.js';
 import {
+  RunnerOutcomeJournal,
+  type RunnerOutcomeJournalOptions,
+} from '../../apps/runner/src/runner-outcome-journal.js';
+import {
   RunnerEvidenceCollector,
   type RunnerEvidenceCollectorOptions,
 } from '../../apps/runner/src/runner-evidence-collector.js';
@@ -412,7 +416,37 @@ test(
   'lost result ACK after real PostgreSQL commit does not repeat proposal or runtime',
   { timeout: 45_000 },
   async (t) => {
-    const h = await workerFixture(t, { dropProposalAck: true });
+    let spool: FileEvidenceSpool | undefined;
+    let journalOptions: RunnerOutcomeJournalOptions | undefined;
+    let directory: string | undefined;
+    if (process.platform === 'linux') {
+      directory = mkdtempSync(join(tmpdir(), 'worker-outcomes-'));
+      chmodSync(directory, 0o700);
+      t.after(() => {
+        spool?.close();
+        rmSync(directory!, { recursive: true, force: true });
+      });
+    }
+    const h = await workerFixture(t, {
+      dropProposalAck: true,
+      createOutcomeJournal: directory
+        ? async (identity) => {
+            spool = new FileEvidenceSpool({
+              directory: directory!,
+              maxRecords: 4,
+              maxBytes: 262144,
+            });
+            journalOptions = {
+              ...identity,
+              spool,
+              cipher: fixtureCipher(randomBytes(32)),
+              maxAssignments: 2,
+              timeoutMs: 1000,
+            };
+            return RunnerOutcomeJournal.open(journalOptions);
+          }
+        : undefined,
+    });
     await h.start();
     h.release.resolve();
     await until(
@@ -433,7 +467,35 @@ test(
       h.traffic.filter((r) => r.type === 'result.proposed' && r.dropped).length,
       1,
     );
-    await h.worker.stop();
+    const stopped = await h.worker.stop();
+    if (spool && journalOptions) {
+      assert.equal(stopped[0]!.durableReceipt, 'RECORDED');
+      assert.equal(stopped[0]!.evidence.state, 'TERMINATED');
+      spool.close();
+      spool = new FileEvidenceSpool({
+        directory: directory!,
+        maxRecords: 4,
+        maxBytes: 262144,
+      });
+      const recovered = await RunnerOutcomeJournal.open({
+        ...journalOptions,
+        spool,
+      });
+      assert.equal(recovered.readyForWork, false);
+      const records = await Promise.all(
+        recovered.ids().map((id) => recovered.read(id)),
+      );
+      const candidate = records.find(
+        (record) => record.type === 'result.candidate',
+      )!;
+      assert.equal(candidate.binding.token.assignmentId, h.grant.assignmentId);
+      assert.equal(candidate.binding.bootId, h.worker.identity.bootId);
+      assert.equal(candidate.proposal.digest, 'a'.repeat(64));
+      assert.equal(
+        records.find((record) => record.type === 'local.stop')!.evidence.state,
+        'TERMINATED',
+      );
+    }
     assert.equal(h.executions, 1);
     assert.equal(h.launches, 1);
     assert.equal(
