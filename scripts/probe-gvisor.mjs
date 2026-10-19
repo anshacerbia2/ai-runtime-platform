@@ -54,10 +54,10 @@ const childEnv = {
   LANG: 'C',
   AIR_RUNTIME_HOST_CANARY: 'host-only-probe-canary',
 };
-async function command(binary, args) {
+async function command(binary, args, timeout = 5000) {
   return execute(binary, args, {
     env: childEnv,
-    timeout: 5000,
+    timeout,
     killSignal: 'SIGKILL',
     maxBuffer: 65536,
     windowsHide: true,
@@ -251,8 +251,44 @@ async function create(fixture) {
   }
   assert.equal((await state(fixture)).status, 'created');
 }
-async function start(fixture) {
-  await runtime(['start', fixture.identity.sandboxId]);
+function attachedRun(fixture) {
+  // Retain the parent/waiter: a later detached `wait` can lose fast-exit status.
+  fixture.completion = command(
+    runsc,
+    [
+      ...runscFlags(root),
+      'run',
+      '--bundle',
+      fixture.bundle,
+      fixture.identity.sandboxId,
+    ],
+    15000,
+  ).then(
+    (result) => ({ code: 0, result }),
+    (error) => ({
+      code:
+        !error.killed && !error.signal && typeof error.code === 'number'
+          ? error.code
+          : null,
+      error,
+    }),
+  );
+}
+async function observedExit(fixture, expected) {
+  const result = await fixture.completion;
+  assert.equal(result.code, expected, result.error?.message);
+}
+async function running(fixture) {
+  await until(async () => {
+    const listed = parseRunscList(
+      (await runtime(['list', '--format=json'])).stdout,
+    );
+    return listed.some(
+      (row) =>
+        row.id === fixture.identity.sandboxId && row.status === 'running',
+    );
+  });
+  assert.equal((await state(fixture)).status, 'running');
 }
 async function remove(fixture, force = false) {
   await runtime([
@@ -286,26 +322,33 @@ async function caps(fixture) {
 let failure;
 try {
   const ordinary = await fixture('ordinary');
-  await create(ordinary);
-  await start(ordinary);
-  assert.equal(
-    JSON.parse((await runtime(['wait', ordinary.identity.sandboxId])).stdout)
-      .exitStatus,
-    0,
-  );
-  assert.equal((await state(ordinary)).status, 'stopped');
-  await remove(ordinary);
+  attachedRun(ordinary);
+  await observedExit(ordinary, 0);
+  await remove(ordinary, true);
   observations.push({ case: 'ordinary-exit', outcome: 'PASS' });
   console.log('gVisor fixture PASS: ordinary-exit');
 
-  const graceful = await fixture('graceful');
+  const duplicateCreate = await fixture('graceful');
   // Competing creates must leave one container and must not destroy the winner.
-  const raced = await Promise.allSettled([create(graceful), create(graceful)]);
+  const raced = await Promise.allSettled([
+    create(duplicateCreate),
+    create(duplicateCreate),
+  ]);
   assert.equal(
     raced.filter((result) => result.status === 'fulfilled').length,
     1,
   );
-  await start(graceful);
+  assert.equal((await state(duplicateCreate)).status, 'created');
+  await remove(duplicateCreate);
+  observations.push({
+    case: 'duplicate-create-one-owned-container',
+    outcome: 'PASS',
+  });
+  console.log('gVisor fixture PASS: duplicate-create-one-owned-container');
+
+  const graceful = await fixture('graceful');
+  attachedRun(graceful);
+  await running(graceful);
   await caps(graceful);
   const recovered = await state(graceful); // Each command is a fresh OS process.
   assert.equal(recovered.status, 'running');
@@ -359,23 +402,19 @@ try {
   ]);
   assert.equal(isolated.stdout.trim(), 'ISOLATION_OK');
   await runtime(['kill', '--all', graceful.identity.sandboxId, 'TERM']);
-  assert.equal(
-    JSON.parse((await runtime(['wait', graceful.identity.sandboxId])).stdout)
-      .exitStatus,
-    143,
-  );
-  await remove(graceful);
+  await observedExit(graceful, 143);
+  await remove(graceful, true);
   observations.push({
-    case: 'duplicate-create-recovery-isolation-graceful-stop',
+    case: 'duplicate-start-recovery-isolation-graceful-stop',
     outcome: 'PASS',
   });
   console.log(
-    'gVisor fixture PASS: duplicate-create-recovery-isolation-graceful-stop',
+    'gVisor fixture PASS: duplicate-start-recovery-isolation-graceful-stop',
   );
 
   const forced = await fixture('forced');
-  await create(forced);
-  await start(forced);
+  attachedRun(forced);
+  await running(forced);
   const processes = async () =>
     JSON.parse(
       (await runtime(['ps', '--format=json', forced.identity.sandboxId]))
@@ -390,13 +429,8 @@ try {
   );
   assert.ok((await processes()).length >= 2);
   await runtime(['kill', '--all', forced.identity.sandboxId, 'KILL']);
-  assert.equal(
-    JSON.parse((await runtime(['wait', forced.identity.sandboxId])).stdout)
-      .exitStatus,
-    137,
-  );
-  assert.equal((await state(forced)).status, 'stopped');
-  await remove(forced);
+  await observedExit(forced, 137);
+  await remove(forced, true);
   observations.push({
     case: 'term-ignoring-child-forced-stop-cgroup-empty',
     outcome: 'PASS',
@@ -416,6 +450,7 @@ async function cleanup() {
       errors.push(error);
     }
   }
+  await Promise.all(fixtures.map((item) => item.completion));
   if (errors.length) {
     throw new AggregateError(
       errors,
