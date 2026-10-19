@@ -136,3 +136,26 @@ export function assertFixtureState(state, identity, bundle) {
     );
   }
 }
+
+/** Go's nil slice is encoded as null by this pinned runsc list implementation. */
+export function parseRunscList(stdout) {
+  const value = JSON.parse(stdout);
+  if (value === null) {
+    return [];
+  }
+  if (
+    !Array.isArray(value) ||
+    value.length > 16 ||
+    value.some(
+      (row) =>
+        !row ||
+        typeof row !== 'object' ||
+        typeof row.id !== 'string' ||
+        !/^airt-probe-[0-9a-f-]{36}$/.test(row.id) ||
+        !['created', 'running', 'stopped', 'paused'].includes(row.status),
+    )
+  ) {
+    throw new Error('Invalid runsc list observation.');
+  }
+  return value;
+}

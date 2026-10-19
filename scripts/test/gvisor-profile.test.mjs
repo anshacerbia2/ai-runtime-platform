@@ -7,7 +7,28 @@ import {
   fixtureSpec,
   assertFixtureState,
   runscFlags,
+  parseRunscList,
 } from '../lib/gvisor-profile.mjs';
+
+test('pinned runsc empty-list null is explicit while malformed observations fail closed', () => {
+  assert.deepEqual(parseRunscList('null\n'), []);
+  assert.deepEqual(parseRunscList('[]'), []);
+  const row = {
+    id: fixtureIdentity(randomUUID()).sandboxId,
+    status: 'stopped',
+  };
+  assert.deepEqual(parseRunscList(JSON.stringify([row])), [row]);
+  for (const value of [
+    '',
+    '{}',
+    'false',
+    '[null]',
+    '[{}]',
+    JSON.stringify([{ ...row, status: 'unknown' }]),
+  ]) {
+    assert.throws(() => parseRunscList(value));
+  }
+});
 
 test('gVisor probe rejects unsupported hosts and requires explicit disposable-host opt-in', () => {
   const host = {

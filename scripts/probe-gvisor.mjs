@@ -24,6 +24,7 @@ import {
   fixtureSpec,
   gvisorRelease,
   runscFlags,
+  parseRunscList,
 } from './lib/gvisor-profile.mjs';
 
 const execute = promisify(execFile);
@@ -260,7 +261,7 @@ async function remove(fixture, force = false) {
     fixture.identity.sandboxId,
   ]);
   await until(async () => (await cgroupProcesses(fixture.cgroup)).length === 0);
-  const remaining = JSON.parse(
+  const remaining = parseRunscList(
     (await runtime(['list', '--format=json'])).stdout,
   );
   assert.ok(remaining.every((row) => row.id !== fixture.identity.sandboxId));
