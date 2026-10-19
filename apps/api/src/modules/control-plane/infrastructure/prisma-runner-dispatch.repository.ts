@@ -247,6 +247,9 @@ export class PrismaRunnerDispatchRepository implements RunnerDispatchRepository 
         current.runnerId !== runner.id ||
         current.ownerSubject !== runner.ownerSubject ||
         current.claimBootId !== bootId ||
+        (current.claimRegistrationRevision !== null &&
+          current.claimRegistrationRevision !==
+            registration.registrationRevision) ||
         current.executionId !== execution.id ||
         current.generation !== execution.assignmentGeneration ||
         current.epoch !== execution.coordinationEpoch ||
@@ -322,6 +325,7 @@ export class PrismaRunnerDispatchRepository implements RunnerDispatchRepository 
         runnerId: registration.runnerId,
         ownerSubject: registration.ownerSubject,
         claimBootId: bootId,
+        claimRegistrationRevision: registration.registrationRevision,
         generation,
         epoch: dispatch.coordinationEpoch,
         state: 'GRANTED',

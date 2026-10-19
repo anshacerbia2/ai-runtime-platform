@@ -11,6 +11,7 @@ import { PrismaResourceReader } from '../src/modules/control-plane/infrastructur
 import { InMemoryRunnerPresenceStore } from '../src/modules/control-plane/infrastructure/in-memory-runner-presence.store.js';
 import type { DatabaseService } from '../src/infrastructure/database/database.service.js';
 import { ManagementCommand } from '@ai-runtime/contracts';
+import { apiContract } from '@ai-runtime/contracts/http';
 
 const prefix = 'evolve-' + randomUUID();
 const config = {
@@ -87,6 +88,60 @@ before(async () => {
   await seedDatabase(db, config);
   app = await createApplication(config);
   replica = await createApplication(config);
+});
+
+test('runner outcome intake is machine-only and validates immutable stop evidence', async () => {
+  const binding = {
+    token: {
+      assignmentId: randomUUID(),
+      executionId: randomUUID(),
+      attemptId: randomUUID(),
+      runnerId: `${prefix}-runner`,
+      generation: 1,
+      epoch: 1,
+    },
+    bootId: randomUUID(),
+    registrationRevision: 1,
+  };
+  const body = { ...binding, evidence: { state: 'UNCONFIRMED', method: null } };
+  for (const token of [op, application.token]) {
+    assert.equal(
+      (
+        await request(
+          'POST',
+          apiContract.runner.stop.path,
+          body,
+          undefined,
+          token,
+        )
+      ).statusCode,
+      403,
+    );
+    assert.equal(
+      (
+        await request(
+          'POST',
+          apiContract.runner.reconcileResult.path,
+          { ...binding, proposalDigest: 'a'.repeat(64) },
+          undefined,
+          token,
+        )
+      ).statusCode,
+      403,
+    );
+  }
+  assert.equal(
+    (
+      await request(
+        'POST',
+        apiContract.runner.stop.path,
+        { ...body, evidence: { state: 'TERMINATED', method: null } },
+        undefined,
+        runnerToken,
+      )
+    ).statusCode,
+    400,
+  );
 });
 after(async () => {
   await Promise.all([app?.close(), replica?.close()]);

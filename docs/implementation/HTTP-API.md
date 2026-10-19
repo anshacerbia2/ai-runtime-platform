@@ -1,6 +1,6 @@
 # HTTP API yang Terdaftar
 
-**Snapshot source 29 September 2026.** Tabel ini memuat 55 method/path dari apiContract dan 45 pasangan yang diekspos oleh browserContract. Bukan daftar endpoint target yang belum diimplementasikan. Sumber: [routes](../../packages/contracts/src/http/routes.ts), [gateway contract](../../packages/contracts/src/http/gateway.ts), [resource contracts](../../packages/contracts/src/http/resources.ts), [runner contracts](../../packages/contracts/src/http/runner.ts), [gateway controller](../../apps/api/src/modules/gateway/presentation/http/gateway.controller.ts), [controller resources](../../apps/api/src/modules/control-plane/presentation/http/resource.controller.ts), dan [authority policy](../../apps/api/src/modules/identity/domain/principal.ts).
+**Contract inventory diperiksa 19 Oktober 2026.** apiContract mendeklarasikan 58 operasi method/path; browserContract tetap 45. Bukan daftar endpoint target yang belum diimplementasikan. Sumber: [routes](../../packages/contracts/src/http/routes.ts), [gateway contract](../../packages/contracts/src/http/gateway.ts), [resource contracts](../../packages/contracts/src/http/resources.ts), [runner contracts](../../packages/contracts/src/http/runner.ts), [gateway controller](../../apps/api/src/modules/gateway/presentation/http/gateway.controller.ts), [controller resources](../../apps/api/src/modules/control-plane/presentation/http/resource.controller.ts), dan [authority policy](../../apps/api/src/modules/identity/domain/principal.ts).
 
 ## Authentication dan exposure
 
@@ -9,6 +9,8 @@ API memeriksa bearer principal. Pada nonlocal web, browser mengirim opaque sessi
 Kolom “BFF” berarti pasangan method/path di-allowlist, bukan setiap caller memperoleh izin. Contohnya admission terdaftar pada browser contract, tetapi token operator tidak otomatis berubah menjadi application caller. Assignment, runner heartbeat/dispatch/report/protocol/evidence, registration dan inbox tidak diekspos ke browser.
 
 ## Operasi aktif
+
+Tambahan machine-only coordinator outcome: `runner.stop` — POST `/api/runner/v1/stops`, HTTP 202; `runner.reconcileResult` — POST `/api/runner/v1/results/reconcile`, HTTP 200. Keduanya memerlukan runner `runner:report`, exact original token/boot/claim revision, dan tidak diekspos BFF. Stop receipt tetap quarantine; read-only canonical proposal match bukan completion/settlement/retirement. Tidak memerlukan live lease/presence. [Kontrak dan legacy handling](../development/M3.md#coordinator-stop-receipt-dan-result-reconciliation).
 
 | Operation key dalam apiContract | Method | Path                                                         | Success HTTP | Authority                                           | BFF                                  |
 | ------------------------------- | ------ | ------------------------------------------------------------ | ------------ | --------------------------------------------------- | ------------------------------------ |

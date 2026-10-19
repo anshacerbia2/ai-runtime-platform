@@ -1,4 +1,11 @@
 import { RunnerAuthorityController } from './presentation/http/runner-authority.controller.js';
+import { RunnerOutcomeController } from './presentation/http/runner-outcome.controller.js';
+import { RunnerOutcomeService } from './application/runner-outcome.service.js';
+import {
+  RUNNER_OUTCOME_AUTHORITY,
+  type RunnerOutcomeAuthority,
+} from './application/runner-outcome.port.js';
+import { PrismaRunnerOutcomeAuthority } from './infrastructure/prisma-runner-outcome.authority.js';
 import { RunnerAuthorityService } from './application/runner-authority.service.js';
 import {
   RUNNER_AUTHORITY,
@@ -76,8 +83,20 @@ const RUNNER_COORDINATION_STORE = Symbol('RUNNER_COORDINATION_STORE');
     ControlPlaneController,
     ResourceController,
     RunnerAuthorityController,
+    RunnerOutcomeController,
   ],
   providers: [
+    {
+      provide: RUNNER_OUTCOME_AUTHORITY,
+      inject: [DatabaseService],
+      useFactory: (db: DatabaseService) => new PrismaRunnerOutcomeAuthority(db),
+    },
+    {
+      provide: RunnerOutcomeService,
+      inject: [RUNNER_OUTCOME_AUTHORITY],
+      useFactory: (authority: RunnerOutcomeAuthority) =>
+        new RunnerOutcomeService(authority),
+    },
     {
       provide: RUNNER_AUTHORITY,
       inject: [DatabaseService, RUNTIME_CONFIG],
