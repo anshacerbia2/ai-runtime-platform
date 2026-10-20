@@ -384,7 +384,11 @@ export async function probeWorkerLifetime({
         assert.equal(runCalls, 1);
       }
     } else {
-      assert.equal(result.ownership, 'RELEASED');
+      assert.equal(
+        result.ownership,
+        'RELEASED',
+        `${mode}: ${JSON.stringify(result.assignments.map((item) => item.evidence))}`,
+      );
       assert.equal(result.assignments[0].evidence.state, 'TERMINATED');
       assert.equal(context.signal.aborted, true);
       await assert.rejects(access(lockPath), { code: 'ENOENT' });

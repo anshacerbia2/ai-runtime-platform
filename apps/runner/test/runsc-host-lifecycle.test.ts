@@ -407,3 +407,106 @@ test('outer worker uncertainty retains ownership even with no sandbox and cannot
   assert.equal(f.retained(), true);
   assert.ok(!f.events.includes('unlock'));
 });
+
+test('attached teardown between list/state or before signal is reobserved without poisoning a proven clean owner', async () => {
+  for (const mode of [
+    'state-absent',
+    'signal-absent',
+    'signal-stopped',
+    'signal-command-absent',
+    'signal-command-stopped',
+  ]) {
+    const f = fixture();
+    const binding = identity();
+    const { record } = await f.host.reserve(binding, runscSandboxId(binding));
+    const monitor = f.host.start(record);
+    f.running(record);
+    await monitor.ready;
+    f.monitors[0]!.resolve({ state: 'REAPED', code: 0 });
+    await monitor.finished;
+    if (mode === 'signal-absent') {
+      f.states.clear();
+    } else if (mode === 'signal-stopped') {
+      (f.states.get(record.sandboxId) as { status: string }).status = 'stopped';
+    } else if (mode === 'state-absent') {
+      f.ports.runtime.readState = async () => {
+        f.states.clear();
+        throw new Error('State vanished during attached teardown');
+      };
+    }
+    if (mode.startsWith('signal-command')) {
+      f.ports.runtime.signalAll = async () => {
+        if (mode === 'signal-command-absent') {
+          f.states.clear();
+        } else {
+          (f.states.get(record.sandboxId) as { status: string }).status =
+            'stopped';
+        }
+        throw new Error('Guest exited before signal delivery');
+      };
+    }
+    if (mode === 'state-absent') {
+      assert.equal(await f.host.state(record), null);
+    } else {
+      await f.host.signalAll(record, 'TERM');
+    }
+    assert.ok(!f.events.includes('signal'));
+    await f.host.close();
+    assert.equal(f.retained(), false);
+  }
+});
+
+test('failed or still-present state reobservation cannot turn an observation failure into absence', async () => {
+  for (const mode of ['present', 'list-failure', 'poisoned-transport']) {
+    const f = fixture();
+    const binding = identity();
+    const { record } = await f.host.reserve(binding, runscSandboxId(binding));
+    const monitor = f.host.start(record);
+    f.running(record);
+    await monitor.ready;
+    f.monitors[0]!.resolve({ state: 'REAPED', code: 0 });
+    await monitor.finished;
+    f.ports.runtime.readState = async () => {
+      if (mode === 'list-failure') {
+        f.ports.runtime.list = async () => {
+          throw new Error('IO');
+        };
+      }
+      if (mode === 'poisoned-transport') {
+        f.states.clear();
+        Object.defineProperty(f.ports.runtime, 'recoveryRequired', {
+          value: true,
+        });
+      }
+      throw new Error('State read failed');
+    };
+    await assert.rejects(f.host.state(record));
+    await assert.rejects(f.host.close(), /ownership retained/);
+    assert.equal(f.retained(), true);
+  }
+});
+
+test('a signal command failure with a live target or poisoned transport never certifies successful cleanup', async () => {
+  for (const mode of ['live', 'transport']) {
+    const f = fixture();
+    const binding = identity();
+    const { record } = await f.host.reserve(binding, runscSandboxId(binding));
+    const monitor = f.host.start(record);
+    f.running(record);
+    await monitor.ready;
+    f.monitors[0]!.resolve({ state: 'REAPED', code: 0 });
+    await monitor.finished;
+    f.ports.runtime.signalAll = async () => {
+      if (mode === 'transport') {
+        f.states.clear();
+        Object.defineProperty(f.ports.runtime, 'recoveryRequired', {
+          value: true,
+        });
+      }
+      throw new Error('Signal command failed');
+    };
+    await assert.rejects(f.host.signalAll(record, 'TERM'));
+    await assert.rejects(f.host.close(), /ownership retained/);
+    assert.equal(f.retained(), true);
+  }
+});

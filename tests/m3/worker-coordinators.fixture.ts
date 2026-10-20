@@ -138,7 +138,7 @@ async function listen(server: Server): Promise<string> {
   return `http://127.0.0.1:${address.port}`;
 }
 
-/** Two real API processes and shared PostgreSQL/Redis. Sandbox/runtime alone are fixtures. */
+/** Two real API processes and shared PostgreSQL/Redis; default sandbox/runtime are fixtures. */
 export async function workerFixture(
   t: TestContext,
   options: {
@@ -146,6 +146,10 @@ export async function workerFixture(
     dropProposalAck?: boolean;
     dropEvidenceAck?: boolean;
     dropStopAck?: boolean;
+    /** Opt-in native tests transfer a fresh matching host/driver per worker. */
+    createWorker?: (
+      options: Omit<RunnerWorkerOptions, 'driver' | 'sandboxLifecycle'>,
+    ) => Promise<RunnerWorker>;
     createEvidenceCollector?: (identity: {
       runnerId: string;
       ownerSubject: string;
@@ -225,7 +229,7 @@ export async function workerFixture(
 
   t.after(async () => {
     release.resolve();
-    await Promise.all(workers.map((worker) => worker.stop()));
+    await Promise.all(workers.map((worker) => worker.close()));
     if (proxy) {
       const closing = proxy;
       proxy = undefined;
@@ -499,8 +503,8 @@ export async function workerFixture(
     ownerSubject: 'local-runner',
   });
 
-  function makeWorker(execute: RunnerWorkerOptions['runtime']['execute']) {
-    const worker = new RunnerWorker({
+  function workerOptions(execute: RunnerWorkerOptions['runtime']['execute']) {
+    return {
       runnerId,
       ownerSubject: 'local-runner',
       registrationRevision: 1,
@@ -509,6 +513,17 @@ export async function workerFixture(
       http,
       evidenceCollector,
       outcomeJournal,
+      runtime: { execute },
+    };
+  }
+  function makeWorker(execute: RunnerWorkerOptions['runtime']['execute']) {
+    if (options.createWorker) {
+      throw new Error(
+        'Native replacements require a fresh host through makeOwnedWorker.',
+      );
+    }
+    const worker = new RunnerWorker({
+      ...workerOptions(execute),
       driver: {
         async launch() {
           launches++;
@@ -527,12 +542,21 @@ export async function workerFixture(
           return null;
         },
       },
-      runtime: { execute },
     });
     workers.push(worker);
     return worker;
   }
-  const worker = makeWorker(async (value, scope) => {
+  async function makeOwnedWorker(
+    execute: RunnerWorkerOptions['runtime']['execute'],
+  ) {
+    if (!options.createWorker) {
+      return makeWorker(execute);
+    }
+    const worker = await options.createWorker(workerOptions(execute));
+    workers.push(worker);
+    return worker;
+  }
+  const worker = await makeOwnedWorker(async (value, scope) => {
     executions++;
     grant = value;
     context = scope;
@@ -589,6 +613,7 @@ export async function workerFixture(
     release,
     stopped,
     makeWorker,
+    makeOwnedWorker,
     readAssignment,
     evidence,
     cancel,

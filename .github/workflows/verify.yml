@@ -40,7 +40,7 @@ jobs:
       - name: Probe real gVisor lifecycle, isolation and cgroup caps
         run: sudo -n "$(command -v node)" scripts/probe-gvisor.mjs --disposable-linux-host "$RUNNER_TEMP/gvisor/runsc" /bin/busybox
   quality:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     services:
       broker-db:
@@ -157,6 +157,23 @@ jobs:
         env:
           M3_COORDINATION_REDIS_URL: redis://127.0.0.1:6379/13
           M3_WORKER_HTTP_DISPOSABLE: '1'
+      - name: Install pinned gVisor for native coordinator conformance
+        run: |
+          set -euo pipefail
+          curl --fail --location --silent --show-error --output "$RUNNER_TEMP/native-gvisor.tar.bz2" \
+            https://github.com/google/gvisor/releases/download/release-20261012.0/gvisor-x86_64.tar.bz2
+          echo "180dd277f657c1478f09490e8a9a595f7378257510b43d1d3694a769aef9ed02  $RUNNER_TEMP/native-gvisor.tar.bz2" | sha256sum --check -
+          sudo mkdir -p "$RUNNER_TEMP/native-gvisor"
+          sudo tar -xjf "$RUNNER_TEMP/native-gvisor.tar.bz2" -C "$RUNNER_TEMP/native-gvisor"
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends busybox-static
+      - name: Prove native worker against real PostgreSQL Redis and two APIs
+        env:
+          M3_COORDINATION_REDIS_URL: redis://127.0.0.1:6379/12
+          M3_WORKER_HTTP_DISPOSABLE: '1'
+        run: |
+          sudo -n --preserve-env=M0_RUNTIME_MODE,M0_API_HOST,M0_API_PORT,M0_ALLOWED_HOSTS,M0_ALLOWED_ORIGINS,M0_API_BODY_LIMIT_BYTES,M0_API_REQUEST_TIMEOUT_MS,M0_DB_HOST,M0_DB_PORT,M0_DB_NAME,M0_DB_USER,M0_DB_PASSWORD,M0_DB_POOL_MAX,M0_DB_CONNECTION_TIMEOUT_MS,M0_DB_IDLE_TIMEOUT_MS,M0_DB_STATEMENT_TIMEOUT_MS,M0_DB_APPLICATION_NAME,M0_SEED_TX_MAX_WAIT_MS,M0_SEED_TX_TIMEOUT_MS,M0_APP_ID,M0_APP_NAME,M0_APP_TOKEN,M0_TEST_APP_ID,M0_TEST_APP_NAME,M0_TEST_APP_TOKEN,M1_LOCAL_OPERATOR_TOKEN,M1_LOCAL_RUNNER_TOKEN,M3_COORDINATION_REDIS_URL,M3_WORKER_HTTP_DISPOSABLE \
+            "$(command -v node)" scripts/probe-native-coordinators.mjs --disposable-linux-host "$RUNNER_TEMP/native-gvisor/runsc" /bin/busybox
       - name: Start pinned MinIO dispatch conformance service
         run: |
           MINIO_BINARY="$RUNNER_TEMP/minio.RELEASE.2025-09-07T16-13-09Z"

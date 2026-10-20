@@ -242,14 +242,28 @@ export class RunscHostLifecycle implements RunscSandboxHost {
   signalAll(record: RunscLaunchRecord, signal: 'TERM' | 'KILL'): Promise<void> {
     return this.accept(async () => {
       const captured = this.entry(record).record!;
+      if (signal !== 'TERM' && signal !== 'KILL') {
+        throw unavailable();
+      }
       const value = await this.observation(captured);
       if (
         value === null ||
         !['running', 'paused'].includes(this.status(captured, value))
       ) {
+        return; // Attached teardown won the race; no live target to signal.
+      }
+      try {
+        await this.ports.runtime.signalAll(captured, signal);
+      } catch {
+        if (this.ports.runtime.recoveryRequired) {
+          throw unavailable();
+        }
+        const after = await this.observation(captured);
+        if (after === null || this.status(captured, after) === 'stopped') {
+          return;
+        }
         throw unavailable();
       }
-      await this.ports.runtime.signalAll(captured, signal);
     });
   }
   destroy(record: RunscLaunchRecord): Promise<void> {
@@ -386,7 +400,22 @@ export class RunscHostLifecycle implements RunscSandboxHost {
     if (!rows.some((row) => row.id === record.sandboxId)) {
       return null;
     }
-    const value = await this.ports.runtime.readState(record);
+    let value: unknown;
+    try {
+      value = await this.ports.runtime.readState(record);
+    } catch {
+      // Attached runsc may remove state after list. A fresh successful list is
+      // authoritative absence at this instant, never permanent stop proof. Keep
+      // transport loss/corruption sticky; failed or present reobservation throws.
+      if (this.ports.runtime.recoveryRequired) {
+        throw unavailable();
+      }
+      const fresh = await this.ports.runtime.list();
+      if (!fresh.some((row) => row.id === record.sandboxId)) {
+        return null;
+      }
+      throw unavailable();
+    }
     this.status(record, value);
     return value;
   }

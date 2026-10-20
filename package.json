@@ -34,6 +34,7 @@
     "test:gateway:redis": "npm run build -w @ai-runtime/api && tsx --test apps/api/test/redis-gateway.integration.ts apps/api/test/redis-gateway-multi-instance.integration.ts apps/api/test/redis-gateway-http-multi-instance.integration.ts",
     "test:runner:redis": "npm run build -w @ai-runtime/api && tsx --test apps/api/test/redis-runner-lease.integration.ts",
     "test:runner:http": "npm run build -w @ai-runtime/api && tsx --test tests/m3/runner-worker-http.integration.ts",
+    "test:runner:native": "node scripts/probe-native-coordinators.mjs",
     "test:sandbox:gvisor": "node scripts/probe-gvisor.mjs",
     "test:dispatch:s3": "npm run build -w @ai-runtime/api && tsx --test apps/api/test/s3-dispatch-envelope.integration.ts",
     "test:plugin:s3": "npm run build -w @ai-runtime/api && tsx --test apps/api/test/s3-plugin-package.integration.ts",
