@@ -10,6 +10,8 @@
 
 The native adapter wraps only the trusted host port to retain reservation identities and original monitor promises/counts. It does not replace worker HTTP, runsc transport, reservation/bundle verification, kernel inspection, PostgreSQL/Redis behavior or coordinator responses. Initial source bytes and runsc entrypoint are pinned; CI verifies the complete published gVisor package checksum as well. These fixture pins are not production release provenance or image approval.
 
+Conformance also exposed an existing attached-teardown race at the list/state and signal CLI boundaries. Deterministic regression tests now require healthy fresh reobservation before recognizing an already absent/stopped target; live/foreign targets, failed observations or poisoned transports remain uncertain. No signal is resent and the original monitor/delete/cgroup/final-absence proof is unchanged. [Host semantics](NATIVE-RUNSC-HOST.md#closing-safely).
+
 ## Isolation and cleanup
 
 [`workerFixture`](../../tests/m3/worker-coordinators.fixture.ts) seeds random scoped application/runner/execution rows, starts the compiled full API composition on two loopback ports and proxies HTTP for explicit ACK loss/peer selection. The optional native worker factory requires a fresh matching driver/host for every boot; it cannot silently use the default fake driver for replacements. Existing fixture-driver HTTP tests still run separately.

@@ -24,6 +24,8 @@ State, signal and delete paths address only known records. Fresh observed state 
 
 ## Closing safely
 
+Attached teardown can win between list/state or a live observation and signal delivery. A healthy transport may reobserve authoritative absence, or an already stopped exact binding after a failed signal, without poisoning the owner. No signal is resent. Failed reobservation, a still-live target after signal failure, foreign binding or a poisoned transport remains uncertain. These observations never replace the original monitor, trusted delete, whole-cgroup inspection and final absence required below.
+
 Call `supervisor.quiesce()`, explicitly stop/drain tracked work, then `host.close()`. Host close is a passive final proof, not a TERM/KILL request. It seals new reservations, launches and public controls immediately, while holding the writer lock. Already accepted preparation/control work, readiness tracking and original monitors drain before any ownership decision. Pending creation cannot be overlooked merely because runtime state and the cgroup currently appear empty. Filesystem stalls or a monitor that cannot be reaped keep close pending and ownership held.
 
 Clean close rechecks durable bindings/digests, refuses untracked runtime rows, and requires every admitted record to be accounted for. Attempted launches require the original numeric REAPED monitor, no live/created state, trusted delete, an empty whole kernel cgroup and fresh runtime absence. An unused reservation can only close with authoritative absence and an empty cgroup while this same exclusive owner has never called run for it. The final runtime list must be empty. Bundle, process and cgroup descriptors close before the store can unlock.

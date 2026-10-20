@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased — 21 October 2026 — attached teardown observation races
+
+Fixed native host list/state and signal-delivery races exposed by conformance: attached teardown may remove state or finish the target before the next CLI operation. A fresh successful observation through a healthy transport now distinguishes that outcome without poisoning an otherwise provably clean owner or resending a signal. Still-live/foreign targets, failed observations and poisoned transports remain fail closed; original monitor/delete/kernel/final-absence requirements are unchanged. Deterministic positive/negative regression tests cover both CLI boundaries. [Semantics](development/NATIVE-RUNSC-HOST.md#closing-safely).
+
 ## Unreleased — 20 October 2026 — native worker with real PostgreSQL/Redis coordinators
 
 Added an explicit disposable Linux gate combining two real API processes, shared PostgreSQL/Redis and the real native worker/sandbox. Cases cover lost claim ACK plus API-peer handoff without a second run, cross-API cancellation/late unknown evidence, and missing Redis lease followed by durable orphan fencing and denied fresh-boot replacement. Clean shutdown independently checks monitor reaping, kernel subtree emptiness, runtime absence and ownership release without settlement. CI runs this gate alongside existing quality and gVisor checks; the quality host is pinned to the approved Ubuntu 24.04 fixture baseline. No production activation, API, migration, reassignment policy or ADR change. [Scope](development/NATIVE-COORDINATOR-CONFORMANCE.md).
