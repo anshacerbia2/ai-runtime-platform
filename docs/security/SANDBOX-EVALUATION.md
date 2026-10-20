@@ -31,6 +31,8 @@ These are candidates, not ranked defaults. If Kubernetes is the target, compare 
 
 ## Linux VM/VPS experiment
 
+The [native cgroup/live-owner crash checkpoint](../development/NATIVE-CGROUP-OWNER-CRASH.md) adds bounded kernel hierarchical population reads, an empty-parent/populated-child experiment, and SIGKILL of a real owner with a surviving attached monitor/sandbox. Stale ownership refuses reopen before and after explicit exact-bound fixture cleanup. This advances live-orphan refusal proof; production whole-host ownership/close, operational takeover, worker fencing, node loss and actual VPS approval remain separate gates.
+
 The driver fixture now uses [native runsc process transport](../development/NATIVE-RUNSC-PROCESSES.md) for fixed commands and attached monitors, with independent executable pin/root checks, bounded output/admission/deadlines and isolated host environment. A real one-second attached-monitor deadline preserves LOST, denies rerun/new reservation and requires explicit kernel-subtree cleanup. This is not a whole-host process-crash takeover or production activation; the full installed package and sidecars still require trusted provenance.
 
 [Pinned rootfs bundle production](../development/VERIFIED-RUNSC-BUNDLES.md) now replaces ad hoc driver fixture bundles. BusyBox bytes have a committed SHA-256 pin; producer/verifier hashes the whole approved file tree, emits fixed OCI policy and rejects tampered bytes before reservation/dispatch. The internal tree digest is not an OCI registry digest or production release approval. Native host CLI/ownership recovery, actual VPS and runtime/credential/egress gates remain required.

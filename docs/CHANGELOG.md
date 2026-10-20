@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased — 20 October 2026 — native cgroup evidence and live owner crash
+
+Added bounded read-only cgroup2 inspection using kernel hierarchical population evidence, FD/root/filesystem checks and strict interface parsing. Real gVisor driver conformance now uses it, with separate empty-parent/populated-child and SIGKILL-owner/live-orphan cases. Stale storage locks refuse reopen before and after explicit exact-bound runtime/subtree/monitor cleanup; no lock takeover, retry or production host activation is added. Native whole-host ownership/close composition, worker fencing, trusted release/credentials, Claude/egress and actual VPS remain dependencies. [Scope](development/NATIVE-CGROUP-OWNER-CRASH.md).
+
 ## Unreleased — 20 October 2026 — native runsc process transport
 
 Added a Linux process client with a pinned entrypoint, held root checks, fixed systrap/no-network commands, isolated environment, bounded command/monitor admission and output, explicit deadlines and retained attached monitors. Real driver conformance now uses it and injects monitor loss without rerun/new work or inferred termination. Numeric monitor status remains local evidence; sidecar provenance, exclusive whole-host ownership/recovery, live-orphan crash, Claude/credentials/egress and actual VPS gates remain open. No API, migration or ADR change. [Scope](development/NATIVE-RUNSC-PROCESSES.md).

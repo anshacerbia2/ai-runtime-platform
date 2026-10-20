@@ -24,6 +24,8 @@ This is local termination evidence only. It does not verify an agent result, res
 
 ## Evidence and limits
 
+The fixture now delegates kernel subtree inspection to the [native cgroup2 reader](NATIVE-CGROUP-OWNER-CRASH.md), using bounded hierarchical population evidence. A separate real SIGKILL-owner experiment leaves a live sandbox and attached monitor; stale lock refusal prevents takeover/new runtime paths, and explicit cleanup cannot unlock or authorize retry. Whole-host ownership/close composition and full worker/shared-store fencing remain separate dependencies.
+
 The fixture host now delegates its CLI surface and attached monitors to the [native process client](NATIVE-RUNSC-PROCESSES.md), with pinned entrypoint/root checks and bounded output/admission/deadlines. A real monitor-deadline case preserves LOST and blocks new reservation/rerun, while retaining explicit driver/kernel cleanup. Cgroup inspection, readiness and exclusive ownership remain fixture composition, not a production host or live-owner crash recovery protocol.
 
 Cross-platform behavioral tests cover reservation-before-spawn, concurrent retries, full identity rejection, recovery/no-rerun, monitor loss, CLI failure, lingering children, bounded lifetime capacity, pending creation and authority/stop/drain races during preparation. They run through `npm run test:unit`.
