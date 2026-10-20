@@ -10,6 +10,8 @@ Applicable tests wajib pass sebelum production cutover. N/A hanya untuk capabili
 
 ## Local evidence coverage versus full target gate
 
+Host lifecycle checkpoint: behavioral tests cover reserve/start/close races, final-guard shutdown, pending/LOST monitors, metadata/foreign/live/descendant refusal and bounded capacity. Linux store/startup tests retain exact locks; three real native-composition cases cover clean stop/reap/unlock, close during pending creation with competing-open denial, and LOST followed by explicit cleanup without unlock. Full worker lease/cancel/fence, operational takeover/retirement, actual VPS and production gates remain open. [Scope](../development/NATIVE-RUNSC-HOST.md).
+
 Kernel/crash checkpoint: native cgroup2 read/parse/admission tests and two real Linux cases cover a populated nested child with empty parent PID list, and SIGKILL of a live owner while its monitor/sandbox survive. Stale-lock refusal and unchanged metadata hold before and after explicit runtime/subtree/original-monitor cleanup. This is not full host takeover, worker fence, node/power/volume-loss, retirement or gate closure. [Scope](../development/NATIVE-CGROUP-OWNER-CRASH.md).
 
 Native CLI checkpoint: Linux process tests cover fixed commands/environment, executable pin/root checks, bounded admission/output/deadlines, spawn failure, duplicate attempts, invalid replies and close draining. Real gVisor driver conformance now uses this transport and injects a lost attached monitor without rerun/new reservation or inferred termination. Whole-host ownership, live-orphan crash and full worker fence gates remain open. [Scope](../development/NATIVE-RUNSC-PROCESSES.md).

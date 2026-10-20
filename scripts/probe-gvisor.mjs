@@ -58,6 +58,8 @@ const { RunscProcessClient } =
 const { RunscCgroupInspector } =
   await import('../apps/runner/dist/runsc-cgroup-inspector.js');
 const { probeOwnerCrash } = await import('./lib/gvisor-owner-crash-probe.mjs');
+const { probeHostLifecycle } =
+  await import('./lib/gvisor-host-lifecycle-probe.mjs');
 for (const file of [runtimePath, busyboxPath]) {
   assert.ok(
     typeof file === 'string' && isAbsolute(file),
@@ -977,6 +979,30 @@ try {
   });
   console.log(
     'gVisor owner crash PASS: SIGKILL with live sandbox, unchanged durable lock denies takeover before and after explicit cleanup',
+  );
+  await probeHostLifecycle({
+    workspace,
+    producerOptions,
+    processOptions,
+    binding,
+    inspector: cgroupInspector,
+    until,
+    command,
+    additionalCleanup,
+  });
+  observations.push(
+    {
+      case: 'native-host-clean-close-unlocks-after-stop-and-reaping',
+      outcome: 'PASS',
+    },
+    {
+      case: 'native-host-pending-monitor-holds-lock-through-late-creation',
+      outcome: 'PASS',
+    },
+    {
+      case: 'native-host-lost-monitor-retains-lock-after-explicit-cleanup',
+      outcome: 'PASS',
+    },
   );
 } catch (error) {
   failure = error;

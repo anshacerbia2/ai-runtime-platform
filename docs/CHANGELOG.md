@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased — 20 October 2026 — native runsc host ownership lifecycle
+
+Added a layout-bound Linux host factory and trusted lifecycle composition across verified bundles, durable reservations, bounded runsc monitors and native cgroups. Concurrent reservations grant one launch; shutdown seals starts before draining accepted preparation and original monitors. Clean close requires durable binding checks, trusted delete, whole-subtree emptiness, fresh runtime absence and closed component descriptors before unlock. LOST/foreign/live/partial/error cases retain the lock through explicit retained store close; no automatic takeover or retirement is added. Behavioral tests and three disposable real gVisor cases cover clean/pending/LOST close. Full worker fencing, production runtime/delivery/host recovery and O03 remain open. No API, migration or ADR change. [Scope](development/NATIVE-RUNSC-HOST.md).
+
 ## Unreleased — 20 October 2026 — native cgroup evidence and live owner crash
 
 Added bounded read-only cgroup2 inspection using kernel hierarchical population evidence, FD/root/filesystem checks and strict interface parsing. Real gVisor driver conformance now uses it, with separate empty-parent/populated-child and SIGKILL-owner/live-orphan cases. Stale storage locks refuse reopen before and after explicit exact-bound runtime/subtree/monitor cleanup; no lock takeover, retry or production host activation is added. Native whole-host ownership/close composition, worker fencing, trusted release/credentials, Claude/egress and actual VPS remain dependencies. [Scope](development/NATIVE-CGROUP-OWNER-CRASH.md).
