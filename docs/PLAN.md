@@ -62,6 +62,8 @@ Tambahkan per-app/pool concurrency, rate limits, token/output bounds, deadline, 
 
 ### P3 — Claude Agent Runtime MVP
 
+Checkpoint kernel/crash 20 Oktober 2026: native bounded cgroup2 inspection supplies the driver port; real nested-process and live-owner SIGKILL experiments require nonempty orphan evidence, stale-lock refusal/no-rerun and explicit runtime/subtree/original-monitor cleanup. Stale locks remain blocked even after cleanup. This advances live-orphan evidence without adding production takeover, retirement or full host composition. [Scope](development/NATIVE-CGROUP-OWNER-CRASH.md).
+
 Checkpoint native CLI 20 Oktober 2026 menambahkan pinned executable checks, fixed runsc command surface, bounded output/admission/deadlines dan attached monitors pada real driver conformance. Monitor loss tetap LOST; timeout tidak mengotorisasi stop/retry, dan fresh work diblokir sampai recovery eksplisit. Whole-host ownership/cgroup/readiness composition, live-orphan crash, trusted release/credential delivery serta Claude/egress tetap dependency. [Scope](development/NATIVE-RUNSC-PROCESSES.md).
 
 Checkpoint bundle 20 Oktober 2026 menambahkan full-tree rootfs content verification dari trusted manifest pin, readonly independent copies dan fixed OCI policy, dipakai real gVisor conformance sebelum reservation/dispatch. Production image approval/provenance dan native host lifecycle/recovery masih dependency; content hashing bukan penutupan O03 atau Claude compatibility. [Scope](development/VERIFIED-RUNSC-BUNDLES.md).

@@ -11,6 +11,7 @@ import {
   readdir,
   realpath,
   rm,
+  rmdir,
   stat,
   writeFile,
 } from 'node:fs/promises';
@@ -54,6 +55,9 @@ const { rootfsManifestDigest } =
   await import('../apps/runner/dist/runsc-bundle.js');
 const { RunscProcessClient } =
   await import('../apps/runner/dist/runsc-process-client.js');
+const { RunscCgroupInspector } =
+  await import('../apps/runner/dist/runsc-cgroup-inspector.js');
+const { probeOwnerCrash } = await import('./lib/gvisor-owner-crash-probe.mjs');
 for (const file of [runtimePath, busyboxPath]) {
   assert.ok(
     typeof file === 'string' && isAbsolute(file),
@@ -124,6 +128,8 @@ const fixtures = [];
 let launchStore;
 let bundleProducer;
 let processClient;
+let cgroupInspector;
+const additionalCleanup = [];
 const driverBundles = join(workspace, 'driver-bundles');
 const observations = [];
 const report = {
@@ -325,6 +331,7 @@ async function running(fixture) {
   assert.equal((await state(fixture)).status, 'running');
 }
 async function remove(fixture, force = false) {
+  await fixture.beforeRemove?.();
   await runtime([
     'delete',
     ...(force ? ['--force'] : []),
@@ -335,6 +342,10 @@ async function remove(fixture, force = false) {
     (await runtime(['list', '--format=json'])).stdout,
   );
   assert.ok(remaining.every((row) => row.id !== fixture.identity.sandboxId));
+  if (fixture.driverBinding) {
+    await until(() => cgroupInspector.empty(fixture.driverBinding));
+  }
+  await fixture.reapMonitor?.();
   fixture.deleted = true;
 }
 async function caps(fixture) {
@@ -567,6 +578,7 @@ try {
     runTimeoutMs: 15000,
   };
   processClient = await RunscProcessClient.open(processOptions);
+  cgroupInspector = await RunscCgroupInspector.open();
   let driverMode = 'graceful';
   let starts = 0;
   const owned = (record) => {
@@ -587,7 +599,8 @@ try {
       if (
         launchStore.recoveryRequired ||
         bundleProducer.recoveryRequired ||
-        processClient.recoveryRequired
+        processClient.recoveryRequired ||
+        cgroupInspector.recoveryRequired
       ) {
         throw new Error('Host recovery required.');
       }
@@ -668,7 +681,8 @@ try {
       await processClient.destroy(record);
     },
     async cgroupEmpty(record) {
-      return (await cgroupProcesses(owned(record).cgroup)).length === 0;
+      owned(record);
+      return cgroupInspector.empty(record.identity);
     },
   };
   const binding = () => ({
@@ -892,11 +906,90 @@ try {
   console.log(
     'gVisor driver PASS: real reservation store reopen blocks fresh work and rerun',
   );
+  // A separate owned kernel hierarchy proves the parent's direct PID list is
+  // insufficient when its only live task is in a nested child cgroup.
+  const nestedBinding = binding();
+  const nestedRoot = join('/sys/fs/cgroup', runscSandboxId(nestedBinding));
+  const nestedChild = join(nestedRoot, 'owned-child');
+  let nestedRootCreated = false;
+  let nestedChildCreated = false;
+  let sleeper;
+  let sleeperExit;
+  const cleanNested = async () => {
+    if (sleeper && sleeper.exitCode === null && sleeper.signalCode === null) {
+      sleeper.kill('SIGKILL');
+    }
+    await sleeperExit;
+    if (nestedRootCreated) {
+      await until(() => cgroupInspector.empty(nestedBinding));
+    }
+    if (nestedChildCreated) {
+      await rmdir(nestedChild);
+      nestedChildCreated = false;
+    }
+    if (nestedRootCreated) {
+      await rmdir(nestedRoot);
+      nestedRootCreated = false;
+    }
+  };
+  additionalCleanup.push(cleanNested);
+  await mkdir(nestedRoot);
+  nestedRootCreated = true;
+  await writeFile(join(nestedRoot, 'memory.max'), '134217728');
+  await writeFile(join(nestedRoot, 'pids.max'), '16');
+  await writeFile(join(nestedRoot, 'cpu.max'), '50000 100000');
+  await mkdir(nestedChild);
+  nestedChildCreated = true;
+  // Trusted short-lived host test helper, never an agent/plugin execution path.
+  sleeper = spawn('/bin/sleep', ['30'], { env: childEnv, stdio: 'ignore' });
+  sleeperExit = new Promise((resolve, reject) => {
+    sleeper.once('error', reject);
+    sleeper.once('exit', resolve);
+  });
+  assert.ok(sleeper.pid);
+  await writeFile(join(nestedChild, 'cgroup.procs'), String(sleeper.pid));
+  assert.equal(
+    (await readFile(join(nestedRoot, 'cgroup.procs'), 'utf8')).trim(),
+    '',
+  );
+  assert.equal(await cgroupInspector.empty(nestedBinding), false);
+  await cleanNested();
+  observations.push({
+    case: 'native-cgroup-detects-nested-process-with-empty-parent',
+    outcome: 'PASS',
+  });
+  console.log(
+    'gVisor kernel PASS: native inspector detects populated descendant with empty parent PID list',
+  );
+  await probeOwnerCrash({
+    workspace,
+    processOptions,
+    producerOptions,
+    identity: binding(),
+    inspector: cgroupInspector,
+    fixtures,
+    runtime,
+    until,
+  });
+  observations.push({
+    case: 'live-owner-sigkill-stale-lock-no-takeover-no-rerun',
+    outcome: 'PASS',
+  });
+  console.log(
+    'gVisor owner crash PASS: SIGKILL with live sandbox, unchanged durable lock denies takeover before and after explicit cleanup',
+  );
 } catch (error) {
   failure = error;
 }
 async function cleanup() {
   const errors = [];
+  for (const cleanup of additionalCleanup) {
+    try {
+      await cleanup();
+    } catch (error) {
+      errors.push(error);
+    }
+  }
   for (const owned of fixtures.filter((item) => !item.deleted)) {
     try {
       await remove(owned, true);
@@ -913,6 +1006,7 @@ async function cleanup() {
   }
   await bundleProducer?.close();
   await processClient?.close();
+  await cgroupInspector?.close();
   await launchStore?.close();
   const expectedParent = await realpath(tmpdir());
   const cleanupTarget = await realpath(workspace);

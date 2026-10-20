@@ -4,6 +4,8 @@
 
 ## Cara membaca dokumentasi
 
+Checkpoint kernel/crash 20 Oktober 2026: `RunscCgroupInspector` supplies bounded native subtree-population evidence; real conformance adds populated-child/empty-parent and owner-SIGKILL/live-orphan cases. The original monitor and sandbox remain live after owner death; stale lock refusal blocks new runtime paths, including after explicit runtime/subtree/original-monitor cleanup. This is fail-closed crash evidence, not production takeover, full host ownership/close, worker fence or VPS approval. [Scope](../development/NATIVE-CGROUP-OWNER-CRASH.md).
+
 Checkpoint native CLI 20 Oktober 2026: `RunscProcessClient` menyediakan fixed commands, pinned entrypoint/root checks, bounded output/admission/deadlines dan attached monitors pada real driver fixture. Timeout/output/transport loss tetap LOST dan menolak runs baru; cleanup/inspection tetap eksplisit. Ini bukan full distribution provenance atau production host: exclusive ownership, cgroup/readiness composition, live-orphan crash, worker/shared-store fencing, Claude/credential/egress serta actual VPS tetap pending. [Scope](../development/NATIVE-RUNSC-PROCESSES.md).
 
 Checkpoint bundle 20 Oktober 2026: strict rootfs content pins, Linux readonly bundle producer/verifier dan fixed OCI preset tersedia; real gVisor probe mengomposisikan hasilnya dengan reservation/driver/supervisor. Full-tree hashing, independent copies, tamper denial dan readonly reopen memperluas M3. Production release/provenance resolver, native host/live-orphan recovery, Claude/credential/egress serta actual VPS tetap pending. [Scope](../development/VERIFIED-RUNSC-BUNDLES.md).

@@ -8,6 +8,8 @@ NestJS + Fastify + Prisma + PostgreSQL, React/Next.js App Router + BFF, TypeScri
 
 ## Sudah tersedia sebelum milestone runtime
 
+Native cgroup2 inspection and a real live-owner SIGKILL gate now extend sandbox evidence. Kernel hierarchical population detects nested tasks even with an empty parent PID list. Stale-lock reopen is denied before and after explicit orphan cleanup, without rerun or invented monitor status. Native whole-host ownership/close composition, operational recovery, worker fencing and production runtime dependencies remain open. [Scope](development/NATIVE-CGROUP-OWNER-CRASH.md).
+
 Native runsc process transport now supplies fixed commands, pinned entrypoint checks, bounded output/admission/deadlines and attached monitors to real driver conformance. A lost monitor cannot become termination evidence or authorize rerun; whole-host ownership/live-orphan recovery, trusted release/credential composition, Claude/egress and actual VPS remain M3 dependencies. [Scope](development/NATIVE-RUNSC-PROCESSES.md).
 
 Pinned file-tree verification and readonly OCI bundle production now feed real gVisor conformance, including tamper denial before reservation/dispatch. This advances M3 content integrity; production image provenance/approval, native host recovery, Claude/credential/egress and actual VPS remain dependencies. [Scope](development/VERIFIED-RUNSC-BUNDLES.md).

@@ -24,6 +24,8 @@ The storage lock does not prove that an old sandbox or pending monitor creation 
 
 ## Evidence and remaining gates
 
+The [live-owner crash experiment](NATIVE-CGROUP-OWNER-CRASH.md) now SIGKILLs a process holding this store while real runsc and its sandbox are running. Reopen refuses the unchanged stale lock before any new runtime path. The fixture separately cleans the exact runtime, native cgroup subtree and original monitor lifetime; the stale lock still refuses reopen afterward. This adds live-orphan refusal evidence without implementing production unlock/takeover or retirement.
+
 Cross-platform tests cover strict schema/path/digest binding and unsupported-host refusal. Linux tests cover concurrent reserve/conflicts, replay, lock exclusion, close/intake ordering, capacity/backpressure, corrupt/partial/link files, metadata drift, root replacement and no-clobber append. A child is SIGKILLed after durable reservation and before any runtime launch; its stale lock denies reopen. Only after the fixture reaps that exact child and knows it never launched a runtime does it remove its owned lock. Reopen retains the record, denies fresh work, and driver replay cannot call `start` or infer termination from absence.
 
 That test-only removal is **not** a production unlock protocol or live-orphan recovery proof. Separately, the Linux gVisor probe composes real storage/driver/supervisor/runsc, reaps monitors and checks owned-tree cleanup before clean storage reopen/no-rerun. Neither test proves power-loss durability, disk-full behavior, network filesystems, volume/node loss, hostile storage administrators, actual VPS compatibility or full worker/shared-store fencing.

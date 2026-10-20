@@ -10,6 +10,8 @@ Applicable tests wajib pass sebelum production cutover. N/A hanya untuk capabili
 
 ## Local evidence coverage versus full target gate
 
+Kernel/crash checkpoint: native cgroup2 read/parse/admission tests and two real Linux cases cover a populated nested child with empty parent PID list, and SIGKILL of a live owner while its monitor/sandbox survive. Stale-lock refusal and unchanged metadata hold before and after explicit runtime/subtree/original-monitor cleanup. This is not full host takeover, worker fence, node/power/volume-loss, retirement or gate closure. [Scope](../development/NATIVE-CGROUP-OWNER-CRASH.md).
+
 Native CLI checkpoint: Linux process tests cover fixed commands/environment, executable pin/root checks, bounded admission/output/deadlines, spawn failure, duplicate attempts, invalid replies and close draining. Real gVisor driver conformance now uses this transport and injects a lost attached monitor without rerun/new reservation or inferred termination. Whole-host ownership, live-orphan crash and full worker fence gates remain open. [Scope](../development/NATIVE-RUNSC-PROCESSES.md).
 
 Bundle checkpoint: strict content-pin/policy tests and Linux file-tree/copy/readonly/tamper/reopen cases now feed the real gVisor producer/reservation/supervisor proof. The fixture has a committed BusyBox byte pin and rejects same-size rootfs tampering before dispatch. This is content integrity, not production image provenance, general OCI import, Claude compatibility, native live-orphan host recovery or gate closure. [Scope](../development/VERIFIED-RUNSC-BUNDLES.md).

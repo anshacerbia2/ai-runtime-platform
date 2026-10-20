@@ -24,6 +24,8 @@
 
 ## Current-source gaps retained explicitly
 
+O03 kernel/crash checkpoint 20 Oktober 2026: [native cgroup and live-owner SIGKILL evidence](../development/NATIVE-CGROUP-OWNER-CRASH.md) now detects nested population and proves stale ownership refuses reopen while a real orphan is live and after explicit cleanup. No production takeover/unlock, retry, full host composition or technology approval is added; O03 remains open.
+
 O03 native CLI checkpoint 20 Oktober 2026: [bounded process transport](../development/NATIVE-RUNSC-PROCESSES.md) now supplies fixed commands/attached monitors and a real monitor-loss experiment. Independent entrypoint checks do not approve the full sidecar distribution; CLI timeout/close does not grant termination, takeover or retry authority. Whole-host/live-orphan recovery and production runtime/credential approval remain open.
 
 O03/O15 content checkpoint 20 Oktober 2026: [pinned rootfs bundle production](../development/VERIFIED-RUNSC-BUNDLES.md) now verifies full file-tree content and fixed OCI policy. Approval input is trusted host configuration; production registry/signature/provenance/revocation resolution, Claude compatibility and native host recovery remain open. No technology/deployment approval is inferred from the fixture pin or green CI.
