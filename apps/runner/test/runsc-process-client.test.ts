@@ -186,6 +186,56 @@ test(
 );
 
 test(
+  'final authority denial or guard error prevents OS spawn after root checks and seals the name',
+  linux,
+  async (t) => {
+    const f = await fixture(t);
+    const marker = join(f.directory, 'spawned-marker');
+    const source = `#!${process.execPath}\nrequire('node:fs').writeFileSync(${JSON.stringify(marker)}, 'spawned');`;
+    await writeFile(f.executable, source);
+    const client = await f.client({
+      approvedExecutableSha256: createHash('sha256')
+        .update(source)
+        .digest('hex'),
+    });
+    let checks = 0;
+    assert.throws(
+      () =>
+        client.run(f.record, {
+          canLaunch: () => {
+            checks++;
+            return false;
+          },
+        }),
+      /unavailable/,
+    );
+    assert.equal(checks, 1);
+    await assert.rejects(readFile(marker), { code: 'ENOENT' });
+    assert.throws(() => client.run(f.record, { canLaunch: () => true }));
+    const identity = { ...f.record.identity, assignmentId: randomUUID() };
+    const id = runscSandboxId(identity);
+    assert.throws(
+      () =>
+        client.run(
+          { identity, sandboxId: id, bundle: join(f.bundleRoot, id) },
+          {
+            canLaunch: () => {
+              throw new Error('private guard error');
+            },
+          },
+        ),
+      /unavailable/,
+    );
+    await assert.rejects(readFile(marker), { code: 'ENOENT' });
+    assert.equal(
+      client.recoveryRequired,
+      false,
+      'Known denial does not invent transport uncertainty.',
+    );
+  },
+);
+
+test(
   'monitor deadline/output failure stays LOST and commands remain available for explicit cleanup',
   linux,
   async (t) => {

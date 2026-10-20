@@ -29,7 +29,7 @@ export interface SandboxDriver {
 }
 
 export interface SandboxLaunchGuard {
-  /** Recheck synchronously at spawn after any asynchronous host preparation. */
+  /** Recheck immediately before OS spawn after all host preparation/validation. */
   canLaunch(): boolean;
 }
 

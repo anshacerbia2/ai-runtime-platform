@@ -12,6 +12,8 @@ Only list, exact-record state, all-process TERM/KILL, forced delete, and attache
 
 ## Bounds and uncertainty
 
+The supervisor's authority/stop/drain guard reaches the client through the driver and host. The client rechecks it after synchronous filesystem validation, immediately before the OS spawn: synchronous I/O can also consume a lease. A denied or throwing guard does not spawn; it retains the attempted name without inventing transport loss. There is no await, queue or filesystem operation between this last guard and spawn.
+
 At most four control commands and eight attached monitors can be active; excess intake is rejected without a queue. At most 256 assignment names may be attempted during one client lifetime, and each is sealed synchronously before spawn, including failed attempts. Reopening a new client does not preserve those local names; durable launch reservations and exclusive host ownership remain mandatory to prevent rerun.
 
 Control replies have a combined stdout/stderr limit of 64 KiB and strict UTF-8/JSON parsing. Empty-list `null` is explicit; malformed/duplicate/oversize list entries or null/nonobject state are rejected. Attached output is drained without retaining/returning guest bytes, with a combined one MiB lifetime limit. Child stderr and raw error output never appear in public errors. Numeric nonzero CLI status is rejected for control operations; a numeric attached-monitor exit remains `REAPED` with its actual code, not an execution result or invented transport loss.

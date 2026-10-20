@@ -134,6 +134,32 @@ test('concurrent retries reserve before one spawn, capture identity and retain t
   await assert.rejects(driver.launch({ ...captured, epoch: 2 }), /identity/);
 });
 
+test('the same final guard reaches the host for a recheck after synchronous host preparation', async () => {
+  const f = fixture();
+  const original = f.host.start;
+  let checks = 0;
+  f.host.start = (record, guard) => {
+    assert.ok(guard, 'Host final guard missing.');
+    if (!guard.canLaunch()) {
+      throw new Error('Host final guard denied.');
+    }
+    return original(record, guard);
+  };
+  const binding = identity();
+  await assert.rejects(
+    new RunscSandboxDriver(f.host).launch(binding, {
+      canLaunch: () => ++checks === 1,
+    }),
+    /Host final guard denied/,
+  );
+  assert.equal(checks, 2);
+  assert.equal(f.counts().starts, 0);
+  assert.ok(
+    f.records.has(runscSandboxId(binding)),
+    'Reservation remains sealed after a denied spawn.',
+  );
+});
+
 test('new driver recovers a reserved assignment without another spawn even when absent', async () => {
   const f = fixture();
   const binding = identity();

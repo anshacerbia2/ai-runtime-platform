@@ -10,6 +10,7 @@ import {
 import { lstat, open, realpath, type FileHandle } from 'node:fs/promises';
 import { posix } from 'node:path';
 import { TextDecoder } from 'node:util';
+import type { SandboxLaunchGuard } from './sandbox-supervisor.js';
 import {
   captureRunscIdentity,
   runscSandboxId,
@@ -47,6 +48,7 @@ const sameNode = (a: BigIntStats, b: BigIntStats) =>
   a.dev === b.dev && a.ino === b.ino;
 const statuses = ['created', 'running', 'paused', 'stopped'];
 const env = Object.freeze({ PATH: '/usr/sbin:/usr/bin:/sbin:/bin', LANG: 'C' });
+class LaunchDenied extends Error {}
 
 interface Anchor {
   path: string;
@@ -251,7 +253,10 @@ export class RunscProcessClient {
   }
 
   /** Synchronous validation and spawn: no promise/queue between the caller guard and run. */
-  run(record: RunscLaunchRecord): {
+  run(
+    record: RunscLaunchRecord,
+    guard?: SandboxLaunchGuard,
+  ): {
     readonly finished: Promise<RunscProcessExit>;
   } {
     const captured = this.record(record);
@@ -272,6 +277,7 @@ export class RunscProcessClient {
         this.options.runTimeoutMs,
         1048576,
         false,
+        guard,
       );
       const finished = child
         .then((result) => {
@@ -285,9 +291,11 @@ export class RunscProcessClient {
         });
       this.track(finished);
       return Object.freeze({ finished });
-    } catch {
+    } catch (error) {
       this.runs--;
-      this.uncertain = true;
+      if (!(error instanceof LaunchDenied)) {
+        this.uncertain = true;
+      }
       throw unavailable();
     }
   }
@@ -412,23 +420,33 @@ export class RunscProcessClient {
     timeout: number,
     maxBytes: number,
     capture: boolean,
+    guard?: SandboxLaunchGuard,
   ): Promise<{ exit: RunscProcessExit; output: Buffer }> {
     // Only this class builds argv. No shell, inherited env, caller flags or stdin.
-    const child = spawn(
-      this.options.executable,
-      [
-        `--root=${this.options.stateRoot}`,
-        '--platform=systrap',
-        '--network=none',
-        ...args,
-      ],
-      {
-        env,
-        stdio: ['ignore', 'pipe', 'pipe'],
-        windowsHide: true,
-        cwd: this.options.stateRoot,
-      },
-    );
+    const argv = [
+      `--root=${this.options.stateRoot}`,
+      '--platform=systrap',
+      '--network=none',
+      ...args,
+    ];
+    const options = {
+      env,
+      stdio: ['ignore', 'pipe', 'pipe'] as ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
+      cwd: this.options.stateRoot,
+    };
+    // Filesystem checks can consume a lease even without an await. No I/O,
+    // await or queue is allowed after this final authority/stop/drain recheck.
+    if (guard) {
+      try {
+        if (!guard.canLaunch()) {
+          throw new LaunchDenied();
+        }
+      } catch {
+        throw new LaunchDenied();
+      }
+    }
+    const child = spawn(this.options.executable, argv, options);
     return new Promise((resolve) => {
       let settled = false;
       let lost = false;

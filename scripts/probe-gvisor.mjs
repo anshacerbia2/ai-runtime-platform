@@ -608,10 +608,10 @@ try {
       );
       return { record: saved.reservation.record, fresh: saved.fresh };
     },
-    start(record) {
+    start(record, guard) {
       const item = owned(record);
       starts++;
-      const monitor = processClient.run(record); // Synchronous attached spawn.
+      const monitor = processClient.run(record, guard); // Final guarded OS spawn.
       item.completion = monitor.finished.then((result) => ({
         code: result.code,
       }));
