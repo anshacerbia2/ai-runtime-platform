@@ -296,15 +296,18 @@ export class FileRunscLaunchStore {
   }
 
   /** Caller must stop/reap runtime creation before releasing host ownership. */
-  close(): Promise<void> {
+  close(options: { readonly retainLock?: boolean } = {}): Promise<void> {
     if (!this.closePromise) {
+      const retainLock = options.retainLock === true;
       this.closing = true; // Seal immediately; accepted I/O finishes before unlock.
       this.closePromise = this.queue.then(async () => {
         let failed = false;
         try {
           await this.ownership();
-          await unlink(posix.join(this.anchor, 'writer.lock'));
-          await this.directory.sync();
+          if (!retainLock) {
+            await unlink(posix.join(this.anchor, 'writer.lock'));
+            await this.directory.sync();
+          }
         } catch {
           this.poisoned = true;
           failed = true;

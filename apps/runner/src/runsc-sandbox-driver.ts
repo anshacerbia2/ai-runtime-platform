@@ -18,8 +18,8 @@ export interface RunscLaunchRecord {
 
 /**
  * Trusted host boundary, never implemented by a plugin. There is no default
- * production host. The Linux conformance fixture implements this port with real
- * runsc; image provenance, private durable storage and host recovery remain gates.
+ * production host. NativeRunscHost explicitly composes this port on a fresh Linux
+ * namespace; production provenance, worker fencing and operational recovery remain gates.
  */
 export interface RunscSandboxHost {
   /**

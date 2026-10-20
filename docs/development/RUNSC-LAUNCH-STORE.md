@@ -16,6 +16,8 @@ Every lookup reopens a private regular single-link file without following its le
 
 ## Ownership and recovery
 
+The [native host lifecycle](NATIVE-RUNSC-HOST.md) now holds this store through preparation, original monitor draining and final runtime/cgroup proof. `close({ retainLock: true })` explicitly drains I/O and closes descriptors without unlinking `writer.lock`; options are captured at the first close call, and later close calls cannot downgrade retention. Bare store close still relies on the trusted caller to establish process ownership/termination first.
+
 Exclusive `writer.lock` uses a random session, with no PID/TTL takeover. A stale lock refuses open. Failed recovery preserves the lock; there is no automatic unlock or application recovery endpoint.
 
 Clean reopen with any retained records sets `recoveryRequired: true`: reads and exact replay remain available, while **all fresh assignments** are denied. No reset or automatic retirement exists. Runtime absence cannot erase a reservation or permit reexecution; a recovered handle is for inspection/cleanup, not permission to restart agent/provider work.

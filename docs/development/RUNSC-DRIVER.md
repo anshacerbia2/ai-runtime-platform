@@ -24,6 +24,8 @@ This is local termination evidence only. It does not verify an agent result, res
 
 ## Evidence and limits
 
+The [native host lifecycle](NATIVE-RUNSC-HOST.md) now implements this port with the existing Linux components, fixed layout, durable single-use reservation and fail-closed close. Its separate real conformance cases prove clean/pending/LOST ownership behavior. The earlier fixture/component checkpoints below remain useful evidence; production worker fencing, operational recovery and trusted runtime/delivery are still separate gates.
+
 The fixture now delegates kernel subtree inspection to the [native cgroup2 reader](NATIVE-CGROUP-OWNER-CRASH.md), using bounded hierarchical population evidence. A separate real SIGKILL-owner experiment leaves a live sandbox and attached monitor; stale lock refusal prevents takeover/new runtime paths, and explicit cleanup cannot unlock or authorize retry. Whole-host ownership/close composition and full worker/shared-store fencing remain separate dependencies.
 
 The fixture host now delegates its CLI surface and attached monitors to the [native process client](NATIVE-RUNSC-PROCESSES.md), with pinned entrypoint/root checks and bounded output/admission/deadlines. A real monitor-deadline case preserves LOST and blocks new reservation/rerun, while retaining explicit driver/kernel cleanup. Cgroup inspection, readiness and exclusive ownership remain fixture composition, not a production host or live-owner crash recovery protocol.

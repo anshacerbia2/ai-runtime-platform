@@ -216,6 +216,29 @@ test(
 );
 
 test(
+  'explicit retained close drains writes, preserves exact lock and cannot later unlock',
+  linux,
+  async (t) => {
+    const f = await fixture(t);
+    const store = await f.open();
+    const before = await readFile(join(f.directory, 'writer.lock'));
+    const value = f.record();
+    const writing = store.reserve(value, digest);
+    const options = { retainLock: true };
+    const closing = store.close(options);
+    options.retainLock = false;
+    await writing;
+    await closing;
+    await store.close();
+    assert.deepEqual(await readFile(join(f.directory, 'writer.lock')), before);
+    await assert.rejects(f.open());
+    assert.ok(
+      await readFile(join(f.directory, `${value.sandboxId}.reservation`)),
+    );
+  },
+);
+
+test(
   'partial files, malformed/oversize records and symlink/hardlink records fail closed and remain intact',
   linux,
   async (t) => {

@@ -1,5 +1,7 @@
 # AI Runtime Platform — Roadmap
 
+Native host lifecycle now composes the existing Linux components under one fixed private layout. Pending creation holds ownership; only reaped monitors plus durable binding/delete/cgroup/fresh-absence proof permit clean unlock. LOST or uncertain cleanup retains the lock. Next is full worker lease/cancel/drain binding and real sandbox races, followed by the trusted runtime/delivery bridge. This advances the prior checkpoints below without production activation, takeover/retirement, O03 closure or an ADR change. [Scope](development/NATIVE-RUNSC-HOST.md).
+
 **Baseline 0.2 + extensions through ADR-0031; status source diperiksa 30 September 2026.** Roadmap berbasis dependency dan gate, bukan janji tanggal. M0 tetap runnable; M1 local P1 foundation sekarang implemented dan lulus acceptance lokal, sementara live Keycloak sign-in, deployed BFF/Redis session evidence, production KMS, provider runtime, dan production readiness belum selesai. Lihat [M0](milestones/M0.md) dan [M1](milestones/M1.md).
 
 ## Stack implementasi tetap

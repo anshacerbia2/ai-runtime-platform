@@ -1,0 +1,39 @@
+# Native runsc host lifecycle
+
+**20 October 2026 — M3 component composition; no production activation or O03 closure.** [`NativeRunscHost.open`](../../apps/runner/src/native-runsc-host.ts) composes the [private reservation store](RUNSC-LAUNCH-STORE.md), [verified bundle producer](VERIFIED-RUNSC-BUNDLES.md), [bounded process client](NATIVE-RUNSC-PROCESSES.md) and [native cgroup inspector](NATIVE-CGROUP-OWNER-CRASH.md). [`RunscHostLifecycle`](../../apps/runner/src/runsc-host-lifecycle.ts) implements the existing trusted driver host port. No ADR is changed.
+
+## Startup and ownership
+
+The trusted host supplies an existing canonical, effective-UID-owned mode-0700 directory containing three private directories: `reservations/`, `bundles/` and `state/`. Their paths are derived from that one layout; callers cannot select another reservation directory for the same runtime root. The source image and pinned executable must be outside this layout. Child components retain their existing canonical-path, ownership, inode, manifest, digest and permission checks. No directory provisioning, executable installation, defaults or environment/credential loading is performed.
+
+The reservation writer lock is acquired before any runtime component opens. Existing reservations or bundles reject startup; a nonempty runtime list also rejects startup. Failure after lock acquisition closes acquired descriptors and retains the lock. A stale lock refuses startup before another runtime path. This factory supports an explicitly authorized fresh namespace only; it does not resume a previous process, transfer ownership or make a recovered nonempty store eligible for fresh work. A cleanly closed store with retained records still requires explicit operational recovery. Recreating roots, using another namespace after disk loss, or deleting a lock is not recovery.
+
+The process must exclusively own these components, the runtime namespace and its deterministic assignment names for their whole lifetime. The constructor taking trusted ports is for controlled composition/testing, not an application/plugin extension point. Filesystem ownership is not coordinator assignment authority or protection against another privileged process, disk rollback, an old node or a different host. Full worker/shared-store fencing remains a separate gate.
+
+## Reservation, launch and observation
+
+The host captures all eight identity fields. Preparation and full verification of the fixed trusted program precede the durable reservation. The verified rootfs pin, record and config digest must agree. Concurrent callers get one fresh reservation; replay rechecks retained metadata and never grants a second launch. Identity conflicts, unknown records and capacity denials cannot evict a previous assignment.
+
+At most 256 assignment names are retained for the host lifetime. Preparation and control observations share a serialized queue capped at eight admitted operations including active work. The underlying process client keeps its four-command and eight-monitor limits. Bounds limit admission and memory; they do not guarantee filesystem latency.
+
+`start` consumes the committed launch slot synchronously, then directly calls attached `runsc run`. It forwards the caller guard through a host shutdown check to the process client's final check immediately before OS spawn, after synchronous root/executable validation. There is no asynchronous queue between that final guard and spawn. Failed or denied attempts keep the reservation and cannot be rerun. Because the current transport does not expose proof that every synchronous exception preceded spawn, such an exception conservatively retains ownership on close.
+
+Readiness requires the exact running identity/bundle/annotation, or a numeric zero exit from the original monitor for an unobserved fast exit. A state lookup can race attached teardown; readiness continues tracking the original bounded monitor rather than rejecting while creation could still emerge. Nonzero unobserved exit rejects startup. LOST stays LOST. Neither readiness nor a monitor exit is an official result, usage settlement, remote-effect conclusion or retry grant.
+
+State, signal and delete paths address only known records. Fresh observed state must match the complete reservation before acting. Foreign or malformed bindings fail closed. Cleanup controls remain available after monitor loss until close starts; no new assignment/run is admitted. No caller flags, host PIDs, inherited environment, plugin execution or provider credentials are introduced.
+
+## Closing safely
+
+Call `supervisor.quiesce()`, explicitly stop/drain tracked work, then `host.close()`. Host close is a passive final proof, not a TERM/KILL request. It seals new reservations, launches and public controls immediately, while holding the writer lock. Already accepted preparation/control work, readiness tracking and original monitors drain before any ownership decision. Pending creation cannot be overlooked merely because runtime state and the cgroup currently appear empty. Filesystem stalls or a monitor that cannot be reaped keep close pending and ownership held.
+
+Clean close rechecks durable bindings/digests, refuses untracked runtime rows, and requires every admitted record to be accounted for. Attempted launches require the original numeric REAPED monitor, no live/created state, trusted delete, an empty whole kernel cgroup and fresh runtime absence. An unused reservation can only close with authoritative absence and an empty cgroup while this same exclusive owner has never called run for it. The final runtime list must be empty. Bundle, process and cgroup descriptors close before the store can unlock.
+
+A LOST monitor, partial/failed preparation, foreign binding, active runtime, populated descendant, storage/transport/kernel error or failed component close prevents ownership release. The store's explicit `close({ retainLock: true })` drains accepted writes and closes descriptors without unlinking its lock. That first close decision is immutable; a later ordinary close cannot unlock it. Host close rejects with ownership retained. Even independent cleanup that later finds no runtime/tasks cannot upgrade LOST or authorize takeover/retry. Explicit operational reconciliation/retirement is still unimplemented.
+
+## Evidence and remaining work
+
+Cross-platform behavioral tests exercise preparation/close races, original monitor waiting, guard/shutdown races, single-use reservation/replay, LOST and foreign/live/descendant refusal, metadata substitution, failed preparation/transport/component close, and bounded intake/lifetime capacity. Linux storage tests check byte-identical retained locks; startup tests check failed/recovered-root refusal before runtime opening.
+
+The disposable real gVisor probe adds three native-composition cases: clean supervisor stop plus monitor reaping before unlock; close while an original attached creation remains pending, with competing opens denied; and LOST followed by independent runtime/cgroup cleanup that still retains the exact lock and denies reopen. These run alongside the prior containment/resource-cap and live-owner SIGKILL experiments. GitHub-hosted Linux evidence does not substitute for the intended VPS.
+
+Next: bind this local host lifetime to worker drain and exact lease/cancel fences; exercise full worker/sandbox races; then a trusted runtime bridge and scoped payload/plugin/credential delivery. Production release provenance, identity/KMS, Claude compatibility, broker egress, actual VPS, storage/node-loss recovery and approved retention remain open. O03/O06/O14/O15 are not closed by this component.
