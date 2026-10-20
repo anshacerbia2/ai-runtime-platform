@@ -62,6 +62,8 @@ Tambahkan per-app/pool concurrency, rate limits, token/output bounds, deadline, 
 
 ### P3 — Claude Agent Runtime MVP
 
+Checkpoint native CLI 20 Oktober 2026 menambahkan pinned executable checks, fixed runsc command surface, bounded output/admission/deadlines dan attached monitors pada real driver conformance. Monitor loss tetap LOST; timeout tidak mengotorisasi stop/retry, dan fresh work diblokir sampai recovery eksplisit. Whole-host ownership/cgroup/readiness composition, live-orphan crash, trusted release/credential delivery serta Claude/egress tetap dependency. [Scope](development/NATIVE-RUNSC-PROCESSES.md).
+
 Checkpoint bundle 20 Oktober 2026 menambahkan full-tree rootfs content verification dari trusted manifest pin, readonly independent copies dan fixed OCI policy, dipakai real gVisor conformance sebelum reservation/dispatch. Production image approval/provenance dan native host lifecycle/recovery masih dependency; content hashing bukan penutupan O03 atau Claude compatibility. [Scope](development/VERIFIED-RUNSC-BUNDLES.md).
 
 Checkpoint private launch storage: async Linux reservations dengan exclusive lock, no-clobber fsync commit dan fail-closed recovered read/replay kini dipakai real gVisor probe. Pre-spawn process-crash proof tidak mengizinkan automatic unlock/retirement/reassignment. Native live-orphan recovery, verified image, Claude/credential/egress dan actual VPS tetap berikutnya. [Scope](development/RUNSC-LAUNCH-STORE.md).

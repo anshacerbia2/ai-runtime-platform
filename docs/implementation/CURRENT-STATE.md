@@ -4,6 +4,8 @@
 
 ## Cara membaca dokumentasi
 
+Checkpoint native CLI 20 Oktober 2026: `RunscProcessClient` menyediakan fixed commands, pinned entrypoint/root checks, bounded output/admission/deadlines dan attached monitors pada real driver fixture. Timeout/output/transport loss tetap LOST dan menolak runs baru; cleanup/inspection tetap eksplisit. Ini bukan full distribution provenance atau production host: exclusive ownership, cgroup/readiness composition, live-orphan crash, worker/shared-store fencing, Claude/credential/egress serta actual VPS tetap pending. [Scope](../development/NATIVE-RUNSC-PROCESSES.md).
+
 Checkpoint bundle 20 Oktober 2026: strict rootfs content pins, Linux readonly bundle producer/verifier dan fixed OCI preset tersedia; real gVisor probe mengomposisikan hasilnya dengan reservation/driver/supervisor. Full-tree hashing, independent copies, tamper denial dan readonly reopen memperluas M3. Production release/provenance resolver, native host/live-orphan recovery, Claude/credential/egress serta actual VPS tetap pending. [Scope](../development/VERIFIED-RUNSC-BUNDLES.md).
 
 Checkpoint launch store 19 Oktober 2026: private async Linux reservation backend menahan full identity, fixed bundle path dan declared config digest sebelum spawn; exclusive lock, no-clobber fsync commit, bounds dan immutable replay tersedia. Stale lock/corruption menolak takeover dan clean reopen menolak fresh assignments. Linux pre-spawn SIGKILL serta real runsc store-reopen tests memperluas storage proof; native whole-host/image verification, live-orphan/node/power-loss gates, Claude/egress dan actual VPS tetap pending. [Scope](../development/RUNSC-LAUNCH-STORE.md).

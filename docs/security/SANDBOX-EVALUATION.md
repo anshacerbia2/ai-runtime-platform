@@ -31,6 +31,8 @@ These are candidates, not ranked defaults. If Kubernetes is the target, compare 
 
 ## Linux VM/VPS experiment
 
+The driver fixture now uses [native runsc process transport](../development/NATIVE-RUNSC-PROCESSES.md) for fixed commands and attached monitors, with independent executable pin/root checks, bounded output/admission/deadlines and isolated host environment. A real one-second attached-monitor deadline preserves LOST, denies rerun/new reservation and requires explicit kernel-subtree cleanup. This is not a whole-host process-crash takeover or production activation; the full installed package and sidecars still require trusted provenance.
+
 [Pinned rootfs bundle production](../development/VERIFIED-RUNSC-BUNDLES.md) now replaces ad hoc driver fixture bundles. BusyBox bytes have a committed SHA-256 pin; producer/verifier hashes the whole approved file tree, emits fixed OCI policy and rejects tampered bytes before reservation/dispatch. The internal tree digest is not an OCI registry digest or production release approval. Native host CLI/ownership recovery, actual VPS and runtime/credential/egress gates remain required.
 
 The driver fixture now uses the [private file reservation store](../development/RUNSC-LAUNCH-STORE.md) instead of ad hoc markers. Linux tests separately cover storage lock/corruption/bounds and SIGKILL before any runtime spawn; the real-runtime probe checks clean store reopen only after monitor/tree cleanup. Neither establishes production host unlock, image verification, live-orphan crash recovery, volume/node/power-loss safety or actual VPS approval.

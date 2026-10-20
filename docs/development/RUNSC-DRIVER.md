@@ -14,6 +14,8 @@ Supervisor passes a `SandboxLaunchGuard` checking drain, stop intent and caller 
 
 ## Stop evidence
 
+The same launch guard is forwarded to `host.start` so the native client can recheck after synchronous root/executable validation, immediately before OS spawn. An earlier check alone can expire during blocking filesystem work; the final check must have no intervening I/O/await/queue. Guard denial retains the reservation and attempted name without spawning.
+
 Signals address all guest processes through fixed `kill --all`. TERM/KILL acknowledgement, numeric monitor status, missing runtime state and an empty cgroup are each insufficient on their own. Termination requires a trusted delete, an empty entire owned cgroup subtree including runtime helpers, and fresh runtime absence. Cleanup must also be rooted in the original reaped monitor or an exact observed started binding.
 
 A verified running/paused/stopped binding may disappear during attached teardown; delete and independent kernel inspection remain required. Fresh recovery that immediately finds missing state without that observation or monitor remains `UNKNOWN`, producing supervisor `UNCONFIRMED`. A created-but-not-started observation does not establish the same witness. Runtime failures and foreign bindings cannot authorize a signal or successful inspection.
@@ -21,6 +23,8 @@ A verified running/paused/stopped binding may disappear during attached teardown
 This is local termination evidence only. It does not verify an agent result, resolve remote effects, finalize execution, settle usage, retire journals or authorize retry/reassignment.
 
 ## Evidence and limits
+
+The fixture host now delegates its CLI surface and attached monitors to the [native process client](NATIVE-RUNSC-PROCESSES.md), with pinned entrypoint/root checks and bounded output/admission/deadlines. A real monitor-deadline case preserves LOST and blocks new reservation/rerun, while retaining explicit driver/kernel cleanup. Cgroup inspection, readiness and exclusive ownership remain fixture composition, not a production host or live-owner crash recovery protocol.
 
 Cross-platform behavioral tests cover reservation-before-spawn, concurrent retries, full identity rejection, recovery/no-rerun, monitor loss, CLI failure, lingering children, bounded lifetime capacity, pending creation and authority/stop/drain races during preparation. They run through `npm run test:unit`.
 

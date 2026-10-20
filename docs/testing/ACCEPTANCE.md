@@ -10,6 +10,8 @@ Applicable tests wajib pass sebelum production cutover. N/A hanya untuk capabili
 
 ## Local evidence coverage versus full target gate
 
+Native CLI checkpoint: Linux process tests cover fixed commands/environment, executable pin/root checks, bounded admission/output/deadlines, spawn failure, duplicate attempts, invalid replies and close draining. Real gVisor driver conformance now uses this transport and injects a lost attached monitor without rerun/new reservation or inferred termination. Whole-host ownership, live-orphan crash and full worker fence gates remain open. [Scope](../development/NATIVE-RUNSC-PROCESSES.md).
+
 Bundle checkpoint: strict content-pin/policy tests and Linux file-tree/copy/readonly/tamper/reopen cases now feed the real gVisor producer/reservation/supervisor proof. The fixture has a committed BusyBox byte pin and rejects same-size rootfs tampering before dispatch. This is content integrity, not production image provenance, general OCI import, Claude compatibility, native live-orphan host recovery or gate closure. [Scope](../development/VERIFIED-RUNSC-BUNDLES.md).
 
 Launch-storage checkpoint: Linux tests cover private async immutable reservations, full binding/config conflicts, bounds/backpressure, stale lock refusal, corruption/no-clobber preservation and pre-spawn SIGKILL. Real gVisor conformance now uses the same file backend and proves clean reopen cannot rerun or admit fresh work. This is not production unlock/retirement, image verification, live-orphan crash, power/volume/node-loss or full worker fence proof. [Scope](../development/RUNSC-LAUNCH-STORE.md).

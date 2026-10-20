@@ -39,11 +39,15 @@ export interface RunscSandboxHost {
   lookup(sandboxId: string): Promise<RunscLaunchRecord | null>;
   /**
    * Synchronously spawn attached runsc run (no await/queue/detach in this method).
-   * Once spawn is attempted, return its monitor even when child startup fails.
+   * Recheck the supplied guard after any synchronous host validation, immediately
+   * before the OS spawn. Once spawn is attempted, retain its monitor on failure.
    * REAPED means the original monitor exited with a numeric status; LOST includes
    * errors/signals/timeouts. Neither means official execution completion.
    */
-  start(record: RunscLaunchRecord): {
+  start(
+    record: RunscLaunchRecord,
+    guard?: SandboxLaunchGuard,
+  ): {
     /**
      * Resolve after exact running observation or confirmed fast successful exit.
      * On uncertain startup, reject only after the original monitor is reaped;
@@ -184,7 +188,7 @@ export class RunscSandboxDriver implements SandboxDriver {
           if (guard && !guard.canLaunch()) {
             throw new Error('Sandbox launch authority was lost.');
           }
-          const monitor = this.host.start(record);
+          const monitor = this.host.start(record, guard);
           handle.monitor(monitor.finished);
           // Keep launch pending so supervisor stop also cleans up late creation.
           await monitor.ready;
