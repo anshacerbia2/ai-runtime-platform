@@ -396,3 +396,14 @@ test('lifetime host capacity never evicts old reservations to admit a new assign
   );
   await f.host.close();
 });
+
+test('outer worker uncertainty retains ownership even with no sandbox and cannot be downgraded', async () => {
+  const f = fixture();
+  const options = { retainLock: true };
+  const closing = f.host.close(options);
+  options.retainLock = false;
+  assert.equal(f.host.close(), closing);
+  await assert.rejects(closing, /ownership retained/);
+  assert.equal(f.retained(), true);
+  assert.ok(!f.events.includes('unlock'));
+});

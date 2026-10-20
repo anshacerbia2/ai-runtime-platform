@@ -59,6 +59,8 @@ export interface RunnerWorkerOptions {
   capacity: number;
   http: RunnerHttpOptions;
   driver: SandboxDriver;
+  /** Exclusive process ownership transferred together with the matching driver. */
+  sandboxLifecycle?: RunnerSandboxLifecycle;
   /** Trusted runtime bridge; every new external dispatch must use context.runStep. */
   runtime: {
     execute(
@@ -82,6 +84,17 @@ export interface RunnerWorkerOptions {
 export interface RunnerWorkerStopResult extends TrackedStopResult {
   /** Local journal persistence only, not a coordinator receipt or termination assertion. */
   durableReceipt?: 'RECORDED' | 'UNAVAILABLE';
+}
+
+export interface RunnerSandboxLifecycle {
+  /** Retention is monotonic; ambiguous assignment cleanup cannot permit unlock. */
+  close(options?: { readonly retainLock?: boolean }): Promise<void>;
+}
+
+export interface RunnerWorkerCloseResult {
+  readonly assignments: readonly RunnerWorkerStopResult[];
+  /** Local sandbox ownership only, never journal flush, remote effects or retry authority. */
+  readonly ownership: 'RELEASED' | 'UNCONFIRMED' | 'UNMANAGED';
 }
 
 interface Entry {
@@ -119,6 +132,9 @@ export class RunnerWorker {
   private readonly runtime: RunnerWorkerOptions['runtime'];
   private readonly control: RunnerControlHttpClient;
   private readonly supervisor: LocalSandboxSupervisor;
+  private readonly sandboxLifecycle: RunnerSandboxLifecycle | undefined;
+  private closing: Promise<RunnerWorkerCloseResult> | null = null;
+  private retainSandboxOwnership = false;
   private readonly evidenceCollector: RunnerEvidenceCollector | undefined;
   private readonly outcomeJournal: RunnerOutcomeJournal | undefined;
   private readonly controller = new AbortController();
@@ -192,6 +208,7 @@ export class RunnerWorker {
       this.http,
     );
     this.supervisor = new LocalSandboxSupervisor(options.driver);
+    this.sandboxLifecycle = options.sandboxLifecycle;
     const graceMs = options.drainGraceMs ?? 5_000;
     if (!Number.isSafeInteger(graceMs) || graceMs < 0 || graceMs > 30_000) {
       throw new Error('Runner drain grace must be 0-30000 ms.');
@@ -199,7 +216,7 @@ export class RunnerWorker {
     this.shutdownSignal = options.shutdownSignal;
     this.onShutdown = () => {
       try {
-        void this.drain(graceMs).catch(() => this.stop());
+        void this.close(graceMs).catch(() => this.stop());
       } catch {
         void this.stop();
       }
@@ -296,9 +313,57 @@ export class RunnerWorker {
       this.supervisor.quiesce();
       void Promise.all(
         [...this.entries.values()].map((entry) => this.stopEntry(entry)),
-      ).then(finish);
+      ).then((results) => {
+        // Capture the decision before publishing mutable stop-result objects.
+        this.retainSandboxOwnership = results.some(
+          (result) =>
+            result.evidence.state !== 'TERMINATED' ||
+            result.durableReceipt === 'UNAVAILABLE',
+        );
+        finish(results);
+        // Fatal internal stops also drain the transferred host. stop() keeps its
+        // bounded assignment result; close() observes the independent host proof.
+        if (this.sandboxLifecycle) {
+          void this.finishClose(this.stopping!);
+        }
+      });
     }
     return this.stopping;
+  }
+
+  /** Seal/stop immediately or honor one grace period, then drain host ownership. */
+  close(graceMs = 0): Promise<RunnerWorkerCloseResult> {
+    if (!Number.isSafeInteger(graceMs) || graceMs < 0 || graceMs > 30_000) {
+      throw new Error('Runner drain grace must be 0-30000 ms.');
+    }
+    if (!this.closing) {
+      const stopped = graceMs === 0 ? this.stop() : this.drain(graceMs);
+      this.finishClose(stopped);
+    }
+    return this.closing!;
+  }
+
+  private finishClose(
+    stopped: Promise<readonly RunnerWorkerStopResult[]>,
+  ): Promise<RunnerWorkerCloseResult> {
+    this.closing ??= stopped.then(async (assignments) => {
+      if (!this.sandboxLifecycle) {
+        return { assignments, ownership: 'UNMANAGED' as const };
+      }
+      const retainLock = this.retainSandboxOwnership;
+      try {
+        await this.sandboxLifecycle.close({ retainLock });
+        return {
+          assignments,
+          ownership: retainLock
+            ? ('UNCONFIRMED' as const)
+            : ('RELEASED' as const),
+        };
+      } catch {
+        return { assignments, ownership: 'UNCONFIRMED' as const };
+      }
+    });
+    return this.closing;
   }
 
   private async finishDrain(

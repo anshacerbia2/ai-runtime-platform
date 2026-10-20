@@ -10,12 +10,21 @@ import { join } from 'node:path';
 import test, { type TestContext } from 'node:test';
 import type { RunnerDispatchGrant } from '@ai-runtime/contracts/http';
 import type { RunnerResultProposal } from '../src/runner-report-http-client.js';
-import { RunnerWorker, type RunnerStepContext } from '../src/runner-worker.js';
+import {
+  RunnerWorker,
+  type RunnerStepContext,
+  type RunnerWorkerOptions,
+} from '../src/runner-worker.js';
 import type { LeaseTimerPort } from '../src/runner-lease-loop.js';
 import { materializePluginBundle } from '../src/plugin-bundle.js';
 import { RunnerEvidenceCollector } from '../src/runner-evidence-collector.js';
 import { fixtureCipher } from './support/evidence-fixture.js';
 import { RunnerOutcomeJournal } from '../src/runner-outcome-journal.js';
+import {
+  RunscSandboxDriver,
+  type RunscLaunchRecord,
+} from '../src/runsc-sandbox-driver.js';
+import type { SandboxDriver } from '../src/sandbox-supervisor.js';
 
 const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
 
@@ -860,6 +869,215 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
+test('worker close stops assignments before closing host once; bounded stop does not release host ownership', async (t) => {
+  const barrier = deferred<void>();
+  const calls: boolean[] = [];
+  const h = harness(t, {
+    grants: [grant()],
+    sandboxLifecycle: {
+      async close(options) {
+        calls.push(options?.retainLock === true);
+        assert.equal(h.stops, 1);
+        await barrier.promise;
+      },
+    },
+  });
+  await h.worker.start();
+  h.timers.advanceTo(0);
+  await flush();
+  const closed = h.worker.close(0);
+  assert.equal(h.worker.close(10_000), closed);
+  const stopped = await h.worker.stop();
+  assert.equal(stopped[0]!.evidence.state, 'TERMINATED');
+  await flush();
+  assert.deepEqual(calls, [false]);
+  let settled = false;
+  void closed.then(() => {
+    settled = true;
+  });
+  await flush();
+  assert.equal(settled, false);
+  barrier.resolve();
+  assert.equal((await closed).ownership, 'RELEASED');
+  assert.equal(h.timers.pending, 0);
+  await assert.rejects(h.worker.start());
+});
+
+test('host close failure preserves assignment evidence and cannot be retried into an ownership release', async (t) => {
+  let closes = 0;
+  const h = harness(t, {
+    grants: [grant()],
+    sandboxLifecycle: {
+      async close() {
+        closes++;
+        throw new Error('LOST original monitor');
+      },
+    },
+  });
+  await h.worker.start();
+  h.timers.advanceTo(0);
+  await flush();
+  const result = await h.worker.close();
+  assert.equal(result.ownership, 'UNCONFIRMED');
+  assert.equal(result.assignments[0]!.evidence.state, 'TERMINATED');
+  assert.equal(await h.worker.close(), result);
+  assert.equal(closes, 1);
+});
+
+test('unknown assignment stop and failed durable stop receipt explicitly retain the host lock', async (t) => {
+  for (const mode of ['unknown', 'journal']) {
+    const j = await journalFixture();
+    const retained: boolean[] = [];
+    const h = harness(t, {
+      grants: [grant()],
+      outcomeJournal: mode === 'journal' ? j.journal : undefined,
+      inspect: mode === 'unknown' ? async () => 'UNKNOWN' : undefined,
+      sandboxLifecycle: {
+        async close(options) {
+          retained.push(options?.retainLock === true);
+        },
+      },
+    });
+    await h.worker.start();
+    h.timers.advanceTo(0);
+    await flush();
+    if (mode === 'journal') {
+      j.failStorage();
+    }
+    const result = await h.worker.close();
+    assert.deepEqual(retained, [true]);
+    assert.equal(result.ownership, 'UNCONFIRMED');
+    if (mode === 'unknown') {
+      assert.equal(result.assignments[0]!.evidence.state, 'UNCONFIRMED');
+    } else {
+      assert.equal(result.assignments[0]!.durableReceipt, 'UNAVAILABLE');
+    }
+  }
+});
+
+test('shutdown signal and fatal heartbeat failure also close the owned host', async (t) => {
+  for (const mode of ['signal', 'heartbeat']) {
+    const controller = new AbortController();
+    let closes = 0;
+    let hearts = 0;
+    const h = harness(t, {
+      shutdownSignal: controller.signal,
+      drainGraceMs: 0,
+      sandboxLifecycle: {
+        async close() {
+          closes++;
+        },
+      },
+      fetchImpl:
+        mode === 'heartbeat'
+          ? async (_input, init) => {
+              if (++hearts > 1) {
+                return new Response(null, { status: 409 });
+              }
+              return Response.json({
+                ...JSON.parse(String(init?.body)),
+                state: 'ALIVE',
+                heartbeatIntervalMs: 5000,
+                presenceTtlMs: 15000,
+              });
+            }
+          : undefined,
+    });
+    await h.worker.start();
+    if (mode === 'signal') {
+      controller.abort();
+    } else {
+      h.timers.advanceTo(5000);
+    }
+    await flush();
+    assert.equal(closes, 1);
+    assert.equal((await h.worker.close()).ownership, 'RELEASED');
+    assert.equal(h.timers.pending, 0);
+  }
+});
+
+test('stopped worker without a transferred host never claims ownership release', async (t) => {
+  const h = harness(t);
+  assert.equal((await h.worker.close()).ownership, 'UNMANAGED');
+});
+
+test('lease expiry, renewal fence and worker quiesce during bundle preparation all deny the final runsc dispatch', async (t) => {
+  for (const mode of ['expiry', 'fence', 'quiesce']) {
+    const preparation = deferred<void>();
+    let prepared: RunscLaunchRecord | null = null;
+    let starts = 0;
+    let activations = 0;
+    let retained = false;
+    const driver = new RunscSandboxDriver({
+      async reserve(identity, sandboxId) {
+        prepared = {
+          identity,
+          sandboxId,
+          bundle: `/private/bundles/${sandboxId}`,
+        };
+        await preparation.promise;
+        return { record: prepared, fresh: true };
+      },
+      async lookup() {
+        return prepared;
+      },
+      start() {
+        starts++;
+        throw new Error('Must not dispatch after authority loss');
+      },
+      async state() {
+        return null;
+      },
+      async signalAll() {},
+      async destroy() {},
+      async cgroupEmpty() {
+        return true;
+      },
+    });
+    const h = harness(t, {
+      grants: [grant()],
+      driver,
+      sandboxLifecycle: {
+        async close(options) {
+          retained = options?.retainLock === true;
+        },
+      },
+      lease: async () =>
+        ++activations === 1
+          ? Response.json({
+              state: 'ACTIVE',
+              leaseTtlMs: 15000,
+              renewIntervalMs: 5000,
+            })
+          : new Response(null, { status: 409 }),
+    });
+    await h.worker.start();
+    h.timers.advanceTo(0);
+    await flush();
+    assert.ok(prepared);
+    if (mode === 'expiry') {
+      h.timers.now = 15000;
+    } else if (mode === 'fence') {
+      h.timers.advanceTo(5000);
+      await flush();
+    } else {
+      h.worker.quiesce();
+    }
+    preparation.resolve();
+    await flush();
+    const result = await h.worker.close();
+    assert.equal(starts, 0, mode);
+    assert.equal(h.contexts.length, 0);
+    assert.equal(
+      h.requests.some((request) => request.body.type === 'result.proposed'),
+      false,
+    );
+    assert.equal(result.assignments[0]!.evidence.state, 'UNCONFIRMED');
+    assert.equal(result.ownership, 'UNCONFIRMED');
+    assert.equal(retained, true);
+  }
+});
+
 class Timers implements LeaseTimerPort {
   now = 0;
   private next = 0;
@@ -931,6 +1149,8 @@ function harness(
     drainGraceMs?: number;
     evidenceCollector?: RunnerEvidenceCollector;
     outcomeJournal?: RunnerOutcomeJournal;
+    sandboxLifecycle?: RunnerWorkerOptions['sandboxLifecycle'];
+    driver?: SandboxDriver;
   } = {},
 ) {
   const timers = new Timers();
@@ -951,6 +1171,7 @@ function harness(
     drainGraceMs: options.drainGraceMs,
     evidenceCollector: options.evidenceCollector,
     outcomeJournal: options.outcomeJournal,
+    sandboxLifecycle: options.sandboxLifecycle,
     clock: { nowMs: () => timers.now },
     timers: options.timers ?? timers,
     http: {
@@ -1018,7 +1239,7 @@ function harness(
         });
       },
     },
-    driver: {
+    driver: options.driver ?? {
       async launch() {
         launches++;
         events.push('launch');
