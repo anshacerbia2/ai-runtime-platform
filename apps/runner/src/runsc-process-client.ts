@@ -450,13 +450,17 @@ export class RunscProcessClient {
     return new Promise((resolve) => {
       let settled = false;
       let lost = false;
+      let interrupted = false;
       let bytes = 0;
       let exited = false;
       const chunks: Buffer[] = [];
       const interrupt = () => {
-        if (settled) {
+        if (settled || interrupted) {
           return;
         }
+        // A failed kill may itself emit error. Never recursively signal/retry;
+        // retain uncertainty until an actual exit observation can reap the child.
+        interrupted = true;
         lost = true;
         this.uncertain = true;
         // This kills only our CLI monitor, NOT a proof that the guest tree exited.
