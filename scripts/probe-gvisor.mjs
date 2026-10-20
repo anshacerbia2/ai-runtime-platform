@@ -60,6 +60,8 @@ const { RunscCgroupInspector } =
 const { probeOwnerCrash } = await import('./lib/gvisor-owner-crash-probe.mjs');
 const { probeHostLifecycle } =
   await import('./lib/gvisor-host-lifecycle-probe.mjs');
+const { probeWorkerLifetime } =
+  await import('./lib/gvisor-worker-lifetime-probe.mjs');
 for (const file of [runtimePath, busyboxPath]) {
   assert.ok(
     typeof file === 'string' && isAbsolute(file),
@@ -979,6 +981,34 @@ try {
   });
   console.log(
     'gVisor owner crash PASS: SIGKILL with live sandbox, unchanged durable lock denies takeover before and after explicit cleanup',
+  );
+  await probeWorkerLifetime({
+    workspace,
+    producerOptions,
+    processOptions,
+    inspector: cgroupInspector,
+    until,
+    command,
+    additionalCleanup,
+  });
+  observations.push(
+    { case: 'native-worker-signal-drain-reaps-before-unlock', outcome: 'PASS' },
+    {
+      case: 'native-worker-renewal-conflict-stops-real-sandbox',
+      outcome: 'PASS',
+    },
+    {
+      case: 'native-worker-cancel-preflight-denies-external-step',
+      outcome: 'PASS',
+    },
+    {
+      case: 'native-worker-expiry-during-file-preparation-denies-run',
+      outcome: 'PASS',
+    },
+    {
+      case: 'native-worker-lost-monitor-retains-lock-after-cleanup',
+      outcome: 'PASS',
+    },
   );
   await probeHostLifecycle({
     workspace,

@@ -266,8 +266,12 @@ export class RunscHostLifecycle implements RunscSandboxHost {
   }
 
   /** Passive final proof, not a shutdown signal. Quiesce/stop the supervisor first. */
-  close(): Promise<void> {
+  close(options: { readonly retainLock?: boolean } = {}): Promise<void> {
     if (!this.closed) {
+      // Capture the outer owner's decision once, before any asynchronous proof.
+      if (options.retainLock === true) {
+        this.uncertain = true;
+      }
       this.closing = true; // No late start, even while an accepted prepare drains.
       this.closed = this.finishClose();
     }

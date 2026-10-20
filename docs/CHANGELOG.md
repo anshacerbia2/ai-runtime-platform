@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased — 20 October 2026 — worker-owned native sandbox lifetime
+
+Added explicit native worker composition with a matching host/driver and bounded monitor capacity. Worker stop/drain remains bounded assignment evidence; `close()` separately awaits host ownership proof, also on fatal/shutdown stops. Unknown stop or unavailable durable stop receipt explicitly retains the lock; a host error cannot upgrade a receipt or retry close into success. Behavioral tests cover lifecycle ordering and final dispatch denial across expiry/fence/quiesce during preparation. Five real gVisor worker cases add signal/renewal/cancel/preparation-expiry/LOST evidence with controlled coordinator replies. Coordinator-backed native-worker chaos, trusted runtime/delivery and production gates remain open. No API, migration or ADR change. [Scope](development/NATIVE-RUNNER-WORKER.md).
+
 ## Unreleased — 20 October 2026 — native runsc host ownership lifecycle
 
 Added a layout-bound Linux host factory and trusted lifecycle composition across verified bundles, durable reservations, bounded runsc monitors and native cgroups. Concurrent reservations grant one launch; shutdown seals starts before draining accepted preparation and original monitors. Clean close requires durable binding checks, trusted delete, whole-subtree emptiness, fresh runtime absence and closed component descriptors before unlock. LOST/foreign/live/partial/error cases retain the lock through explicit retained store close; no automatic takeover or retirement is added. Behavioral tests and three disposable real gVisor cases cover clean/pending/LOST close. Full worker fencing, production runtime/delivery/host recovery and O03 remain open. No API, migration or ADR change. [Scope](development/NATIVE-RUNSC-HOST.md).
