@@ -37,12 +37,21 @@ assertProbeHost({
   uid: process.geteuid?.(),
   disposable: optIn === '--disposable-linux-host',
 });
+assert.equal(
+  arch(),
+  'x64',
+  'Disposable fixture currently has only an approved x64 BusyBox byte pin; no ARM64 fallback.',
+);
 const { RunscSandboxDriver, runscBindingAnnotation, runscSandboxId } =
   await import('../apps/runner/dist/runsc-sandbox-driver.js');
 const { LocalSandboxSupervisor } =
   await import('../apps/runner/dist/sandbox-supervisor.js');
 const { FileRunscLaunchStore } =
   await import('../apps/runner/dist/file-runsc-launch-store.js');
+const { FileRunscBundleProducer } =
+  await import('../apps/runner/dist/file-runsc-bundle-producer.js');
+const { rootfsManifestDigest } =
+  await import('../apps/runner/dist/runsc-bundle.js');
 for (const file of [runtimePath, busyboxPath]) {
   assert.ok(
     typeof file === 'string' && isAbsolute(file),
@@ -111,6 +120,7 @@ const hostCanary = join(workspace, 'host-only-canary');
 await writeFile(hostCanary, 'host-only-probe-file', { mode: 0o644 });
 const fixtures = [];
 let launchStore;
+let bundleProducer;
 const driverBundles = join(workspace, 'driver-bundles');
 const observations = [];
 const report = {
@@ -142,7 +152,19 @@ async function state(fixture) {
   const result = JSON.parse(
     (await runtime(['state', fixture.identity.sandboxId])).stdout,
   );
-  assertFixtureState(result, fixture.identity, fixture.bundle);
+  if (fixture.driverBinding) {
+    assert.equal(result.id, fixture.identity.sandboxId);
+    assert.equal(result.bundle, fixture.bundle);
+    assert.ok(
+      ['created', 'running', 'stopped', 'paused'].includes(result.status),
+    );
+    assert.equal(
+      result.annotations?.[runscBindingAnnotation],
+      JSON.stringify(fixture.driverBinding),
+    );
+  } else {
+    assertFixtureState(result, fixture.identity, fixture.bundle);
+  }
   return result;
 }
 async function until(predicate) {
@@ -184,14 +206,9 @@ async function cgroupProcesses(directory, depth = 0) {
   }
   return [...new Set(pids)];
 }
-async function fixture(mode, binding) {
-  const identity = binding
-    ? { ...binding, sandboxId: runscSandboxId(binding) }
-    : fixtureIdentity(randomUUID());
-  const bundle = join(binding ? driverBundles : workspace, identity.sandboxId);
-  if (binding) {
-    await mkdir(bundle, { mode: 0o700 });
-  }
+async function fixture(mode) {
+  const identity = fixtureIdentity(randomUUID());
+  const bundle = join(workspace, identity.sandboxId);
   await mkdir(join(bundle, 'rootfs', 'bin'), { recursive: true, mode: 0o755 });
   for (const directory of ['tmp', 'proc', 'dev']) {
     await mkdir(join(bundle, 'rootfs', directory), { mode: 0o755 });
@@ -206,16 +223,7 @@ async function fixture(mode, binding) {
       .digest('hex'),
     report.fingerprints.busybox,
   );
-  const spec = fixtureSpec(
-    identity,
-    mode === 'startup-failure' ? 'ordinary' : mode,
-  );
-  if (mode === 'startup-failure') {
-    spec.process.args = ['/bin/airt-fixture-executable-does-not-exist'];
-  }
-  if (binding) {
-    spec.annotations[runscBindingAnnotation] = JSON.stringify(binding);
-  }
+  const spec = fixtureSpec(identity, mode);
   await writeFile(join(bundle, 'config.json'), JSON.stringify(spec), {
     mode: 0o600,
   });
@@ -344,6 +352,10 @@ async function caps(fixture) {
 
 let failure;
 try {
+  assert.equal(
+    report.fingerprints.busybox,
+    'dbac288c29ba568459550a2da9e7ae0ded6b1fc728ee9fad3044c44e62d6ac14',
+  );
   const ordinary = await fixture('ordinary');
   attachedRun(ordinary);
   await observedExit(ordinary, 0);
@@ -474,9 +486,66 @@ try {
     'gVisor fixture PASS: term-ignoring-child-forced-stop-cgroup-empty',
   );
 
-  // Real private reservation store; runtime/bundle provisioning remains a
-  // disposable host fixture, not a production image verifier or host recovery.
+  // Independently pin fixture executable bytes. This is not a production release
+  // approval resolver; an Ubuntu package change requires explicit pin review.
   await mkdir(driverBundles, { mode: 0o700 });
+  const imageRoot = join(workspace, 'approved-rootfs');
+  await mkdir(imageRoot, { mode: 0o700 });
+  for (const name of ['bin', 'dev', 'proc', 'tmp']) {
+    await mkdir(join(imageRoot, name), { mode: 0o700 });
+  }
+  await copyFile(busybox, join(imageRoot, 'bin/busybox'));
+  await chmod(join(imageRoot, 'bin/busybox'), 0o555);
+  const invalidExecutable = Buffer.from(
+    'approved fixture with invalid executable format\n',
+  );
+  await writeFile(
+    join(imageRoot, 'bin/invalid-executable'),
+    invalidExecutable,
+    { mode: 0o555 },
+  );
+  for (const name of ['bin', 'dev', 'proc', 'tmp']) {
+    await chmod(join(imageRoot, name), 0o555);
+  }
+  const manifest = {
+    format: 'ai-runtime-rootfs/v1',
+    architecture: arch(),
+    directories: ['bin', 'dev', 'proc', 'tmp'],
+    files: [
+      {
+        path: 'bin/busybox',
+        bytes: binary.length,
+        sha256: report.fingerprints.busybox,
+        executable: true,
+      },
+      {
+        path: 'bin/invalid-executable',
+        bytes: invalidExecutable.length,
+        sha256: createHash('sha256').update(invalidExecutable).digest('hex'),
+        executable: true,
+      },
+    ],
+  };
+  const programs = Object.fromEntries(
+    ['ordinary', 'graceful', 'forced'].map((mode) => [
+      mode,
+      fixtureSpec(fixtureIdentity(randomUUID()), mode).process.args,
+    ]),
+  );
+  programs['startup-failure'] = ['/bin/invalid-executable'];
+  const producerOptions = {
+    imageRoot,
+    bundleRoot: driverBundles,
+    manifest,
+    approvedRootfsDigest: rootfsManifestDigest(manifest),
+    programs,
+  };
+  bundleProducer = await FileRunscBundleProducer.open(producerOptions);
+  report.rootfsApproval = {
+    format: manifest.format,
+    digest: producerOptions.approvedRootfsDigest,
+    scope: 'pinned inert fixture only',
+  };
   const reservations = join(workspace, 'driver-reservations');
   await mkdir(reservations, { mode: 0o700 });
   const storeOptions = {
@@ -502,32 +571,24 @@ try {
       if (previous) {
         return { record: previous, fresh: false };
       }
-      const item = await fixture(driverMode, identity);
-      assert.equal(item.identity.sandboxId, id);
-      const record = {
-        identity: { ...identity },
-        sandboxId: id,
-        bundle: item.bundle,
+      if (launchStore.recoveryRequired || bundleProducer.recoveryRequired) {
+        throw new Error('Host recovery required.');
+      }
+      await bundleProducer.prepare(identity, driverMode);
+      const verified = await bundleProducer.verify(identity, driverMode);
+      assert.equal(verified.record.sandboxId, id);
+      const item = {
+        identity: { ...identity, sandboxId: id },
+        driverBinding: identity,
+        bundle: verified.record.bundle,
+        cgroup: join('/sys/fs/cgroup', id),
+        deleted: false,
       };
-      // Bundle producer persists config before the store commits its reservation.
-      const config = await open(join(item.bundle, 'config.json'), 'r');
-      try {
-        await config.sync();
-      } finally {
-        await config.close();
-      }
-      for (const directory of [item.bundle, driverBundles]) {
-        const handle = await open(directory, 'r');
-        try {
-          await handle.sync();
-        } finally {
-          await handle.close();
-        }
-      }
-      const configDigest = `sha256:${createHash('sha256')
-        .update(await readFile(join(item.bundle, 'config.json')))
-        .digest('hex')}`;
-      const saved = await launchStore.reserve(record, configDigest);
+      fixtures.push(item);
+      const saved = await launchStore.reserve(
+        verified.record,
+        verified.configDigest,
+      );
       return { record: saved.reservation.record, fresh: saved.fresh };
     },
     start(record) {
@@ -704,6 +765,36 @@ try {
     await item.completion;
     await remove(item, true);
   }
+  const tamperedGrant = binding();
+  const tampered = await bundleProducer.prepare(tamperedGrant, 'ordinary');
+  const changedBinary = Buffer.from(binary);
+  changedBinary[0] ^= 1;
+  const changedPath = join(tampered.record.bundle, 'rootfs/bin/busybox');
+  await chmod(changedPath, 0o755);
+  await writeFile(changedPath, changedBinary);
+  await chmod(changedPath, 0o555);
+  await assert.rejects(bundleProducer.verify(tamperedGrant, 'ordinary'));
+  assert.equal(await launchStore.lookup(tampered.record.sandboxId), null);
+  assert.equal(
+    starts,
+    4,
+    'Tampered bundle cannot reach reservation or runtime dispatch.',
+  );
+  observations.push({
+    case: 'approved-rootfs-tamper-denied-before-reservation',
+    outcome: 'PASS',
+  });
+  console.log(
+    'gVisor driver PASS: pinned rootfs copy rejects byte tampering before reservation/dispatch',
+  );
+  await bundleProducer.close();
+  bundleProducer = await FileRunscBundleProducer.open(producerOptions);
+  assert.equal(bundleProducer.recoveryRequired, true);
+  await bundleProducer.verify(grant, 'graceful');
+  await assert.rejects(
+    bundleProducer.prepare(binding(), 'ordinary'),
+    /recovery/,
+  );
   await launchStore.close();
   launchStore = await FileRunscLaunchStore.open(storeOptions);
   assert.equal(launchStore.recoveryRequired, true);
@@ -748,6 +839,7 @@ async function cleanup() {
       `Cleanup unconfirmed; retained owned probe workspace ${workspace}`,
     );
   }
+  await bundleProducer?.close();
   await launchStore?.close();
   const expectedParent = await realpath(tmpdir());
   const cleanupTarget = await realpath(workspace);
