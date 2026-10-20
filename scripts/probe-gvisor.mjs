@@ -52,6 +52,8 @@ const { FileRunscBundleProducer } =
   await import('../apps/runner/dist/file-runsc-bundle-producer.js');
 const { rootfsManifestDigest } =
   await import('../apps/runner/dist/runsc-bundle.js');
+const { RunscProcessClient } =
+  await import('../apps/runner/dist/runsc-process-client.js');
 for (const file of [runtimePath, busyboxPath]) {
   assert.ok(
     typeof file === 'string' && isAbsolute(file),
@@ -121,6 +123,7 @@ await writeFile(hostCanary, 'host-only-probe-file', { mode: 0o644 });
 const fixtures = [];
 let launchStore;
 let bundleProducer;
+let processClient;
 const driverBundles = join(workspace, 'driver-bundles');
 const observations = [];
 const report = {
@@ -554,6 +557,16 @@ try {
     maxRecords: 256,
   };
   launchStore = await FileRunscLaunchStore.open(storeOptions);
+  const processOptions = {
+    executable: runsc,
+    approvedExecutableSha256:
+      '56996c546dbafd5716e1d09e307a131d97eb3b6483c22a1178631751f3e0392f',
+    stateRoot: root,
+    bundleRoot: driverBundles,
+    commandTimeoutMs: 5000,
+    runTimeoutMs: 15000,
+  };
+  processClient = await RunscProcessClient.open(processOptions);
   let driverMode = 'graceful';
   let starts = 0;
   const owned = (record) => {
@@ -571,7 +584,11 @@ try {
       if (previous) {
         return { record: previous, fresh: false };
       }
-      if (launchStore.recoveryRequired || bundleProducer.recoveryRequired) {
+      if (
+        launchStore.recoveryRequired ||
+        bundleProducer.recoveryRequired ||
+        processClient.recoveryRequired
+      ) {
         throw new Error('Host recovery required.');
       }
       await bundleProducer.prepare(identity, driverMode);
@@ -594,25 +611,33 @@ try {
     start(record) {
       const item = owned(record);
       starts++;
-      attachedRun(item); // Initiates the CLI synchronously, no detached waiter.
+      const monitor = processClient.run(record); // Synchronous attached spawn.
+      item.completion = monitor.finished.then((result) => ({
+        code: result.code,
+      }));
       let settled = false;
       let exitCode = null;
-      const finished = item.completion.then((result) => {
+      const finished = monitor.finished.then((result) => {
         settled = true;
         exitCode = result.code;
-        return result.code === null ? 'LOST' : 'REAPED';
+        return result.state;
       });
       const ready = (async () => {
         // Do not abandon creation on an observation deadline: stop must retain
         // the handle until the attached monitor is reaped or creation is visible.
         while (!settled) {
           try {
-            const listed = parseRunscList(
-              (await runtime(['list', '--format=json'])).stdout,
-            );
+            const listed = await processClient.list();
             const row = listed.find((entry) => entry.id === record.sandboxId);
             if (row?.status === 'running') {
-              await state(item);
+              const observed = await processClient.readState(record);
+              assert.equal(observed.id, record.sandboxId);
+              assert.equal(observed.bundle, record.bundle);
+              assert.equal(observed.status, 'running');
+              assert.equal(
+                observed.annotations?.[runscBindingAnnotation],
+                JSON.stringify(record.identity),
+              );
               return;
             }
           } catch {
@@ -630,19 +655,17 @@ try {
       return { ready, finished };
     },
     async state(record) {
-      const rows = parseRunscList(
-        (await runtime(['list', '--format=json'])).stdout,
-      );
+      const rows = await processClient.list();
       if (!rows.some((row) => row.id === record.sandboxId)) {
         return null;
       }
-      return JSON.parse((await runtime(['state', record.sandboxId])).stdout);
+      return processClient.readState(record);
     },
     async signalAll(record, signal) {
-      await runtime(['kill', '--all', record.sandboxId, signal]);
+      await processClient.signalAll(record, signal);
     },
     async destroy(record) {
-      await runtime(['delete', '--force', record.sandboxId]);
+      await processClient.destroy(record);
     },
     async cgroupEmpty(record) {
       return (await cgroupProcesses(owned(record).cgroup)).length === 0;
@@ -765,6 +788,55 @@ try {
     await item.completion;
     await remove(item, true);
   }
+  await processClient.close();
+  processClient = await RunscProcessClient.open({
+    ...processOptions,
+    runTimeoutMs: 1000,
+  });
+  driverMode = 'forced';
+  const deadlineGrant = binding();
+  const deadlineReservation = await host.reserve(
+    deadlineGrant,
+    runscSandboxId(deadlineGrant),
+  );
+  assert.equal(deadlineReservation.fresh, true);
+  const deadlineMonitor = host.start(deadlineReservation.record);
+  // Startup can race the configured deadline. Both outcomes retain the same
+  // original monitor; neither timeout nor failed readiness proves guest exit.
+  const deadlineReady = deadlineMonitor.ready.catch(() => {});
+  assert.equal(await deadlineMonitor.finished, 'LOST');
+  await deadlineReady;
+  assert.equal(processClient.recoveryRequired, true);
+  const replayedDeadline = await new RunscSandboxDriver(host).launch(
+    deadlineGrant,
+  );
+  assert.equal(starts, 5, 'Lost monitor cannot cause another attached run.');
+  const deadlineState = await host.state(deadlineReservation.record);
+  const inspectionBeforeCleanup = await replayedDeadline.inspect();
+  if (deadlineState === null) {
+    assert.equal(
+      inspectionBeforeCleanup,
+      'UNKNOWN',
+      'Monitor-less absence is not termination proof.',
+    );
+  }
+  // A still-visible started binding may instead permit independent driver
+  // cleanup. In either case the lost original monitor never becomes REAPED.
+  await remove(owned(deadlineReservation.record), true);
+  assert.equal(await deadlineMonitor.finished, 'LOST');
+  const deniedAfterLoss = binding();
+  await assert.rejects(
+    host.reserve(deniedAfterLoss, runscSandboxId(deniedAfterLoss)),
+    /recovery/,
+  );
+  assert.equal(await launchStore.lookup(runscSandboxId(deniedAfterLoss)), null);
+  observations.push({
+    case: 'native-monitor-deadline-no-rerun-no-termination-inference',
+    outcome: 'PASS',
+  });
+  console.log(
+    'gVisor native process PASS: deadline remains LOST, no rerun or fresh reservation, explicit subtree cleanup',
+  );
   const tamperedGrant = binding();
   const tampered = await bundleProducer.prepare(tamperedGrant, 'ordinary');
   const changedBinary = Buffer.from(binary);
@@ -777,7 +849,7 @@ try {
   assert.equal(await launchStore.lookup(tampered.record.sandboxId), null);
   assert.equal(
     starts,
-    4,
+    5,
     'Tampered bundle cannot reach reservation or runtime dispatch.',
   );
   observations.push({
@@ -799,7 +871,7 @@ try {
   launchStore = await FileRunscLaunchStore.open(storeOptions);
   assert.equal(launchStore.recoveryRequired, true);
   await new RunscSandboxDriver(host).launch(grant);
-  assert.equal(starts, 4, 'Disk store reopen cannot cause a second launch.');
+  assert.equal(starts, 5, 'Disk store reopen cannot cause a second launch.');
   const newGrant = binding();
   const newId = runscSandboxId(newGrant);
   await assert.rejects(
@@ -840,6 +912,7 @@ async function cleanup() {
     );
   }
   await bundleProducer?.close();
+  await processClient?.close();
   await launchStore?.close();
   const expectedParent = await realpath(tmpdir());
   const cleanupTarget = await realpath(workspace);

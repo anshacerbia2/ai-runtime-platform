@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased — 20 October 2026 — native runsc process transport
+
+Added a Linux process client with a pinned entrypoint, held root checks, fixed systrap/no-network commands, isolated environment, bounded command/monitor admission and output, explicit deadlines and retained attached monitors. Real driver conformance now uses it and injects monitor loss without rerun/new work or inferred termination. Numeric monitor status remains local evidence; sidecar provenance, exclusive whole-host ownership/recovery, live-orphan crash, Claude/credentials/egress and actual VPS gates remain open. No API, migration or ADR change. [Scope](development/NATIVE-RUNSC-PROCESSES.md).
+
 ## Unreleased — 20 October 2026 — pinned rootfs bundle production
 
 Added strict canonical rootfs manifests, trusted content pins and an async Linux OCI bundle producer/verifier. It checks the complete regular-file tree, copies to independent readonly inodes, emits a fixed least-privilege config and binds full assignment/rootfs digest to persisted config digest. Existing/partial bundles never authorize fresh preparation after reopen. Real gVisor fixtures now use this producer, independently pin BusyBox bytes and deny same-size rootfs tampering before reservation/dispatch. Content pins are not production provenance/image approval; native host/recovery, Claude/credential/egress and actual VPS gates remain open. No API, migration or ADR change. [Scope](development/VERIFIED-RUNSC-BUNDLES.md).

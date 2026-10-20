@@ -8,6 +8,8 @@ NestJS + Fastify + Prisma + PostgreSQL, React/Next.js App Router + BFF, TypeScri
 
 ## Sudah tersedia sebelum milestone runtime
 
+Native runsc process transport now supplies fixed commands, pinned entrypoint checks, bounded output/admission/deadlines and attached monitors to real driver conformance. A lost monitor cannot become termination evidence or authorize rerun; whole-host ownership/live-orphan recovery, trusted release/credential composition, Claude/egress and actual VPS remain M3 dependencies. [Scope](development/NATIVE-RUNSC-PROCESSES.md).
+
 Pinned file-tree verification and readonly OCI bundle production now feed real gVisor conformance, including tamper denial before reservation/dispatch. This advances M3 content integrity; production image provenance/approval, native host recovery, Claude/credential/egress and actual VPS remain dependencies. [Scope](development/VERIFIED-RUNSC-BUNDLES.md).
 
 Private Linux launch storage now persists immutable binding/config-digest metadata before spawn, with exclusive ownership, bounded async I/O and fail-closed lock/reopen semantics. Pre-spawn SIGKILL and real runsc storage-reopen conformance advance M3; verified images, native live-orphan host recovery, Claude/egress and actual VPS remain dependencies. [Scope](development/RUNSC-LAUNCH-STORE.md).

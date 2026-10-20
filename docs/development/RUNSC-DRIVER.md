@@ -22,6 +22,8 @@ This is local termination evidence only. It does not verify an agent result, res
 
 ## Evidence and limits
 
+The fixture host now delegates its CLI surface and attached monitors to the [native process client](NATIVE-RUNSC-PROCESSES.md), with pinned entrypoint/root checks and bounded output/admission/deadlines. A real monitor-deadline case preserves LOST and blocks new reservation/rerun, while retaining explicit driver/kernel cleanup. Cgroup inspection, readiness and exclusive ownership remain fixture composition, not a production host or live-owner crash recovery protocol.
+
 Cross-platform behavioral tests cover reservation-before-spawn, concurrent retries, full identity rejection, recovery/no-rerun, monitor loss, CLI failure, lingering children, bounded lifetime capacity, pending creation and authority/stop/drain races during preparation. They run through `npm run test:unit`.
 
 The Linux `gvisor-conformance` job builds the runner and composes the real driver and supervisor with pinned real `runsc`, using fixed inert BusyBox bundles. Additional cases cover a new driver reading a fsynced reservation and stopping the same sandbox without rerun; TERM-ignoring parent/child forced stop; fast ordinary exit with the attached monitor; and an approved but incompatible guest executable whose failed startup retains cleanup, no-rerun and `UNCONFIRMED` evidence. The original runtime policy/isolation/resource-cap experiments remain in the same probe. [Linux recipe and policy](../security/SANDBOX-EVALUATION.md#linux-vmvps-experiment).
