@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased — 20 October 2026 — native worker with real PostgreSQL/Redis coordinators
+
+Added an explicit disposable Linux gate combining two real API processes, shared PostgreSQL/Redis and the real native worker/sandbox. Cases cover lost claim ACK plus API-peer handoff without a second run, cross-API cancellation/late unknown evidence, and missing Redis lease followed by durable orphan fencing and denied fresh-boot replacement. Clean shutdown independently checks monitor reaping, kernel subtree emptiness, runtime absence and ownership release without settlement. CI runs this gate alongside existing quality and gVisor checks; the quality host is pinned to the approved Ubuntu 24.04 fixture baseline. No production activation, API, migration, reassignment policy or ADR change. [Scope](development/NATIVE-COORDINATOR-CONFORMANCE.md).
+
 ## Unreleased — 20 October 2026 — worker-owned native sandbox lifetime
 
 Added explicit native worker composition with a matching host/driver and bounded monitor capacity. Worker stop/drain remains bounded assignment evidence; `close()` separately awaits host ownership proof, also on fatal/shutdown stops. Unknown stop or unavailable durable stop receipt explicitly retains the lock; a host error cannot upgrade a receipt or retry close into success. Behavioral tests cover lifecycle ordering and final dispatch denial across expiry/fence/quiesce during preparation. Five real gVisor worker cases add signal/renewal/cancel/preparation-expiry/LOST evidence with controlled coordinator replies. Coordinator-backed native-worker chaos, trusted runtime/delivery and production gates remain open. No API, migration or ADR change. [Scope](development/NATIVE-RUNNER-WORKER.md).
