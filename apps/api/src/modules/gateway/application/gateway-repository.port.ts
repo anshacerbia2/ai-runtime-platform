@@ -11,6 +11,8 @@ export interface GatewayRoute {
   connectionId: string;
   provider: ProviderId;
   credentialRef: string;
+  credentialId: string;
+  credentialRevision: number;
   model: string;
 }
 
@@ -24,6 +26,8 @@ export interface GatewayClaim {
   capability: 'chat' | 'generate' | 'structured_generate';
   provider: ProviderId;
   credentialRef: string;
+  credentialId: string;
+  credentialRevision: number;
   model: string;
   fallback: GatewayRoute | null;
   maxOutputTokens: number;

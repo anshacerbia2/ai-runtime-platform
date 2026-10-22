@@ -16,6 +16,8 @@ npm run setup
 
 ## Core HTTP
 
+Gateway credentials are configured through API-only `M2_PROVIDER_CREDENTIALS_JSON`, an explicit deployment-owned list of connection/provider/reference/key bindings. Nonlocal mode rejects legacy global `M2_OPENROUTER_API_KEY` / `M2_ANTHROPIC_API_KEY`; those remain local compatibility only. Bounds, rotation/restart behavior, rollout and O14 limits are documented in [credentials per connection](CONNECTION-CREDENTIALS.md).
+
 | Variable                             | Meaning                                                                                                                                               |
 | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `M0_RUNTIME_MODE`                    | `m0-local` for local lab/tests; `m1-oidc` for nonlocal platform-owned OIDC/BFF hosting                                                                |

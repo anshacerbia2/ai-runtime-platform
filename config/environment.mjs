@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { loadEnvFile } from 'node:process';
 import { z } from 'zod';
 import { hostingContract } from './hosting.mjs';
+import { parseProviderCredentialBindings } from './provider-credentials.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const envFile = resolve(root, '.env');
@@ -140,6 +141,7 @@ export const runtimeEnvironmentSchema = z.object({
   M0_TEST_APP_TOKEN: reqStr('M0_TEST_APP_TOKEN'),
   M2_OPENROUTER_API_KEY: optStr(),
   M2_ANTHROPIC_API_KEY: optStr(),
+  M2_PROVIDER_CREDENTIALS_JSON: z.string().optional(),
   M2_REPLAY_REDIS_URL: optStr(),
   M3_COORDINATION_REDIS_URL: optStr(),
   OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: optStr(),
@@ -192,6 +194,7 @@ const apiEnvironmentSchema = runtimeEnvironmentSchema.pick({
   M0_TEST_APP_TOKEN: true,
   M2_OPENROUTER_API_KEY: true,
   M2_ANTHROPIC_API_KEY: true,
+  M2_PROVIDER_CREDENTIALS_JSON: true,
   M2_REPLAY_REDIS_URL: true,
   M3_COORDINATION_REDIS_URL: true,
   OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: true,
@@ -313,11 +316,14 @@ function buildApiEnvironment(raw) {
         token: raw.M0_TEST_APP_TOKEN,
       },
     ],
-    gateway: {
+    gateway: Object.freeze({
       openrouterApiKey: raw.M2_OPENROUTER_API_KEY,
       anthropicApiKey: raw.M2_ANTHROPIC_API_KEY,
+      credentialBindings: parseProviderCredentialBindings(
+        raw.M2_PROVIDER_CREDENTIALS_JSON,
+      ),
       replayRedisUrl: raw.M2_REPLAY_REDIS_URL,
-    },
+    }),
     runner: Object.freeze({
       coordinationRedisUrl: raw.M3_COORDINATION_REDIS_URL,
     }),
@@ -327,6 +333,14 @@ function buildApiEnvironment(raw) {
   };
 
   const localOperatorToken = raw.M1_LOCAL_OPERATOR_TOKEN;
+  if (
+    config.runtimeMode !== 'm0-local' &&
+    (config.gateway.openrouterApiKey || config.gateway.anthropicApiKey)
+  ) {
+    throw new Error(
+      'Legacy provider API keys are local-only; configure M2_PROVIDER_CREDENTIALS_JSON for bound credentials.',
+    );
+  }
   const localRunnerToken = raw.M1_LOCAL_RUNNER_TOKEN;
   if (
     localOperatorToken &&

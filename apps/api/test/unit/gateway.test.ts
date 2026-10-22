@@ -55,6 +55,8 @@ const claim: GatewayClaim = {
   capability: 'chat',
   provider: 'openrouter',
   credentialRef: 'env:M2_OPENROUTER_API_KEY',
+  credentialId: 'credential-primary',
+  credentialRevision: 1,
   model: 'test-model',
   fallback: null,
   maxOutputTokens: 512,
@@ -133,6 +135,8 @@ class FakeRepository implements GatewayRepository {
       connectionId: current.fallback.connectionId,
       provider: current.fallback.provider,
       credentialRef: current.fallback.credentialRef,
+      credentialId: current.fallback.credentialId,
+      credentialRevision: current.fallback.credentialRevision,
       model: current.fallback.model,
       fallback: null,
     };

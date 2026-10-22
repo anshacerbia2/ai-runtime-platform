@@ -19,6 +19,11 @@ import { InMemoryReplayStore } from '../src/modules/gateway/infrastructure/in-me
 import { InMemoryGatewayCircuit } from '../src/modules/gateway/infrastructure/in-memory-gateway.circuit.js';
 import { Sha256RequestFingerprint } from '../src/modules/gateway/infrastructure/sha256-request-fingerprint.js';
 import { BoundedStructuredOutputValidator } from '../src/modules/gateway/infrastructure/structured-output.validator.js';
+import { createServer } from 'node:http';
+import { createApplication } from '../src/bootstrap.js';
+import { OpenRouterAdapter } from '../src/modules/gateway/infrastructure/openrouter.adapter.js';
+import { RegistryProviderCredentialResolver } from '../src/modules/gateway/infrastructure/provider-credential-resolver.js';
+import type { ProviderCredentialBinding } from '../src/modules/gateway/application/provider-credential.port.js';
 
 const prefix = 'm2-' + randomUUID();
 const application = {
@@ -39,6 +44,9 @@ const profileRevisionId = randomUUID();
 const structuredProfileRef = prefix + '-structured';
 const structuredProfileRevisionId = randomUUID();
 const bindingId = randomUUID();
+const extraConnections: string[] = [];
+const extraCredentials: string[] = [];
+const extraBindings: string[] = [];
 
 const principal: Principal = {
   subject: application.id,
@@ -251,13 +259,17 @@ after(async () => {
   await db.budgetProjection.deleteMany({ where: { accountId: budgetId } });
   await db.budgetAccount.deleteMany({ where: { id: budgetId } });
   await db.credentialBinding.deleteMany({
-    where: { id: { in: [bindingId, fallbackBindingId] } },
+    where: { id: { in: [bindingId, fallbackBindingId, ...extraBindings] } },
   });
   await db.credentialInstance.deleteMany({
-    where: { id: { in: [credentialId, fallbackCredentialId] } },
+    where: {
+      id: { in: [credentialId, fallbackCredentialId, ...extraCredentials] },
+    },
   });
   await db.aiConnection.deleteMany({
-    where: { id: { in: [connectionId, fallbackConnectionId] } },
+    where: {
+      id: { in: [connectionId, fallbackConnectionId, ...extraConnections] },
+    },
   });
   await db.auditEntry.deleteMany({ where: { applicationId: application.id } });
   await db.managementReceipt.deleteMany({
@@ -1155,4 +1167,400 @@ test('claim and orphan release serialize before any provider invocation', async 
     assert.equal(execution.reservations[0]?.heldUnits, 0n);
     assert.equal(execution.reservations[0]?.state, 'SETTLED');
   }
+});
+
+test('production API composition routes two accounts of one provider to distinct keys and durable usage without double charge', async (t) => {
+  const accounts = [0, 1].map((index) => ({
+    connectionId: `${prefix}-bound-connection-${index}`,
+    credentialId: `${prefix}-bound-credential-${index}`,
+    credentialRef: `secret:${prefix}/account-${index}/v1`,
+    provider: 'openrouter' as const,
+    apiKey: `inert-key-${index}`,
+    profile: `${prefix}-bound-chat-${index}`,
+    input: index === 0 ? 2 : 7,
+    output: index === 0 ? 1 : 2,
+  }));
+  for (const account of accounts) {
+    await db.aiConnection.create({
+      data: {
+        id: account.connectionId,
+        displayName: 'Bound account fixture',
+        provider: account.provider,
+        authMode: 'API_KEY',
+        environment: 'local',
+        sharingMode: 'DEDICATED',
+      },
+    });
+    extraConnections.push(account.connectionId);
+    await db.credentialInstance.create({
+      data: {
+        id: account.credentialId,
+        connectionId: account.connectionId,
+        secretRef: account.credentialRef,
+        residency: 'CENTRAL',
+        status: 'ENABLED',
+      },
+    });
+    extraCredentials.push(account.credentialId);
+    const id = randomUUID();
+    await db.credentialBinding.create({
+      data: {
+        id,
+        applicationId: application.id,
+        connectionId: account.connectionId,
+        status: 'ENABLED',
+      },
+    });
+    extraBindings.push(id);
+    await db.profileRevision.create({
+      data: {
+        id: randomUUID(),
+        applicationId: application.id,
+        profileRef: account.profile,
+        revision: 1,
+        connectionId: account.connectionId,
+        capability: 'chat',
+        providerAdapter: account.provider,
+        model: 'bound-fixture-model',
+        maxOutputTokens: 16,
+        timeoutMs: 5000,
+        streaming: true,
+        holdUnits: 100n,
+        accountIds: [budgetId],
+        digest: '8'.repeat(64),
+      },
+    });
+    await db.profileAlias.create({
+      data: {
+        applicationId: application.id,
+        profileRef: account.profile,
+        revision: 1,
+        enabled: true,
+        version: 1,
+      },
+    });
+  }
+  const seen: string[] = [];
+  const provider = createServer((request, response) => {
+    const account = accounts.find(
+      (value) => request.headers.authorization === `Bearer ${value.apiKey}`,
+    );
+    if (!account) {
+      response.writeHead(401).end();
+      return;
+    }
+    seen.push(account.connectionId);
+    request.resume();
+    response.writeHead(200, { 'content-type': 'text/event-stream' });
+    response.end(
+      `data: ${JSON.stringify({ id: `fixture-${account.connectionId}`, choices: [{ delta: { content: 'inert answer' }, finish_reason: 'stop' }], usage: { prompt_tokens: account.input, completion_tokens: account.output } })}\n\ndata: [DONE]\n\n`,
+    );
+  });
+  await new Promise<void>((resolve, reject) => {
+    provider.once('error', reject);
+    provider.listen(0, '127.0.0.1', () => resolve());
+  });
+  const address = provider.address();
+  assert.ok(address && typeof address !== 'string');
+  t.after(async () => {
+    provider.closeAllConnections();
+    await new Promise<void>((resolve, reject) =>
+      provider.close((error) => (error ? reject(error) : resolve())),
+    );
+  });
+  const api = await createApplication({
+    ...config,
+    deploymentRole: 'api-production',
+    gateway: {
+      ...config.gateway,
+      openrouterApiKey: undefined,
+      anthropicApiKey: undefined,
+      openrouterEndpoint: `http://127.0.0.1:${address.port}/chat`,
+      credentialBindings: accounts.map(
+        ({ connectionId, provider, credentialRef, apiKey }) => ({
+          connectionId,
+          provider,
+          credentialRef,
+          apiKey,
+        }),
+      ),
+    },
+  });
+  try {
+    for (const account of accounts) {
+      const payload = {
+        profile: account.profile,
+        input: {
+          messages: [
+            {
+              role: 'user',
+              content: [{ type: 'text', text: 'inert test input' }],
+            },
+          ],
+        },
+        stream: false,
+      };
+      const headers = {
+        authorization: `Bearer ${application.token}`,
+        host: config.allowedHosts[0]!,
+        'idempotency-key': `${prefix}-bound-${account.connectionId}`,
+      };
+      const first = await api.inject({
+        method: 'POST',
+        url: '/v1/chat',
+        headers,
+        payload,
+      });
+      assert.equal(first.statusCode, 200);
+      const body = first.json();
+      assert.equal(body.usage.totalTokens, account.input + account.output);
+      assert.equal(body.status, 'COMPLETED');
+      assert.equal(
+        accounts.some(
+          (value) =>
+            first.body.includes(value.apiKey) ||
+            first.body.includes(value.credentialRef),
+        ),
+        false,
+      );
+      const replay = await api.inject({
+        method: 'POST',
+        url: '/v1/chat',
+        headers,
+        payload,
+      });
+      assert.equal(replay.statusCode, 200);
+      assert.equal(replay.json().executionId, body.executionId);
+      assert.equal(replay.json().replayed, true);
+      const stored = await db.execution.findUniqueOrThrow({
+        where: { id: body.executionId },
+        include: {
+          providerInvocations: true,
+          observations: true,
+          ledger: true,
+          reservations: true,
+        },
+      });
+      assert.equal(stored.providerInvocations.length, 1);
+      const invocation = stored.providerInvocations[0]!;
+      assert.equal(invocation.connectionId, account.connectionId);
+      assert.equal(invocation.inputTokens, BigInt(account.input));
+      assert.equal(invocation.outputTokens, BigInt(account.output));
+      assert.equal(stored.observations.length, 1);
+      assert.deepEqual(stored.observations[0]!.coverage, [invocation.id]);
+      assert.equal(stored.ledger.length, 1);
+      assert.equal(
+        stored.ledger[0]!.deltaUnits,
+        BigInt(account.input + account.output),
+      );
+      assert.equal(stored.reservations[0]!.heldUnits, 0n);
+      assert.equal(stored.reservations[0]!.state, 'SETTLED');
+      const invalid = await api.inject({
+        method: 'POST',
+        url: '/v1/chat',
+        headers: {
+          ...headers,
+          'idempotency-key': `${prefix}-invalid-${account.connectionId}`,
+        },
+        payload: { ...payload, credentialRef: accounts[1]!.credentialRef },
+      });
+      assert.ok(invalid.statusCode >= 400 && invalid.statusCode < 500);
+    }
+    assert.deepEqual(
+      seen,
+      accounts.map((value) => value.connectionId),
+    );
+    const metadata = await api.inject({
+      method: 'GET',
+      url: '/api/v1/credentials?limit=100',
+      headers: {
+        authorization: `Bearer ${config.localOperatorToken}`,
+        host: config.allowedHosts[0]!,
+      },
+    });
+    assert.equal(metadata.statusCode, 200);
+    assert.equal(
+      accounts.every((value) => metadata.body.includes(value.credentialId)),
+      true,
+    );
+    assert.equal(
+      accounts.some(
+        (value) =>
+          metadata.body.includes(value.apiKey) ||
+          metadata.body.includes(value.credentialRef),
+      ),
+      false,
+    );
+  } finally {
+    await api.close();
+  }
+});
+
+test('credential dispatch authority rejects foreign, revoked, rotated, cancelled and wrong-owner claims, including revocation during lookup', async () => {
+  const digest = '9'.repeat(64);
+  const admitted = await control.admit(
+    principal,
+    profileRef,
+    digest,
+    `${prefix}-credential-gates`,
+  );
+  const claimed = await repository.claim(
+    application.id,
+    admitted.execution.id,
+    digest,
+    randomUUID(),
+  );
+  assert.equal(claimed.state, 'claimed');
+  if (claimed.state !== 'claimed') {
+    return;
+  }
+  const binding: ProviderCredentialBinding = claimed.claim;
+  assert.equal(await repository.authorizeCredential(binding), true);
+  for (const invalid of [
+    { ...binding, applicationId: 'foreign-app' },
+    { ...binding, ownerInstanceId: randomUUID() },
+    { ...binding, invocationId: randomUUID() },
+    { ...binding, attemptId: randomUUID() },
+    { ...binding, credentialId: fallbackCredentialId },
+    { ...binding, connectionId: fallbackConnectionId },
+    { ...binding, credentialRevision: binding.credentialRevision + 1 },
+    { ...binding, credentialRef: 'secret:foreign' },
+    { ...binding, provider: 'direct-anthropic' as const },
+  ]) {
+    assert.equal(await repository.authorizeCredential(invalid), false);
+  }
+  const changes = [
+    {
+      change: () =>
+        db.controlApplication.update({
+          where: { id: application.id },
+          data: { status: 'DISABLED' },
+        }),
+      restore: () =>
+        db.controlApplication.update({
+          where: { id: application.id },
+          data: { status: 'ENABLED' },
+        }),
+    },
+    {
+      change: () =>
+        db.aiConnection.update({
+          where: { id: connectionId },
+          data: { status: 'DISABLED' },
+        }),
+      restore: () =>
+        db.aiConnection.update({
+          where: { id: connectionId },
+          data: { status: 'ENABLED' },
+        }),
+    },
+    {
+      change: () =>
+        db.credentialInstance.update({
+          where: { id: credentialId },
+          data: { status: 'DISABLED' },
+        }),
+      restore: () =>
+        db.credentialInstance.update({
+          where: { id: credentialId },
+          data: { status: 'ENABLED' },
+        }),
+    },
+    {
+      change: () =>
+        db.credentialInstance.update({
+          where: { id: credentialId },
+          data: { revision: { increment: 1 } },
+        }),
+      restore: () =>
+        db.credentialInstance.update({
+          where: { id: credentialId },
+          data: { revision: binding.credentialRevision },
+        }),
+    },
+    {
+      change: () =>
+        db.credentialInstance.update({
+          where: { id: credentialId },
+          data: { secretRef: 'secret:rotated' },
+        }),
+      restore: () =>
+        db.credentialInstance.update({
+          where: { id: credentialId },
+          data: { secretRef: binding.credentialRef },
+        }),
+    },
+    {
+      change: () =>
+        db.credentialBinding.update({
+          where: { id: bindingId },
+          data: { status: 'DISABLED' },
+        }),
+      restore: () =>
+        db.credentialBinding.update({
+          where: { id: bindingId },
+          data: { status: 'ENABLED' },
+        }),
+    },
+  ];
+  for (const mutation of changes) {
+    try {
+      await mutation.change();
+      assert.equal(await repository.authorizeCredential(binding), false);
+    } finally {
+      await mutation.restore();
+    }
+  }
+  let reads = 0;
+  let calls = 0;
+  const credentials = new RegistryProviderCredentialResolver(repository, {
+    async resolve() {
+      reads++;
+      await db.credentialBinding.update({
+        where: { id: bindingId },
+        data: { status: 'DISABLED' },
+      });
+      return 'inert-revoked-key';
+    },
+  });
+  const adapter = new OpenRouterAdapter(credentials, async () => {
+    calls++;
+    throw new Error('must not dispatch');
+  });
+  try {
+    await assert.rejects(
+      async () => {
+        for await (const event of adapter.stream(
+          {
+            ...command('inert'),
+            capability: 'chat',
+            model: claimed.claim.model,
+            credentialRef: binding.credentialRef,
+            credentialBinding: binding,
+            maxOutputTokens: 10,
+            timeoutMs: 1000,
+          },
+          new AbortController().signal,
+        )) {
+          assert.fail(event.type);
+        }
+      },
+      (error: unknown) =>
+        error instanceof ProviderError &&
+        error.code === 'PROVIDER_CREDENTIAL_UNAVAILABLE' &&
+        error.outcome === 'not-sent',
+    );
+    assert.equal(reads, 1);
+    assert.equal(calls, 0);
+  } finally {
+    await db.credentialBinding.update({
+      where: { id: bindingId },
+      data: { status: 'ENABLED' },
+    });
+  }
+  await db.execution.update({
+    where: { id: admitted.execution.id },
+    data: { cancelRequestedAt: new Date() },
+  });
+  assert.equal(await repository.authorizeCredential(binding), false);
 });

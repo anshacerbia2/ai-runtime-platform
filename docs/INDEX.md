@@ -108,6 +108,8 @@ Adopted in documentation means a baseline design choice, not implementation proo
 
 ## Platform control and distributed execution
 
+- [Gateway credentials per AI connection](development/CONNECTION-CREDENTIALS.md)
+
 - [ADR-0019 — Application Registry, AI Connections, Credential Binding](adr/0019-application-connections-credentials.md)
 - [ADR-0020 — Plugin Registry & Execution Packaging](adr/0020-plugin-registry-execution-packaging.md)
 - [ADR-0021 — Optional Workspace & Remote Tools](adr/0021-workspace-remote-tools.md)
