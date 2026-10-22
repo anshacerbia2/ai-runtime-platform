@@ -47,12 +47,18 @@ test('bound provider credentials are API-only and invalid values never leak thro
 
 test('nonlocal gateway cannot silently use legacy provider-wide environment keys', () => {
   loadApiEnvironment();
-  const names = ['M0_RUNTIME_MODE', 'DEPLOYMENT_ROLE', 'M2_OPENROUTER_API_KEY'];
+  const names = [
+    'M0_RUNTIME_MODE',
+    'DEPLOYMENT_ROLE',
+    'M2_OPENROUTER_API_KEY',
+    'M2_REPLAY_REDIS_URL',
+  ];
   const prior = new Map(names.map((name) => [name, process.env[name]]));
   try {
     process.env.M0_RUNTIME_MODE = 'm1-oidc';
     process.env.DEPLOYMENT_ROLE = 'api-production';
     process.env.M2_OPENROUTER_API_KEY = 'fixture-key';
+    process.env.M2_REPLAY_REDIS_URL = 'redis://127.0.0.1:6379/15';
     assert.throws(
       () => loadApiEnvironment(),
       /Legacy provider API keys are local-only/,
