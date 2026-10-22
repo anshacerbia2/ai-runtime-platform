@@ -20,7 +20,7 @@ import { InMemoryGatewayCircuit } from '../src/modules/gateway/infrastructure/in
 import { Sha256RequestFingerprint } from '../src/modules/gateway/infrastructure/sha256-request-fingerprint.js';
 import { BoundedStructuredOutputValidator } from '../src/modules/gateway/infrastructure/structured-output.validator.js';
 import { createServer } from 'node:http';
-import { createApplication } from '../src/bootstrap.js';
+import { createApplication } from '../dist/bootstrap.js';
 import { OpenRouterAdapter } from '../src/modules/gateway/infrastructure/openrouter.adapter.js';
 import { RegistryProviderCredentialResolver } from '../src/modules/gateway/infrastructure/provider-credential-resolver.js';
 import type { ProviderCredentialBinding } from '../src/modules/gateway/application/provider-credential.port.js';
