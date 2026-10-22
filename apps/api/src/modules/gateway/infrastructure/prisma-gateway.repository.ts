@@ -13,6 +13,10 @@ import type {
   GatewayRepository,
 } from '../application/gateway-repository.port.js';
 import type { ProviderId } from '../application/provider-adapter.port.js';
+import type {
+  ProviderCredentialAuthority,
+  ProviderCredentialBinding,
+} from '../application/provider-credential.port.js';
 
 const PROVIDER_RECOVERY_GRACE_MS = 30_000;
 const ADMISSION_CLAIM_GRACE_MS = 60_000;
@@ -28,8 +32,128 @@ const provider = (value: string): ProviderId => {
   );
 };
 
-export class PrismaGatewayRepository implements GatewayRepository {
+export class PrismaGatewayRepository
+  implements GatewayRepository, ProviderCredentialAuthority
+{
   constructor(private readonly db: DatabaseService) {}
+
+  /** Discrete pre-dispatch authority check; no secret material or provider I/O in this transaction. */
+  async authorizeCredential(
+    binding: ProviderCredentialBinding,
+  ): Promise<boolean> {
+    return this.db.$transaction(
+      async (tx) => {
+        const executionRows = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT id FROM control.executions WHERE id = ${binding.executionId}::uuid
+          AND application_id = ${binding.applicationId} FOR SHARE`;
+        if (!executionRows.length) {
+          return false;
+        }
+        const execution = await tx.execution.findUnique({
+          where: { id: binding.executionId },
+          select: {
+            status: true,
+            cancelRequestedAt: true,
+            profile: {
+              select: {
+                profileRef: true,
+                connectionId: true,
+                providerAdapter: true,
+                fallbackConnectionId: true,
+                fallbackProviderAdapter: true,
+              },
+            },
+          },
+        });
+        if (
+          !execution ||
+          execution.status !== 'RUNNING' ||
+          execution.cancelRequestedAt
+        ) {
+          return false;
+        }
+        const routeMatches =
+          (execution.profile.connectionId === binding.connectionId &&
+            execution.profile.providerAdapter === binding.provider) ||
+          (execution.profile.fallbackConnectionId === binding.connectionId &&
+            execution.profile.fallbackProviderAdapter === binding.provider);
+        if (!routeMatches) {
+          return false;
+        }
+        const [application] = await tx.$queryRaw<Array<{ status: string }>>`
+        SELECT status FROM control.applications WHERE id = ${binding.applicationId} FOR SHARE`;
+        if (application?.status !== 'ENABLED') {
+          return false;
+        }
+        const [connection] = await tx.$queryRaw<
+          Array<{ status: string; provider: string; authMode: string }>
+        >`
+        SELECT status, provider, auth_mode AS "authMode" FROM control.ai_connections
+          WHERE id = ${binding.connectionId} FOR SHARE`;
+        if (
+          connection?.status !== 'ENABLED' ||
+          connection.provider !== binding.provider ||
+          connection.authMode !== 'API_KEY'
+        ) {
+          return false;
+        }
+        const [credential] = await tx.$queryRaw<
+          Array<{
+            connectionId: string;
+            residency: string;
+            status: string;
+            secretRef: string | null;
+            revision: number;
+          }>
+        >`
+        SELECT connection_id AS "connectionId", residency, status, secret_ref AS "secretRef", revision
+          FROM control.credential_instances WHERE id = ${binding.credentialId} FOR SHARE`;
+        if (
+          !credential ||
+          credential.connectionId !== binding.connectionId ||
+          credential.residency !== 'CENTRAL' ||
+          credential.status !== 'ENABLED' ||
+          credential.secretRef !== binding.credentialRef ||
+          credential.revision !== binding.credentialRevision
+        ) {
+          return false;
+        }
+        const authorization = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT id FROM control.credential_bindings WHERE application_id = ${binding.applicationId}
+          AND connection_id = ${binding.connectionId} AND status = 'ENABLED'
+          AND (profile_ref IS NULL OR profile_ref = ${execution.profile.profileRef})
+          ORDER BY id LIMIT 1 FOR SHARE`;
+        if (!authorization.length) {
+          return false;
+        }
+        const attempt = await tx.attempt.findUnique({
+          where: { id: binding.attemptId },
+          select: { executionId: true, ownerInstanceId: true, status: true },
+        });
+        const invocation = await tx.providerInvocation.findUnique({
+          where: { id: binding.invocationId },
+          select: {
+            executionId: true,
+            attemptId: true,
+            connectionId: true,
+            provider: true,
+            status: true,
+          },
+        });
+        return (
+          attempt?.executionId === binding.executionId &&
+          attempt.ownerInstanceId === binding.ownerInstanceId &&
+          attempt.status === 'RUNNING' &&
+          invocation?.executionId === binding.executionId &&
+          invocation.attemptId === binding.attemptId &&
+          invocation.connectionId === binding.connectionId &&
+          invocation.provider === binding.provider &&
+          invocation.status === 'RUNNING'
+        );
+      },
+      { isolationLevel: 'ReadCommitted', maxWait: 2000, timeout: 5000 },
+    );
+  }
 
   async ownerState(
     claim: GatewayClaim,
@@ -126,8 +250,8 @@ export class PrismaGatewayRepository implements GatewayRepository {
           );
         }
         const [credential] = await tx.$queryRaw<
-          Array<{ id: string; secretRef: string | null }>
-        >`SELECT id, secret_ref AS "secretRef" FROM control.credential_instances
+          Array<{ id: string; secretRef: string | null; revision: number }>
+        >`SELECT id, secret_ref AS "secretRef", revision FROM control.credential_instances
           WHERE connection_id = ${connection.id} AND residency = 'CENTRAL'
             AND status = 'ENABLED' AND secret_ref IS NOT NULL
           ORDER BY id LIMIT 1 FOR SHARE`;
@@ -161,8 +285,10 @@ export class PrismaGatewayRepository implements GatewayRepository {
                 ORDER BY id LIMIT 1 FOR SHARE`
             : [];
           const fallbackCredential = fallbackConnection
-            ? await tx.$queryRaw<Array<{ secretRef: string }>>`
-                SELECT secret_ref AS "secretRef" FROM control.credential_instances
+            ? await tx.$queryRaw<
+                Array<{ id: string; secretRef: string; revision: number }>
+              >`
+                SELECT id, secret_ref AS "secretRef", revision FROM control.credential_instances
                 WHERE connection_id = ${fallbackConnection.id}
                   AND residency = 'CENTRAL' AND status = 'ENABLED'
                   AND secret_ref IS NOT NULL
@@ -186,6 +312,8 @@ export class PrismaGatewayRepository implements GatewayRepository {
             connectionId: fallbackConnection.id,
             provider: fallbackProvider,
             credentialRef: fallbackCredential[0].secretRef,
+            credentialId: fallbackCredential[0].id,
+            credentialRevision: fallbackCredential[0].revision,
             model: execution.profile.fallbackModel,
           };
         }
@@ -377,6 +505,8 @@ export class PrismaGatewayRepository implements GatewayRepository {
               .capability as GatewayClaim['capability'],
             provider: configuredProvider,
             credentialRef: credential.secretRef,
+            credentialId: credential.id,
+            credentialRevision: credential.revision,
             model: execution.profile.model,
             fallback,
             maxOutputTokens: execution.profile.maxOutputTokens,
@@ -461,8 +591,8 @@ export class PrismaGatewayRepository implements GatewayRepository {
             AND (profile_ref IS NULL OR profile_ref = ${execution.profile.profileRef})
           ORDER BY id LIMIT 1 FOR SHARE`;
         const [fallbackCredential] = await tx.$queryRaw<
-          Array<{ secretRef: string }>
-        >`SELECT secret_ref AS "secretRef" FROM control.credential_instances
+          Array<{ id: string; secretRef: string; revision: number }>
+        >`SELECT id, secret_ref AS "secretRef", revision FROM control.credential_instances
           WHERE connection_id = ${fallback.connectionId}
             AND residency = 'CENTRAL' AND status = 'ENABLED'
             AND secret_ref IS NOT NULL
@@ -597,6 +727,8 @@ export class PrismaGatewayRepository implements GatewayRepository {
           connectionId: fallback.connectionId,
           provider: fallback.provider,
           credentialRef: fallbackCredential.secretRef,
+          credentialId: fallbackCredential.id,
+          credentialRevision: fallbackCredential.revision,
           model: fallback.model,
           fallback: null,
         };

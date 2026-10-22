@@ -37,6 +37,7 @@ export interface RuntimeEnvironment {
   };
   readonly databaseUrl: string;
   readonly gateway: {
+    readonly credentialBindings?: readonly import('./provider-credentials.mjs').ProviderCredentialConfiguration[];
     readonly openrouterApiKey?: string;
     readonly anthropicApiKey?: string;
     readonly replayRedisUrl?: string;

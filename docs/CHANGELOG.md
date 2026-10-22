@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — 23 October 2026 — framework security updates
+
+Updated Next.js to 16.4.2 and aligned Nest common/core/Fastify adapter at 12.2.0 with Fastify 5.12.7 after CI dependency audit detected newly published advisories. These updates address the [Next.js image optimization](https://github.com/advisories/GHSA-2464-fhr4-w9xw), [typed-array cache](https://github.com/advisories/GHSA-673q-mjm6-r5xr), [Server Actions](https://github.com/advisories/GHSA-p3m5-59mp-jv5r) and [Fastify header validation](https://github.com/advisories/GHSA-389g-gv7q-r4x8) advisories. Dependency pins and lockfile remain explicit; audit thresholds are unchanged.
+
+## Unreleased — 22 October 2026 — credentials bound to gateway connections
+
+Added explicit per-connection credential resolution to both provider adapters, preserving server-selected credential identity/revision and rechecking current PostgreSQL authority before/after lookup. Deployment-injected bindings support multiple accounts on one provider; nonlocal global legacy keys fail closed. Abort/lookup failures deny transport without exposing secret-source errors, and provider redirects are refused. Existing invocation/usage/ledger identities retain connection attribution and replay deduplication. Configuration/unit and PostgreSQL/API/loopback-provider cases cover selection, revocation, ownership, usage and secret projection. Secret-manager selection, live smoke, hot rotation and aggregate monitoring UI remain open. [Contract and rollout](development/CONNECTION-CREDENTIALS.md).
+
 ## Unreleased — 21 October 2026 — attached teardown observation races
 
 Fixed native host list/state and signal-delivery races exposed by conformance: attached teardown may remove state or finish the target before the next CLI operation. A fresh successful observation through a healthy transport now distinguishes that outcome without poisoning an otherwise provably clean owner or resending a signal. Still-live/foreign targets, failed observations and poisoned transports remain fail closed; original monitor/delete/kernel/final-absence requirements are unchanged. Deterministic positive/negative regression tests cover both CLI boundaries. [Semantics](development/NATIVE-RUNSC-HOST.md#closing-safely).

@@ -7,9 +7,72 @@ import {
   loadDevEnvironment,
   loadDispatchObjectStoreTestEnvironment,
   loadE2EEnvironment,
+  loadWebEnvironment,
 } from '../../config/environment.mjs';
 
 const root = resolve(import.meta.dirname, '../..');
+
+test('bound provider credentials are API-only and invalid values never leak through errors', () => {
+  loadApiEnvironment();
+  const prior = process.env.M2_PROVIDER_CREDENTIALS_JSON;
+  try {
+    process.env.M2_PROVIDER_CREDENTIALS_JSON = JSON.stringify([
+      {
+        connectionId: 'fixture-account',
+        provider: 'openrouter',
+        credentialRef: 'secret:fixture/v1',
+        apiKey: 'fixture-key',
+      },
+    ]);
+    assert.equal(
+      loadApiEnvironment().gateway.credentialBindings[0].connectionId,
+      'fixture-account',
+    );
+    const web = loadWebEnvironment();
+    assert.equal('gateway' in web, false);
+    assert.equal(JSON.stringify(web).includes('fixture-key'), false);
+    process.env.M2_PROVIDER_CREDENTIALS_JSON = '{"apiKey":"fixture-key"';
+    assert.throws(() => loadApiEnvironment(), {
+      message: 'Invalid M2_PROVIDER_CREDENTIALS_JSON.',
+    });
+    assert.equal('gateway' in loadWebEnvironment(), false);
+  } finally {
+    if (prior === undefined) {
+      delete process.env.M2_PROVIDER_CREDENTIALS_JSON;
+    } else {
+      process.env.M2_PROVIDER_CREDENTIALS_JSON = prior;
+    }
+  }
+});
+
+test('nonlocal gateway cannot silently use legacy provider-wide environment keys', () => {
+  loadApiEnvironment();
+  const names = [
+    'M0_RUNTIME_MODE',
+    'DEPLOYMENT_ROLE',
+    'M2_OPENROUTER_API_KEY',
+    'M2_REPLAY_REDIS_URL',
+  ];
+  const prior = new Map(names.map((name) => [name, process.env[name]]));
+  try {
+    process.env.M0_RUNTIME_MODE = 'm1-oidc';
+    process.env.DEPLOYMENT_ROLE = 'api-production';
+    process.env.M2_OPENROUTER_API_KEY = 'fixture-key';
+    process.env.M2_REPLAY_REDIS_URL = 'redis://127.0.0.1:6379/15';
+    assert.throws(
+      () => loadApiEnvironment(),
+      /Legacy provider API keys are local-only/,
+    );
+  } finally {
+    for (const [name, value] of prior) {
+      if (value === undefined) {
+        delete process.env[name];
+      } else {
+        process.env[name] = value;
+      }
+    }
+  }
+});
 
 test('required environment values fail closed instead of falling back', () => {
   loadApiEnvironment();

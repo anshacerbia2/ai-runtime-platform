@@ -6,13 +6,15 @@ import {
 } from '../application/provider-adapter.port.js';
 import { readSse } from './provider-sse.js';
 import { injectActiveTraceHeaders } from '../../../infrastructure/telemetry/telemetry.js';
+import type { ProviderCredentialResolver } from '../application/provider-credential.port.js';
+import { resolveAdapterCredential } from './provider-credential-resolver.js';
 
 const defaultEndpoint = 'https://openrouter.ai/api/v1/chat/completions';
 
 export class OpenRouterAdapter implements ProviderAdapter {
   readonly id = 'openrouter' as const;
   constructor(
-    private readonly apiKey?: string,
+    private readonly credential?: string | ProviderCredentialResolver,
     private readonly transport: typeof fetch = fetch,
     private readonly endpoint = defaultEndpoint,
   ) {}
@@ -21,22 +23,17 @@ export class OpenRouterAdapter implements ProviderAdapter {
     request: ProviderRequest,
     signal: AbortSignal,
   ): AsyncIterable<ProviderEvent> {
-    if (request.credentialRef !== 'env:M2_OPENROUTER_API_KEY') {
-      throw new ProviderError(
-        this.id,
-        'PROVIDER_CREDENTIAL_REF_UNSUPPORTED',
-        'not-sent',
-      );
-    }
-    if (!this.apiKey || request.credentialRef !== 'env:M2_OPENROUTER_API_KEY') {
-      throw new ProviderError(
-        this.id,
-        'PROVIDER_CREDENTIAL_UNAVAILABLE',
-        'not-sent',
-      );
+    const apiKey = await resolveAdapterCredential(
+      this.credential,
+      this.id,
+      request,
+      signal,
+    );
+    if (signal.aborted) {
+      throw new DOMException('Provider request aborted.', 'AbortError');
     }
     const headers = new Headers({
-      Authorization: 'Bearer ' + this.apiKey,
+      Authorization: 'Bearer ' + apiKey,
       'Content-Type': 'application/json',
       Accept: 'text/event-stream',
     });
@@ -70,6 +67,7 @@ export class OpenRouterAdapter implements ProviderAdapter {
             : {}),
         }),
         signal,
+        redirect: 'error',
       });
     } catch (error) {
       if (signal.aborted) {

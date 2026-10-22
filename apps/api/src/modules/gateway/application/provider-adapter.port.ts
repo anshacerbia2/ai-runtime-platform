@@ -1,3 +1,5 @@
+import type { ProviderCredentialBinding } from './provider-credential.port.js';
+
 export type ProviderId = 'openrouter' | 'direct-anthropic';
 
 export interface ProviderMessage {
@@ -9,6 +11,8 @@ export interface ProviderRequest {
   capability: 'chat' | 'generate' | 'structured_generate';
   model: string;
   credentialRef: string;
+  /** Internal server-selected context, never serialized into provider or public requests. */
+  credentialBinding?: ProviderCredentialBinding;
   messages: ProviderMessage[];
   responseSchema?: Record<string, unknown>;
   maxOutputTokens: number;
