@@ -1,0 +1,61 @@
+# Agent Runtime alignment: proposed transition roadmap
+
+**Date:** 22 October 2026 (Asia/Jakarta). **Status:** draft for review. This sequence supplements discussion; it does not replace the adopted [plan](../PLAN.md), [roadmap](../ROADMAP.md) or local [ADRs](../adr/README.md). Merging documentation does not adopt AR-P01–08 or approve deployment.
+
+## Outcome and current checkpoint
+
+Preserve working direct inference and existing contracts while adding a distinct durable Agent Runtime that consumes Model & Inference. Reuse tested infrastructure through explicit ports. First prove a versioned Run with two model turns, one permitted read-only Tool, durable progress, cancellation and budget control. Then qualify the real runtime and optional sandbox path.
+
+PR #22 is the merged baseline `b836f58fe6a799f26e29bae831b136f7b9007d3b`. M0–M2 are locally implemented; M3 has useful dispatch/lease/evidence/plugin/native sandbox foundations. Actual guest payload/plugin bridge, complete agent loop, production delivery/KMS/runtime and deployment evidence remain incomplete. The [comparison](../reviews/SCNEHAUX-ARCHITECTURE-ALIGNMENT.md) distinguishes these facts from the current Scnehaux authority split.
+
+## Proposed stages and gates
+
+| Stage                                | Concrete deliverable                                                                                                                           | Entry                                                                             | Exit evidence and next permission                                                                                                                                                                                |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A0 — Design alignment                | [System proposal](AGENT-RUNTIME-DESIGN.md), [technical design/test plan](AGENT-RUNTIME-TDD.md), ownership/migration map and disposition record | Authorized preparation of this package                                            | Explicit disposition of AR-P01–08; reconcile applicable local ADRs; establish the downstream SAD-011/SAD-020 draft/governance path. No silent promotion of chartered status.                                     |
+| A1 — Compatible boundaries           | Explicit model, agent, accounting and optional isolated-execution ports; dependency rules; existing API/CDC unchanged                          | A0 permits the selected technical scope                                           | AR-T01/14 and affected existing checks pass; direct inference operates with agent module absent/disabled; no forced row conversion or production route activation.                                               |
+| A2 — Durable identity and accounting | Pinned Definition/Run/Turn/operation records, whole-run reservation and bound allocation, idempotent admission and orphan reconciliation       | A1 plus accepted identity/budget contracts                                        | AR-T02/03/09/12 pass on real PostgreSQL with crash/concurrency evidence. No paid multi-turn activation based only on fake budget adapters.                                                                       |
+| A3 — First durable agent flow        | Two mediated model turns, one allow-listed read-only Tool, durable result and progress using inert conformance adapters                        | A2; supported fixture definition                                                  | AR-T04–08/10/11/13/16 and inert AR-T15 pass; process restart recovers committed facts or suspends ambiguity without duplicate remote calls. Minimal submit/status/cancel flow is reviewable.                     |
+| A4 — Runtime and scoped delivery     | Claude compatibility adapter, trusted payload/plugin handoff where required, production identity/KMS/signature integration proposals           | A3 plus accepted runtime/data/credential controls                                 | Exact selected adapter proves mediation and budgets. Scoped delivery, containment/stop and failed-reporting gates pass; unsupported SDK capabilities are refused. Existing native ownership restrictions remain. |
+| A5 — Operational qualification       | Linux VM/VPS deployment, physical multi-node/Redis/node/disk-loss drills, SLO/capacity, retention and recovery runbooks                        | Accepted deployment/security/accounting controls and authorized test environments | Applicable P3.5 gates with exact revision/environment evidence, bounded live-provider smoke if authorized, rollback rehearsal and owner disposition. No prototype-to-production inference.                       |
+| A6 — Product pilot                   | One Product-owned definition and controlled application adoption                                                                               | A5 plus Product acceptance/canary plan                                            | Domain acceptance, scoped canary, actual usage/recovery review and explicit rollback/expansion decision.                                                                                                         |
+
+These are dependency stages, not a commitment to six PRs or calendar dates. Group cohesive implementation into reviewable behavioral changes. Keep each PR's purpose and evidence concrete; avoid repeatedly renaming a foundation increment as the agent milestone itself.
+
+## Reuse and migration rules
+
+| Existing asset                            | Proposed treatment                                                     | Compatibility rule                                                                        |
+| ----------------------------------------- | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| M2 gateway/adapters/SSE/replay/circuit    | Model & Inference implementation behind its own contracts              | Existing direct request, idempotency, cancel, result and usage behavior remains covered.  |
+| Control Execution/Attempt/ProfileRevision | Keep current meaning; new agent records link by explicit mapping       | No historical rewrite, fake Turn, overloaded status enum or automatic backfill.           |
+| Admission/accounting/ledger               | Retain one authority; extend with scoped parent allocations            | Additive migration, conservation proof and no second charge from Run summaries.           |
+| Runner assignment/lease/epoch/fencing     | Reuse as infrastructure ownership under an adapter                     | Durable Run progress does not revive a fenced assignment or authorize replacement.        |
+| ToolEffect and receiver/status contract   | Reuse stable operation/evidence semantics with explicit Run/Turn links | Existing operation identity and unknown/committed facts remain intact.                    |
+| Plugin packages and scoped delivery       | Retain verified packaging and least-privilege transport                | Definition approval is separate from signature/digest verification.                       |
+| runsc bundle/process/cgroup/host          | Preserve experimental optional execution adapter and CI evidence       | No O03 closure, stale-lock cleanup, worker takeover or production image approval implied. |
+| Existing public v1/BFF/CDC                | Retain; new agent routes/contracts added separately when authorized    | Avoid a flag that silently sends today's direct inference to an Agent Runtime.            |
+
+For additive migrations, deploy compatible readers before enabling new writers/traffic. New features remain off until their activation gate. Rollback disables new submissions/dispatch, drains or suspends active Runs with durable state/evidence retained, and restores old direct-inference routing. Do not roll back by dropping populated agent/allocation tables, deleting holds or replaying unknown operations. A later destructive cleanup requires a separate migration and retention disposition.
+
+## Review dispositions still needed
+
+This package recommends a direction; it does not invent reviewer approval or an existing exception. Record each decision separately with its actual owner, rationale, date and source reference:
+
+| Topic                                          | Proposed position                                                                     | Required review role                         |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------- | -------------------------------------------- |
+| Product/module split and packaging             | AR-P01–04; one initial monorepo with explicit authority                               | Architecture authority and engineering owner |
+| SAD status and local ADR reconciliation        | Submit this design as downstream input; update the actual source through its workflow | Architecture source owner                    |
+| Whole-run/child budget and exposure            | AR-P05; bound allocations, one hold/ledger, conservative unknown handling             | Accounting and runtime owners; O07/O13       |
+| Recovery/reassignment                          | AR-P06; progress resume only from resolved facts and valid authority                  | Runtime/security/operations; O03/O04         |
+| Identity/Tenant/delegation and secret delivery | Trusted scope, no caller privilege expansion; fail closed for missing capabilities    | Identity/security/operations; O05/O14/O16    |
+| Definition, pilot and Tool eligibility         | AR-P08; first supported read-only Tool and Product-owned acceptance                   | Product and Tool owners; O08/O09             |
+| Data/checkpoint/signature retention            | Scoped encrypted storage, no universal production TTL                                 | Data/security/runtime owners; O06/O12/O15    |
+| Optional isolated execution                    | AR-P07; preserve Linux VM/VPS preference and experimental evidence                    | Runtime/security/operations; O02/O03         |
+
+Individual reviewers and dates remain unassigned; document actual dispositions rather than filling them with fictional approvals. Discussion in `docs/reviews` can challenge the recommendation without itself adopting or rejecting architecture.
+
+## Immediate deliverable and acceptance
+
+This documentation change delivers the comparison, proposed system boundary/data ownership, operation/recovery/budget contracts, technical migration outline and 16 prospective test scenarios. Review can accept, amend or reject individual choices before an implementation branch changes those semantics.
+
+Local validation for this package covers formatting, Markdown fences/relative file targets and diff whitespace. Existing CI may run its full baseline suite; a green result checks compatibility of the documentation change, not implementation of the proposed Agent Runtime or acceptance of its architecture. No source, schema, generated HTTP contract, runtime configuration or external architecture status is changed by this package.

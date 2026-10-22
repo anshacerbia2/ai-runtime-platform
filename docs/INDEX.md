@@ -19,6 +19,8 @@ ADRs record decisions and trade-offs; architecture explains the system; detailed
 
 ## Overview
 
+Pending design discussion: [Scnehaux alignment review](reviews/SCNEHAUX-ARCHITECTURE-ALIGNMENT.md), [proposed Agent Runtime system design](proposals/AGENT-RUNTIME-DESIGN.md), [technical design and test-first plan](proposals/AGENT-RUNTIME-TDD.md), and [transition roadmap](proposals/AGENT-RUNTIME-TRANSITION.md). These are proposals; the existing ADRs and implementation status are unchanged.
+
 | Document                                        | Purpose                                   |
 | ----------------------------------------------- | ----------------------------------------- |
 | [ARCHITECTURE.md](architecture/ARCHITECTURE.md) | AI Runtime Platform — Architecture        |
