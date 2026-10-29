@@ -50,6 +50,12 @@
   padding: var(--ds-pad-card);
   border-bottom: 1px solid var(--ds-border-subtle);
 }
+.ds-panel-body {
+  display: grid;
+  gap: var(--ds-space-3);
+  padding: var(--ds-pad-card);
+  min-width: 0;
+}
 .ds-panel-header h2 {
   font-size: var(--ds-font-size-card);
   font-weight: var(--fw-semibold);
@@ -225,6 +231,14 @@
   min-width: 720px;
 }
 // Taller rows and a full card gutter: dense is not the same as cramped.
+.ds-table-fit {
+  min-width: 0;
+}
+.ds-table.ds-table-fit th,
+.ds-table.ds-table-fit td {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
 .ds-table th,
 .ds-table td {
   padding: var(--ds-space-4) var(--ds-pad-card);

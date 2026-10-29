@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased — 29 October 2026 — account usage dashboard
+
+Added registry-backed account selection and a Control Plane usage view with explicit UTC/application/single-budget filters, exact counters, unknown measurements, outcome counts and ledger exclusions. Applied filter scope owns each cancellable read; refresh errors preserve marked prior results and late responses cannot cross accounts. Paginated pickers keep selections and fail independently. Reused semantic components with PanelBody/fitted outcome tables and corrected off-canvas rail specificity; desktop/mobile screenshots and browser workflows cover the view. A real BFF/API/PostgreSQL browser case reads a uniquely owned registered account without provider dispatch. [Flow, evidence and limits](development/ACCOUNT-USAGE-DASHBOARD.md).
+
 ## Unreleased — 29 October 2026 — per-connection usage reporting API
 
 Added an operator-only, BFF-exposed per-connection usage read over bounded invocation cohorts. Exact string counters preserve unknown token measurements; opt-in single-budget ledger attribution includes corrections without scope fanout and excludes mixed coverage. PostgreSQL repeatable reads and query timeouts bound reporting; migration 0027 adds a concurrent connection/time index. Contract/unit and PostgreSQL/API cases cover authority, replay, secrets, boundaries, precision and accounting attribution. No dashboard or production/provider claim is added. [Semantics and rollout](development/CONNECTION-USAGE.md).
