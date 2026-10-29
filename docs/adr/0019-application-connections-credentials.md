@@ -2,7 +2,11 @@
 
 **Tanggal:** 21 September 2026 (Asia/Jakarta)
 
-**Status:** registry/binding/control mutations implemented locally; actual provider credential resolver and production approval remain open.
+**Status:** registry/binding/control mutations and an initial connection-bound API-key resolver implemented locally; production credential integration/approval remain open.
+
+## Implementation checkpoint — 22 October 2026
+
+The gateway now resolves central API keys under the exact selected connection/credential metadata identity and revision, with PostgreSQL authority checks before and after lookup. An API-only deployment-injected binding source replaces global provider keys outside local mode. [Implementation, attribution, rollout and limits](../development/CONNECTION-CREDENTIALS.md). This implements the existing decision below; production secret-manager/workload identity, hot rotation, live-provider validation and aggregate account monitoring remain open. The historical reconciliation below describes the earlier checkpoint.
 
 ## Implementation reconciliation — 24 September 2026
 

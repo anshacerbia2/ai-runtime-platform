@@ -59,6 +59,14 @@ import { OpenRouterAdapter } from './infrastructure/openrouter.adapter.js';
 import { AnthropicAdapter } from './infrastructure/anthropic.adapter.js';
 import { OpenTelemetryGatewayTelemetry } from './infrastructure/opentelemetry-gateway.telemetry.js';
 import { GatewayController } from './presentation/http/gateway.controller.js';
+import {
+  PROVIDER_CREDENTIAL_RESOLVER,
+  type ProviderCredentialResolver,
+} from './application/provider-credential.port.js';
+import {
+  ConfiguredProviderCredentialSource,
+  RegistryProviderCredentialResolver,
+} from './infrastructure/provider-credential-resolver.js';
 
 const OPENROUTER = Symbol('OpenRouterProvider');
 const ANTHROPIC = Symbol('AnthropicProvider');
@@ -110,21 +118,44 @@ const OWNER_INSTANCE_ID = Symbol('GatewayOwnerInstanceId');
     { provide: GATEWAY_TELEMETRY, useClass: OpenTelemetryGatewayTelemetry },
     { provide: OWNER_INSTANCE_ID, useFactory: () => randomUUID() },
     {
+      provide: PROVIDER_CREDENTIAL_RESOLVER,
+      inject: [RUNTIME_CONFIG, PrismaGatewayRepository],
+      useFactory: (config: RuntimeConfig, authority: PrismaGatewayRepository) =>
+        new RegistryProviderCredentialResolver(
+          authority,
+          new ConfiguredProviderCredentialSource(
+            config.gateway.credentialBindings ?? [],
+            config.runtimeMode === 'm0-local'
+              ? {
+                  openrouterApiKey: config.gateway.openrouterApiKey,
+                  anthropicApiKey: config.gateway.anthropicApiKey,
+                }
+              : undefined,
+          ),
+        ),
+    },
+    {
       provide: OPENROUTER,
-      inject: [RUNTIME_CONFIG],
-      useFactory: (config: RuntimeConfig) =>
+      inject: [RUNTIME_CONFIG, PROVIDER_CREDENTIAL_RESOLVER],
+      useFactory: (
+        config: RuntimeConfig,
+        credentials: ProviderCredentialResolver,
+      ) =>
         new OpenRouterAdapter(
-          config.gateway.openrouterApiKey,
+          credentials,
           fetch,
           config.gateway.openrouterEndpoint,
         ),
     },
     {
       provide: ANTHROPIC,
-      inject: [RUNTIME_CONFIG],
-      useFactory: (config: RuntimeConfig) =>
+      inject: [RUNTIME_CONFIG, PROVIDER_CREDENTIAL_RESOLVER],
+      useFactory: (
+        config: RuntimeConfig,
+        credentials: ProviderCredentialResolver,
+      ) =>
         new AnthropicAdapter(
-          config.gateway.anthropicApiKey,
+          credentials,
           fetch,
           config.gateway.anthropicEndpoint,
         ),
