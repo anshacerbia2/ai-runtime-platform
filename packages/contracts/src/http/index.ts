@@ -24,6 +24,7 @@ export type {
 export { httpOpenApi } from './openapi.js';
 
 export * from './resources.js';
+export * from './connection-usage.js';
 
 export * from './runner.js';
 export * from './gateway.js';

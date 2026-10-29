@@ -4,6 +4,8 @@
 
 ## Cara membaca dokumentasi
 
+Checkpoint usage 29 Oktober 2026: bounded operator reads now aggregate per-connection invocation cohorts, preserve unknown token counters and optionally show exactly one budget scope's attributable ledger deltas. The session BFF exposes the shared read contract; dashboard controls remain pending. No provider lookup, settlement or production evidence is implied. [Contract, attribution and migration](../development/CONNECTION-USAGE.md).
+
 Checkpoint credential gateway 22 Oktober 2026: server-selected connection/credential ID/revision now flow to a per-request resolver, with PostgreSQL authority checks before/after lookup and an explicit API-only configuration source. Invocation-to-connection and usage/ledger attribution retain existing durable identities without duplicate posting. Nonlocal global legacy keys are refused. Production secret-manager choice, live vendor proof, hot rotation and the aggregated usage/account monitoring UI remain open. [Scope and recipe](../development/CONNECTION-CREDENTIALS.md).
 
 Checkpoint native coordinator 20 Oktober 2026: a disposable Linux gate now composes two real APIs, PostgreSQL/Redis and native worker/sandbox. It exercises lost claim ACK/API handoff without rerun, cross-API cancellation with late unknown evidence, and lease loss with durable fencing/denied new-boot replacement. Native monitor/kernel/absence proof precedes clean ownership release; held cost is not settled. Trusted runtime/delivery, operational recovery, physical multi-node/actual VPS and production gates remain open. [Scope](../development/NATIVE-COORDINATOR-CONFORMANCE.md).

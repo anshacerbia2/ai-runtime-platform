@@ -17,6 +17,71 @@ async function fixture() {
   };
 }
 
+test('connection usage BFF keeps precise unknown counters, selected query scope and server token custody', async () => {
+  const { runtime, cookie } = await fixture();
+  const query = new URLSearchParams({
+    from: '2026-10-01T00:00:00.000Z',
+    to: '2026-10-02T00:00:00.000Z',
+    budgetAccountId: 'budget-a',
+  });
+  const payload = {
+    connectionId: 'account-a',
+    applicationId: null,
+    from: query.get('from'),
+    to: query.get('to'),
+    observedAt: '2026-10-03T00:00:00.000Z',
+    consistency: 'repeatable-read',
+    invocations: {
+      total: '1',
+      running: '0',
+      succeeded: '0',
+      failed: '0',
+      unknown: '1',
+    },
+    tokens: {
+      input: { known: '9007199254740993', unknownInvocations: '0' },
+      output: { known: '0', unknownInvocations: '1' },
+    },
+    ledger: null,
+  };
+  for (const malformed of [false, true]) {
+    const response = await forward(
+      new Request(
+        `https://console.invalid/api/v1/connections/account-a/usage?${query}`,
+        { headers: { Cookie: cookie, Authorization: 'Bearer browser-spoof' } },
+      ),
+      ['v1', 'connections', 'account-a', 'usage'],
+      runtime,
+      async (input, init) => {
+        const url = new URL(String(input));
+        assert.equal(url.origin, 'https://api.invalid');
+        assert.equal(url.pathname, '/api/v1/connections/account-a/usage');
+        assert.equal(url.searchParams.get('budgetAccountId'), 'budget-a');
+        assert.equal(url.searchParams.get('from'), query.get('from'));
+        const headers = new Headers(init?.headers);
+        assert.equal(headers.get('authorization'), 'Bearer server-access');
+        assert.equal(headers.get('cookie'), null);
+        return Response.json(
+          malformed
+            ? {
+                ...payload,
+                tokens: {
+                  ...payload.tokens,
+                  input: { known: 9007199254740992, unknownInvocations: '0' },
+                },
+              }
+            : payload,
+        );
+      },
+    );
+    assert.equal(response.status, malformed ? 502 : 200);
+    assert.equal(response.headers.get('cache-control'), 'no-store');
+    if (!malformed) {
+      assert.deepEqual(await response.json(), payload);
+    }
+  }
+});
+
 test('G39 unauthenticated BFF request fails before the API is contacted', async () => {
   let calls = 0;
   const { runtime } = await fixture();

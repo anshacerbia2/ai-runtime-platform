@@ -75,17 +75,46 @@ import type { RunnerCoordinationStore } from './application/runner-coordination.
 import { PrismaRunnerCoordinationRepository } from './infrastructure/prisma-runner-coordination.repository.js';
 import { RedisRunnerCoordinationStore } from './infrastructure/redis-runner-coordination.store.js';
 
+import { ConnectionUsageController } from './presentation/http/connection-usage.controller.js';
+import { ConnectionUsageService } from './application/connection-usage.service.js';
+import {
+  CONNECTION_USAGE_READER,
+  CONNECTION_USAGE_QUERY,
+  type ConnectionUsageReader,
+  type ConnectionUsageQueryValidator,
+} from './application/connection-usage.port.js';
+import { PrismaConnectionUsageReader } from './infrastructure/prisma-connection-usage.reader.js';
+import { ContractConnectionUsageQueryValidator } from './infrastructure/connection-usage-query.validator.js';
+
 const RUNNER_COORDINATION_STORE = Symbol('RUNNER_COORDINATION_STORE');
 
 @Module({
   imports: [DatabaseModule],
   controllers: [
+    ConnectionUsageController,
     ControlPlaneController,
     ResourceController,
     RunnerAuthorityController,
     RunnerOutcomeController,
   ],
   providers: [
+    {
+      provide: CONNECTION_USAGE_READER,
+      inject: [DatabaseService],
+      useFactory: (db: DatabaseService) => new PrismaConnectionUsageReader(db),
+    },
+    {
+      provide: CONNECTION_USAGE_QUERY,
+      useClass: ContractConnectionUsageQueryValidator,
+    },
+    {
+      provide: ConnectionUsageService,
+      inject: [CONNECTION_USAGE_READER, CONNECTION_USAGE_QUERY],
+      useFactory: (
+        reader: ConnectionUsageReader,
+        validator: ConnectionUsageQueryValidator,
+      ) => new ConnectionUsageService(reader, validator),
+    },
     {
       provide: RUNNER_OUTCOME_AUTHORITY,
       inject: [DatabaseService],

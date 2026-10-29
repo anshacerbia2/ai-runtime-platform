@@ -1,5 +1,7 @@
 # AI Runtime Platform — Roadmap
 
+Usage reporting checkpoint 29 October 2026: [per-connection usage API](development/CONNECTION-USAGE.md) provides bounded operator reads with explicit unknown counters and single-budget ledger attribution. Account/usage monitoring UI is next; secret-manager, live-provider and production gates remain open. This implements existing reporting/accounting boundaries without adopting the separate Agent Runtime proposal.
+
 Gateway credential checkpoint 22 October 2026: [connection-bound resolution](development/CONNECTION-CREDENTIALS.md) now supplies both provider adapters with server-selected credential identity/revision and PostgreSQL checks around lookup. This advances the early account/usage foundation; aggregated monitoring UI, actual secret-manager integration, hot rotation and live staging/production evidence remain open. The proposed Agent Runtime transition remains separately subject to disposition.
 
 Native coordinator conformance now combines real APIs/PostgreSQL/Redis with the Linux worker/sandbox. Lost-claim/API handoff preserves one run; cancellation stops the real subtree while late usage stays unknown; missing lease yields durable fencing and denied fresh-boot replacement. Clean host unlock follows monitor/kernel/absence proof without settlement. Next is the trusted runtime/delivery bridge, followed by remaining recovery/physical multi-node/VPS and production gates. No production activation, takeover/retirement, O03 closure or ADR change. [Scope](development/NATIVE-COORDINATOR-CONFORMANCE.md).
