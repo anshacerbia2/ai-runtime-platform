@@ -24,6 +24,8 @@ import { createApplication } from '../dist/bootstrap.js';
 import { OpenRouterAdapter } from '../src/modules/gateway/infrastructure/openrouter.adapter.js';
 import { RegistryProviderCredentialResolver } from '../src/modules/gateway/infrastructure/provider-credential-resolver.js';
 import type { ProviderCredentialBinding } from '../src/modules/gateway/application/provider-credential.port.js';
+import { PrismaConnectionUsageReader } from '../src/modules/control-plane/infrastructure/prisma-connection-usage.reader.js';
+import { ConnectionUsageSummary } from '@ai-runtime/contracts/http';
 
 const prefix = 'm2-' + randomUUID();
 const application = {
@@ -1355,6 +1357,58 @@ test('production API composition routes two accounts of one provider to distinct
       );
       assert.equal(stored.reservations[0]!.heldUnits, 0n);
       assert.equal(stored.reservations[0]!.state, 'SETTLED');
+      const window = new URLSearchParams({
+        from: new Date(invocation.startedAt.getTime() - 1).toISOString(),
+        to: new Date(Date.now() + 1000).toISOString(),
+        applicationId: application.id,
+        budgetAccountId: budgetId,
+      });
+      const usageUrl = `/api/v1/connections/${account.connectionId}/usage?${window}`;
+      const usage = await api.inject({
+        method: 'GET',
+        url: usageUrl,
+        headers: {
+          authorization: `Bearer ${config.localOperatorToken}`,
+          host: config.allowedHosts[0]!,
+        },
+      });
+      assert.equal(usage.statusCode, 200, usage.body);
+      const summary = ConnectionUsageSummary.parse(usage.json());
+      assert.equal(summary.invocations.total, '1');
+      assert.equal(summary.tokens.input.known, String(account.input));
+      assert.equal(summary.tokens.output.known, String(account.output));
+      assert.equal(summary.tokens.output.unknownInvocations, '0');
+      assert.equal(
+        summary.ledger?.attributedPostedUnits,
+        String(account.input + account.output),
+      );
+      assert.equal(summary.ledger?.unit, 'tokens');
+      assert.equal(
+        accounts.some(
+          (value) =>
+            usage.body.includes(value.apiKey) ||
+            usage.body.includes(value.credentialRef),
+        ),
+        false,
+      );
+      const denied = await api.inject({
+        method: 'GET',
+        url: usageUrl,
+        headers: {
+          authorization: `Bearer ${application.token}`,
+          host: config.allowedHosts[0]!,
+        },
+      });
+      assert.equal(denied.statusCode, 403);
+      const invalidWindow = await api.inject({
+        method: 'GET',
+        url: usageUrl + '&credentialRef=other',
+        headers: {
+          authorization: `Bearer ${config.localOperatorToken}`,
+          host: config.allowedHosts[0]!,
+        },
+      });
+      assert.equal(invalidWindow.statusCode, 400);
       const invalid = await api.inject({
         method: 'POST',
         url: '/v1/chat',
@@ -1394,6 +1448,253 @@ test('production API composition routes two accounts of one provider to distinct
   } finally {
     await api.close();
   }
+});
+
+test('connection usage cohort preserves precision, nulls, boundary ordering, adjustments and budget scope without fanout', async (t) => {
+  const admitted = await control.admit(
+    principal,
+    profileRef,
+    'c'.repeat(64),
+    prefix + '-usage-summary',
+  );
+  const claimed = await repository.claim(
+    application.id,
+    admitted.execution.id,
+    'c'.repeat(64),
+    randomUUID(),
+  );
+  assert.equal(claimed.state, 'claimed');
+  if (claimed.state !== 'claimed') {
+    return;
+  }
+  const claim = claimed.claim;
+  const from = new Date('2026-10-01T00:00:00.000Z');
+  const to = new Date('2026-10-02T00:00:00.000Z');
+  await db.providerInvocation.update({
+    where: { id: claim.invocationId },
+    data: {
+      startedAt: from,
+      completedAt: new Date('2026-10-10T00:00:00.000Z'),
+      status: 'SUCCEEDED',
+      inputTokens: 9007199254740993n,
+      outputTokens: 4n,
+    },
+  });
+  const unknownId = randomUUID();
+  const outsideId = randomUUID();
+  const otherConnectionId = randomUUID();
+  const values = [
+    {
+      id: unknownId,
+      connectionId,
+      startedAt: from,
+      status: 'UNKNOWN',
+      inputTokens: null,
+      outputTokens: null,
+    },
+    {
+      id: randomUUID(),
+      connectionId,
+      startedAt: from,
+      status: 'FAILED',
+      inputTokens: 0n,
+      outputTokens: 0n,
+    },
+    {
+      id: outsideId,
+      connectionId,
+      startedAt: to,
+      status: 'SUCCEEDED',
+      inputTokens: 200n,
+      outputTokens: 200n,
+    },
+    {
+      id: randomUUID(),
+      connectionId,
+      startedAt: new Date(from.getTime() - 1),
+      status: 'SUCCEEDED',
+      inputTokens: 300n,
+      outputTokens: 300n,
+    },
+    {
+      id: otherConnectionId,
+      connectionId: fallbackConnectionId,
+      startedAt: from,
+      status: 'SUCCEEDED',
+      inputTokens: 400n,
+      outputTokens: 400n,
+    },
+  ];
+  for (const value of values) {
+    await db.providerInvocation.create({
+      data: {
+        ...value,
+        executionId: claim.executionId,
+        attemptId: claim.attemptId,
+        provider:
+          value.connectionId === connectionId
+            ? 'openrouter'
+            : 'direct-anthropic',
+        model: 'fixture-model',
+        requestDigest: 'd'.repeat(64),
+      },
+    });
+  }
+  const secondBudget = prefix + '-summary-second-budget';
+  await db.budgetAccount.create({
+    data: {
+      id: secondBudget,
+      applicationId: application.id,
+      unit: 'tokens',
+      period: 'fixture',
+      limitUnits: 10000n,
+    },
+  });
+  t.after(async () => {
+    await db.ledgerEntry.deleteMany({ where: { accountId: secondBudget } });
+    await db.reservation.deleteMany({ where: { accountId: secondBudget } });
+    await db.budgetAccount.delete({ where: { id: secondBudget } });
+  });
+  await db.reservation.create({
+    data: {
+      executionId: claim.executionId,
+      accountId: secondBudget,
+      originalUnits: 100n,
+      heldUnits: 0n,
+    },
+  });
+  const initialObservation = randomUUID();
+  const initialEntry = randomUUID();
+  const observations = [
+    {
+      id: initialObservation,
+      sourceEventId: 'summary-known',
+      sourceRevision: 1,
+      coverage: [claim.invocationId],
+      cumulativeUnits: 40n,
+    },
+    {
+      id: randomUUID(),
+      sourceEventId: 'summary-known',
+      sourceRevision: 2,
+      coverage: [claim.invocationId],
+      cumulativeUnits: 35n,
+    },
+    {
+      id: randomUUID(),
+      sourceEventId: 'summary-mixed',
+      sourceRevision: 1,
+      coverage: [unknownId, outsideId],
+      cumulativeUnits: 17n,
+    },
+  ];
+  for (const [index, observation] of observations.entries()) {
+    await db.usageObservation.create({
+      data: {
+        ...observation,
+        executionId: claim.executionId,
+        attemptId: claim.attemptId,
+        digest: 'e'.repeat(64),
+        completeness: 'complete',
+        costBasis: 'estimated',
+        verification: 'VERIFIED',
+        reason: 'Synthetic summary evidence',
+      },
+    });
+    await db.ledgerEntry.create({
+      data: {
+        id: index === 0 ? initialEntry : randomUUID(),
+        executionId: claim.executionId,
+        accountId: budgetId,
+        observationId: observation.id,
+        commandId: prefix + '-summary-post-' + index,
+        deltaUnits: [40n, -5n, 17n][index]!,
+        previousEntryId: index === 1 ? initialEntry : null,
+      },
+    });
+  }
+  await db.ledgerEntry.create({
+    data: {
+      id: randomUUID(),
+      executionId: claim.executionId,
+      accountId: secondBudget,
+      observationId: initialObservation,
+      commandId: prefix + '-second-scope-post',
+      deltaUnits: 1000n,
+    },
+  });
+  const reader = new PrismaConnectionUsageReader(
+    db as unknown as DatabaseService,
+  );
+  const query = {
+    from: from.toISOString(),
+    to: to.toISOString(),
+    applicationId: application.id,
+    budgetAccountId: budgetId,
+  };
+  const summary = ConnectionUsageSummary.parse(
+    await reader.read(connectionId, query),
+  );
+  assert.deepEqual(summary.invocations, {
+    total: '3',
+    running: '0',
+    succeeded: '1',
+    failed: '1',
+    unknown: '1',
+  });
+  assert.deepEqual(summary.tokens, {
+    input: { known: '9007199254740993', unknownInvocations: '1' },
+    output: { known: '4', unknownInvocations: '1' },
+  });
+  assert.deepEqual(summary.ledger, {
+    accountId: budgetId,
+    unit: 'tokens',
+    attributedPostedUnits: '35',
+    excludedObservationCount: '1',
+  });
+  assert.equal(
+    (await reader.read(connectionId, { from: query.from, to: query.to }))
+      ?.ledger,
+    null,
+  );
+  assert.equal(
+    (
+      await reader.read(connectionId, {
+        ...query,
+        budgetAccountId: secondBudget,
+      })
+    )?.ledger?.attributedPostedUnits,
+    '1000',
+  );
+  assert.equal(
+    (
+      await reader.read(connectionId, {
+        ...query,
+        from: to.toISOString(),
+        to: new Date(to.getTime() + 1).toISOString(),
+      })
+    )?.invocations.total,
+    '1',
+  );
+  assert.equal(await reader.read(prefix + '-missing', query), null);
+  assert.equal(
+    await reader.read(connectionId, {
+      ...query,
+      applicationId: prefix + '-missing',
+    }),
+    null,
+  );
+  assert.equal(
+    await reader.read(connectionId, {
+      ...query,
+      budgetAccountId: prefix + '-missing',
+    }),
+    null,
+  );
+  const [index] = await db.$queryRaw<
+    Array<{ valid: boolean }>
+  >`SELECT indisvalid AS valid FROM pg_index WHERE indexrelid = 'control.provider_invocations_connection_started'::regclass`;
+  assert.equal(index?.valid, true);
 });
 
 test('credential dispatch authority rejects foreign, revoked, rotated, cancelled and wrong-owner claims, including revocation during lookup', async () => {

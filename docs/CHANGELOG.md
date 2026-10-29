@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — 29 October 2026 — per-connection usage reporting API
+
+Added an operator-only, BFF-exposed per-connection usage read over bounded invocation cohorts. Exact string counters preserve unknown token measurements; opt-in single-budget ledger attribution includes corrections without scope fanout and excludes mixed coverage. PostgreSQL repeatable reads and query timeouts bound reporting; migration 0027 adds a concurrent connection/time index. Contract/unit and PostgreSQL/API cases cover authority, replay, secrets, boundaries, precision and accounting attribution. No dashboard or production/provider claim is added. [Semantics and rollout](development/CONNECTION-USAGE.md).
+
+Updated exact Zod pins to 4.6.7 and compatible transitive body-parser/qs/fast-uri versions after the current audit identified published advisories, including [Zod resource exhaustion](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5) and [compressed body parsing](https://github.com/advisories/GHSA-27r3-jxmh-p828). Audit thresholds and validation boundaries are unchanged.
+
 ## Unreleased — 23 October 2026 — framework security updates
 
 Updated Next.js to 16.4.2 and aligned Nest common/core/Fastify adapter at 12.2.0 with Fastify 5.12.7 after CI dependency audit detected newly published advisories. These updates address the [Next.js image optimization](https://github.com/advisories/GHSA-2464-fhr4-w9xw), [typed-array cache](https://github.com/advisories/GHSA-673q-mjm6-r5xr), [Server Actions](https://github.com/advisories/GHSA-p3m5-59mp-jv5r) and [Fastify header validation](https://github.com/advisories/GHSA-389g-gv7q-r4x8) advisories. Dependency pins and lockfile remain explicit; audit thresholds are unchanged.

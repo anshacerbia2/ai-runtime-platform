@@ -2,6 +2,10 @@ import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
 import { ManagementCommand } from '../control-plane.js';
 import * as view from './control-plane.js';
+import {
+  ConnectionUsageQuery,
+  ConnectionUsageSummary,
+} from './connection-usage.js';
 
 const c = initContract();
 export const RequestKeyHeaders = z.object({
@@ -120,6 +124,14 @@ export const resourceContract = c.router({
     },
   },
   connections: {
+    usage: {
+      method: 'GET',
+      path: '/api/v1/connections/:id/usage',
+      pathParams: z.object({ id: ResourceId }),
+      query: ConnectionUsageQuery,
+      metadata: { behavior: readBehavior },
+      responses: { 200: ConnectionUsageSummary },
+    },
     list: {
       method: 'GET',
       path: '/api/v1/connections',

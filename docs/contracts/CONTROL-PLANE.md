@@ -1,5 +1,7 @@
 # Control Plane Management Contract
 
+Usage read checkpoint 29 October 2026: `GET /api/v1/connections/:id/usage` is an operator `platform:read` resource (also exposed through the BFF). Required half-open invocation time window is at most 31 days; optional application and single-budget filters preserve connection attribution, unknown counters and exact integer strings. This is reporting over durable records, not a vendor invoice or a settlement mutation. [Full semantics](../development/CONNECTION-USAGE.md).
+
 **As-built M1 dan extensions ADR-0029, diperiksa 24 September 2026.** Resource endpoints dan database berikut sudah diimplementasikan lokal; bagian bertanda target belum menjadi fitur yang berjalan. [HTTP catalogue](../implementation/HTTP-API.md) mencatat setiap method/path dan success status; [current state](../implementation/CURRENT-STATE.md) menjelaskan batas runtime.
 
 ## 1. Resources yang diimplementasikan
