@@ -1,5 +1,7 @@
 # Documentation Index
 
+Operator monitoring: [account usage dashboard](development/ACCOUNT-USAGE-DASHBOARD.md) explains registry-backed selection, UTC/application/budget filters, precise unknown-aware totals, scoped request state and browser evidence.
+
 Account reporting: [per-connection usage reads](development/CONNECTION-USAGE.md) describes the bounded operator API, unknown counters, opt-in single-budget ledger attribution and migration bounds. Monitoring UI remains next.
 
 **Baseline 0.2 + extensions through ADR-0029.** Entry point: [README](../README.md). M0–M2 are locally implemented: Contract Lab, durable control plane/accounting, resource/receipt/runner-authority foundations, and executable direct/aggregator model gateway. M3 agent runtime and production/nonlocal evidence remain planned or blocked. [ADR](adr/README.md) retains decisions and their historical context.

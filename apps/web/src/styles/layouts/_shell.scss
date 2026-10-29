@@ -512,7 +512,8 @@
 
 // lg: 1024px — the rail becomes a rail; below this it is an off-canvas drawer
 @media (max-width: 1023px) {
-  .ds-app-shell {
+  .ds-app-shell,
+  .ds-app-shell.is-collapsed {
     --ds-rail: 0px;
   }
   .ds-sidebar {
