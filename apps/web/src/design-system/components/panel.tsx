@@ -31,3 +31,7 @@ export function PanelHeader({
     </header>
   );
 }
+
+export function PanelBody({ children }: { children: ReactNode }) {
+  return <div className="ds-panel-body">{children}</div>;
+}

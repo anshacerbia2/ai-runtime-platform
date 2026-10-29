@@ -1,5 +1,7 @@
 # AI Runtime Platform — Implementation Plan
 
+Account dashboard checkpoint 29 October 2026: the [operator usage view](development/ACCOUNT-USAGE-DASHBOARD.md) now implements the UI deliverable over the merged connection usage API. Selection, filters, scoped cancellation, unknown/error states and responsive layout have browser coverage. Secret-manager/nonlocal/live-provider and production evidence remain separate deliverables; approved architecture decisions are unchanged.
+
 Usage reporting checkpoint 29 October 2026: [per-connection usage reads](development/CONNECTION-USAGE.md) build on the merged credential binding slice and existing invocation/ledger authority. This slice provides the read contract/API/BFF exposure and PostgreSQL evidence; monitoring UI remains the next deliverable. No architecture or production approval changes.
 
 Checkpoint native coordinator 20 Oktober 2026: [native worker plus real APIs/PostgreSQL/Redis](development/NATIVE-COORDINATOR-CONFORMANCE.md) adds lost-claim/API handoff without rerun, cross-API cancel with late unknown evidence, and lease loss with durable orphan fence/denied fresh-boot replacement. Original monitor/kernel/absence proof precedes clean unlock; holds remain unsettled. This extends [worker lifetime](development/NATIVE-RUNNER-WORKER.md). Berikutnya: trusted runtime/delivery bridge, operational recovery, physical multi-node/VPS dan production gates; tidak mengubah ADR, reassignment policy atau menutup O03.
