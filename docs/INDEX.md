@@ -23,7 +23,7 @@ ADRs record decisions and trade-offs; architecture explains the system; detailed
 
 ## Overview
 
-Pending design discussion: [Scnehaux alignment review](reviews/SCNEHAUX-ARCHITECTURE-ALIGNMENT.md), [proposed Agent Runtime system design](proposals/AGENT-RUNTIME-DESIGN.md), [technical design and test-first plan](proposals/AGENT-RUNTIME-TDD.md), and [transition roadmap](proposals/AGENT-RUNTIME-TRANSITION.md). These are proposals; the existing ADRs and implementation status are unchanged.
+Agent Runtime alignment: [Scnehaux alignment review](reviews/SCNEHAUX-ARCHITECTURE-ALIGNMENT.md), [Agent Runtime system design](proposals/AGENT-RUNTIME-DESIGN.md), [technical design and test-first plan](proposals/AGENT-RUNTIME-TDD.md) and [transition roadmap](proposals/AGENT-RUNTIME-TRANSITION.md). [ADR-0034](adr/0034-agent-runtime-model-inference-separation.md) records the owner's acceptance of AR-P01 to AR-P08 and the locally implemented A1 module boundaries. Later stages, their separate reviews and SAD-011/SAD-020 status are unchanged.
 
 | Document                                        | Purpose                                   |
 | ----------------------------------------------- | ----------------------------------------- |

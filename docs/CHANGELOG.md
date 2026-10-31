@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased — 1 November 2026 — Agent Runtime boundaries (A0 disposition, A1)
+
+Recorded the repository owner's acceptance of AR-P01 to AR-P08 in [ADR-0034](adr/0034-agent-runtime-model-inference-separation.md): Model & Inference and Agent Runtime are separate authorities, kept as modules in this monorepo. Added `apps/api/src/modules/agent-runtime` with owned operation and Run lifecycle rules, plus `ModelExecution`, `BudgetAuthority`, `ToolExecution` and optional `IsolatedExecution` ports. New dependency rules stop any module other than the composition root from importing Agent Runtime, and stop Agent Runtime from importing provider SDKs or adapters. No adapter, table, route, migration or runtime is added; `agent_execute` stays CONTRACT_ONLY, and SAD-011 and SAD-020 stay chartered.
+
 ## Unreleased — 29 October 2026 — account usage dashboard
 
 Added registry-backed account selection and a Control Plane usage view with explicit UTC/application/single-budget filters, exact counters, unknown measurements, outcome counts and ledger exclusions. Applied filter scope owns each cancellable read; refresh errors preserve marked prior results and late responses cannot cross accounts. Paginated pickers keep selections and fail independently. Reused semantic components with PanelBody/fitted outcome tables and corrected off-canvas rail specificity; desktop/mobile screenshots and browser workflows cover the view. A real BFF/API/PostgreSQL browser case reads a uniquely owned registered account without provider dispatch. [Flow, evidence and limits](development/ACCOUNT-USAGE-DASHBOARD.md).

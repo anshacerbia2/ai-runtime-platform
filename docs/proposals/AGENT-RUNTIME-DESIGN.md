@@ -1,6 +1,6 @@
 # Agent Runtime alignment: proposed system design
 
-**Date:** 22 October 2026 (Asia/Jakarta). **Status:** draft proposal for discussion. Preparing or merging this document does not adopt its choices, approve production, or change SAD-020's chartered status.
+**Date:** 22 October 2026 (Asia/Jakarta). **Status:** AR-P01 to AR-P08 accepted by the repository owner on 1 November 2026 ([ADR-0034](../adr/0034-agent-runtime-model-inference-separation.md)); the rest of this design is still a proposal. It does not approve production or change SAD-020's chartered status.
 
 ## Purpose and reading order
 
@@ -40,7 +40,7 @@ These are proposed authority dependencies. They are not a diagram of implemented
 
 ## Proposed architecture choices
 
-All entries below are recommendations awaiting disposition. None is an adopted ADR.
+The repository owner accepted all entries below without amendment on 1 November 2026; [ADR-0034](../adr/0034-agent-runtime-model-inference-separation.md) is the decision record.
 
 | ID     | Recommendation                                                                                         | Reason and constraint                                                                                                                                                   |
 | ------ | ------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

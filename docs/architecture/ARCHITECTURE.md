@@ -150,7 +150,9 @@ M0 telah memiliki vertical slice FE/BE/PostgreSQL untuk contract checks sesuai [
 
 ## 13. Control Plane, connections, plugins, dan distributed fleet
 
-AI Runtime Platform tetap **satu produk** dengan dua responsibility zone internal. **Control Plane** mengelola application identity, execution profiles, AI connections, credential bindings, plugin registry, runner registry/pools, policy, budget, audit, dan Admin UI. **Execution Plane** menjalankan Model Gateway, Agent Runtime, workers/sandboxes, optional plugin/workspace, tools, streaming, dan artifact promotion.
+AI Runtime Platform dikirim dari **satu monorepo** dengan dua responsibility zone internal. **Control Plane** mengelola application identity, execution profiles, AI connections, credential bindings, plugin registry, runner registry/pools, policy, budget, audit, dan Admin UI. **Execution Plane** menjalankan Model Gateway, Agent Runtime, workers/sandboxes, optional plugin/workspace, tools, streaming, dan artifact promotion.
+
+Amended by [ADR-0034](../adr/0034-agent-runtime-model-inference-separation.md) (1 November 2026): di dalam Execution Plane, **Model & Inference** (M2 gateway) dan **Agent Runtime** adalah dua authority terpisah sesuai Scnehaux ADR-GLB-015, sebagai modul terpisah dengan dependency rules. Agent Runtime memakai Model & Inference melalui port; Model & Inference tidak pernah bergantung pada Agent Runtime, sehingga direct inference tetap berjalan tanpa agent. Accounting tetap satu ledger authority.
 
 Keycloak mengautentikasi caller; AI Connection adalah identitas/credential platform terhadap provider/runtime. Caller tidak boleh memilih secret, credential instance, atau runner. Resolusi dilakukan server-side berdasarkan application + profile + policy.
 
