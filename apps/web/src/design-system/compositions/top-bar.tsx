@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Icon } from '../components/icon';
 import { navigationGroups, type AppSection } from './navigation-model';
+import { ThemeToggle } from './theme-toggle';
 
 interface Account {
   name: string;
@@ -110,6 +111,8 @@ export function TopBar({
               {current?.label ?? 'Console'}
             </span>
           </div>
+
+          <ThemeToggle />
 
           <button className="ds-icon-button" aria-label="Notifications">
             <Icon name="bell" />

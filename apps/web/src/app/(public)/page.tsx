@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { webConfig } from '../../server/runtime';
+import { BrandMark } from '../../design-system/components/brand-mark';
 import { SignInSchematic } from '../../features/auth/sign-in-schematic';
 
 export const dynamic = 'force-dynamic';
@@ -22,9 +23,7 @@ export default async function EntryPage({
     <main className="signin">
       <div className="signin-panel">
         <div className="signin-brand">
-          <span className="ds-brand-mark" aria-hidden="true">
-            AI
-          </span>
+          <BrandMark />
           <span className="signin-brand-name">AI Runtime Platform</span>
         </div>
 

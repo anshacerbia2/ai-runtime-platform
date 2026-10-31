@@ -1,7 +1,7 @@
 # Frontend Architecture — External App, BFF, CDD, and Design Tokens
 
 **Status:** Next.js App Router, the BFF, standalone entry, server-side session/token custody, and authenticated Markdown rendering are implemented. The existing CDD components and SCSS visual system are preserved. Live issuer, Redis deployment, and production operations still require environment-specific evidence.
-**Decisions:** [ADR-0024](../adr/0024-component-driven-ui-tokens.md), [ADR-0025](../adr/0025-external-app-standalone-auth.md), [ADR-0026](../adr/0026-nextjs-bff.md). Historic internal-app context: [ADR-0023](../adr/0023-ati-one-internal-app.md), partially superseded.
+**Decisions:** [ADR-0024](../adr/0024-component-driven-ui-tokens.md), [ADR-0033](../adr/0033-ui-platform-scnx-platform.md), [ADR-0025](../adr/0025-external-app-standalone-auth.md), [ADR-0026](../adr/0026-nextjs-bff.md). Historic internal-app context: [ADR-0023](../adr/0023-ati-one-internal-app.md), partially superseded.
 
 ## 1. Product placement
 
@@ -129,7 +129,7 @@ ATI Portal primitive token values are intentionally mirrored as the visual sourc
 The application should expose semantic values to components:
 
 ```text
-ATI Portal token primitives
+UI Platform scnx-platform tokens (@scnx/system, ADR-0033)
   -> AI Runtime semantic application contract
      -> limited component aliases when justified
 ```
@@ -138,18 +138,23 @@ Feature code consumes semantics such as surface, text, action, status, border, f
 
 Outside the token adapter/source, the target is no direct hardcoded colors, spacing, radii, elevation, type scale, motion timing, or z-index.
 
-`apps/web/src/styles/main.scss` is the single stylesheet entry point. ATI Portal design-token values are mirrored in `styles/tokens/_ati.scss`, mapped to application semantics in `_semantic.scss`, then consumed by `foundations`, `layouts`, `components`, and `features` SCSS partials. `npm run ui:check` scans CSS/SCSS/TSX and rejects raw colors, obvious raw spacing/radius/font-size/shadow values, and inline-style bypasses outside token sources.
+The root layout loads the UI Platform's stylesheets (`@scnx/system/styles/components.css`, then the `scnx-platform` token stylesheet), then `apps/web/src/styles/main.scss`, this console's single stylesheet entry point. `styles/tokens/_platform.scss` points the console's scale names at `scnx-platform` tokens, `_semantic.scss` maps them to application semantics, and `foundations`, `layouts`, `components`, and `features` SCSS partials consume the semantics. `npm run ui:check` scans CSS/SCSS/TSX and rejects raw colors, obvious raw spacing/radius/font-size/shadow values, and inline-style bypasses outside token sources. `npm run ui:platform` holds the vendored packages to `vendor/ui-platform/pin.json`.
 
-### Brand core versus working scale
+### Theme, mode and drawing
 
-`_ati.scss` holds two layers. The **brand core** — navy family, blue accent, signature gradients — is represented in the local token source. That source is the current implementation authority. No automatic synchronization with the separate ai-portal repository is implemented or verified by this documentation update. The **working scale** — neutral surfaces, elevation, and status — is owned by this console.
+`<html>` carries `data-scnx-theme="scnx-platform"` and `data-scnx-resolved-mode` (dark or light), rendered by the server from the `ai-runtime-mode` cookie; the top bar's switch changes both. Every semantic role resolves against the mode on that root.
 
-The earlier token adaptation recorded two departures below. Treat the contrast observations as historical design rationale, not a fresh measurement of every current component:
+The console is drawn as the UI Platform documentation site and the Identity and Organization consoles are, after the `scnx-platform` brand book:
 
-1. **Surfaces are near-neutral** rather than the blue-tinted ATI neutrals, which read as a colour at full-window scale.
-2. **Status colours are darkened** from the ATI hues. The source values are tuned for fills; used as badge text on their own soft backgrounds they measure roughly 3.1–3.9:1, short of the WCAG 2.2 AA target in section 8. The hues are unchanged.
+1. **One ground, lines between areas.** A panel is the ground with a hairline round it (text at 16%, mixed in OKLab); no shadows on the page and no fills to tell areas apart. Only what floats (a menu, the drawer) keeps the platform's overlay shadow.
+2. **Square.** Every radius role resolves to the theme's 0.
+3. **Ink for action, blue for here.** The primary button is the neutral solid fill; blue marks only the current place (the navigation marker, the current tab, the chosen scenario) and links.
+4. **Two voices.** Inter for content; IBM Plex Mono, upper case and tracked, for labels, figures, identifiers and buttons. The mono face is served from this origin (`styles/fonts`, OFL).
+5. **Status by lamp.** A status badge is a line and a word with a 6px square lamp in the status colour, never a coloured fill.
 
-Brand presence in this console is the navy heading colour, the navy active-navigation state, and the logo-crossbar gradient on the brand mark. The separate entry/sign-in stage has its own feature styling and semantic tokens. Do not infer a universal gradient restriction from the earlier shell implementation; current usage is in styles and the token-boundary checker.
+### Cascade layers
+
+The platform's stylesheets declare `reset, tokens, base, components, recipes, utilities, overrides`. `main.scss` places this console's reset in `reset` and the rest in an `app` layer after the platform's, so application rules win by order, not specificity.
 
 ## 6. Component-Driven Development
 

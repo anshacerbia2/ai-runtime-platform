@@ -5,9 +5,10 @@
 .ds-field > span,
 .idempotency-box label {
   font-family: var(--ds-font-label);
-  font-size: var(--fs-micro);
+  font-size: var(--fs-pico);
   font-weight: var(--fw-medium);
-  letter-spacing: var(--ls-label);
+  letter-spacing: var(--ls-wider);
+  text-transform: uppercase;
   color: var(--ds-text-muted);
 }
 input,
@@ -16,8 +17,7 @@ textarea {
   width: 100%;
   border: 1px solid var(--ds-border-default);
   border-radius: var(--ds-radius-md);
-  background: var(--ds-surface-panel);
-  box-shadow: var(--ds-shadow-xs);
+  background: transparent;
   color: var(--ds-text-primary);
   transition:
     border-color var(--ds-transition-fast),
@@ -45,7 +45,7 @@ textarea:hover {
 input:focus,
 select:focus,
 textarea:focus {
-  border-color: var(--ds-action-primary);
+  border-color: var(--ds-border-strong);
   box-shadow: var(--ds-focus-ring);
   outline: none;
 }
@@ -75,10 +75,12 @@ textarea:focus {
   justify-content: space-between;
   gap: var(--ds-space-3);
   padding: var(--ds-space-3) var(--ds-space-4);
-  background: var(--ds-surface-code-bar);
+  border-bottom: 1px solid var(--ds-border-subtle);
   color: var(--ds-text-code-muted);
-  font-family: var(--ds-font-mono);
-  font-size: var(--fs-micro);
+  font-family: var(--ds-font-label);
+  font-size: var(--fs-pico);
+  letter-spacing: var(--ls-wider);
+  text-transform: uppercase;
 }
 .code-editor {
   display: block;
@@ -114,8 +116,8 @@ textarea:focus {
   color: var(--ds-text-code);
 }
 // --- Select -----------------------------------------------------------------
-// Custom listbox, matched to the CMS reference: pill-radius trigger, popover
-// with divided rows, uppercase option labels, trailing check on the selection.
+// Custom listbox: a field's trigger, a popover with divided rows in the HUD
+// voice, a trailing check on the selection.
 .ds-select {
   position: relative;
 }
@@ -125,15 +127,14 @@ textarea:focus {
   justify-content: space-between;
   gap: var(--ds-space-2);
   width: 100%;
-  min-height: 44px;
-  padding: 0 var(--ds-space-5);
+  min-height: 36px;
+  padding: 0 var(--ds-space-3);
   border: 1px solid var(--ds-border-default);
-  border-radius: var(--ds-radius-lg);
-  background: var(--ds-surface-panel);
-  box-shadow: var(--ds-shadow-xs);
-  color: var(--ds-text-muted);
+  border-radius: var(--ds-radius-md);
+  background: transparent;
+  color: var(--ds-text-primary);
   font-size: var(--ds-font-size-sm);
-  font-weight: var(--fw-semibold);
+  font-weight: var(--fw-regular);
   text-align: left;
   transition:
     border-color var(--ds-transition-fast),
@@ -168,8 +169,9 @@ textarea:focus {
   margin: 0;
   padding: 0;
   overflow-y: auto;
+  border: 1px solid var(--ds-border-default);
   border-radius: var(--ds-radius-lg);
-  background: var(--ds-surface-panel);
+  background: var(--ds-surface-raised);
   box-shadow: var(--ds-shadow-overlay);
   list-style: none;
 }
@@ -181,8 +183,9 @@ textarea:focus {
   padding: var(--ds-space-3) var(--ds-space-5);
   border-bottom: 1px solid var(--ds-border-subtle);
   color: var(--ds-text-muted);
-  font-size: var(--fs-micro);
-  font-weight: var(--fw-bold);
+  font-family: var(--ds-font-label);
+  font-size: var(--fs-nav-value);
+  font-weight: var(--fw-medium);
   letter-spacing: var(--ls-label);
   text-transform: uppercase;
   cursor: pointer;
@@ -193,25 +196,26 @@ textarea:focus {
 }
 // Highlight follows aria-activedescendant, so keyboard and pointer agree.
 .ds-select-option.is-active {
-  background: var(--ds-surface-subtle);
+  background: var(--ds-surface-hover);
   color: var(--ds-text-primary);
 }
 .ds-select-check {
   flex: none;
   width: 15px;
   height: 15px;
-  color: var(--ds-action-primary);
+  color: var(--ds-text-link);
 }
 
 .ds-link-button {
   padding: 0;
   border: 0;
   background: transparent;
-  color: var(--ds-action-primary);
+  color: var(--ds-text-link);
   font-size: inherit;
   font-weight: var(--fw-medium);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
 }
 .ds-link-button:hover {
-  color: var(--ds-action-primary-hover);
-  text-decoration: underline;
+  text-decoration-thickness: 2px;
 }

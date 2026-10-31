@@ -15,23 +15,23 @@
   display: grid;
   gap: var(--ds-space-1);
   padding: var(--ds-pad-card-tight) var(--ds-pad-card);
-  border: 0;
+  border: 1px solid var(--ds-border-subtle);
   border-radius: var(--ds-radius-lg);
-  background: var(--ds-surface-panel);
-  box-shadow: var(--ds-shadow-sm);
+  background: transparent;
   color: var(--ds-text-body);
   font-size: var(--fs-meta);
   text-align: left;
   transition:
-    box-shadow var(--ds-transition-fast),
+    border-color var(--ds-transition-fast),
     background var(--ds-transition-fast);
 }
 .scenario-grid button:hover {
-  box-shadow: var(--ds-shadow-md);
+  background: var(--ds-surface-hover);
 }
+// The chosen scenario is here: a faint fill and the signal's hairline.
 .scenario-grid button[aria-pressed='true'] {
-  background: var(--ds-surface-accent);
-  box-shadow: var(--ds-inset-accent), var(--ds-shadow-sm);
+  border-color: var(--ds-border-accent);
+  background: var(--ds-surface-selected);
 }
 .scenario-grid button strong {
   color: var(--ds-text-primary);
@@ -39,14 +39,15 @@
   font-weight: var(--fw-medium);
 }
 .scenario-kicker {
-  font-family: var(--ds-font-mono);
-  font-size: var(--fs-micro);
-  font-weight: var(--fw-regular);
-  letter-spacing: var(--ls-label);
+  font-family: var(--ds-font-label);
+  font-size: var(--fs-pico);
+  font-weight: var(--fw-medium);
+  letter-spacing: var(--ls-wider);
+  text-transform: uppercase;
   color: var(--ds-text-faint);
 }
 .scenario-grid button[aria-pressed='true'] .scenario-kicker {
-  color: var(--ds-action-primary);
+  color: var(--ds-text-link);
 }
 
 // --- Three-pane stage -------------------------------------------------------
@@ -99,7 +100,6 @@
   align-items: center;
   padding: var(--ds-pad-card-tight) var(--ds-pad-card);
   border-top: 1px solid var(--ds-border-subtle);
-  background: var(--ds-surface-subtle);
 }
 .idempotency-box small {
   display: block;
@@ -122,17 +122,16 @@
   font-size: var(--fs-meta);
 }
 
-// Was a gradient card. It states a boundary, so it reads as a note.
+// It states a boundary, so it reads as a note: a line round it.
 .execution-boundary {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--ds-space-4);
   padding: var(--ds-pad-card);
-  border: 0;
+  border: 1px solid var(--ds-border-subtle);
   border-radius: var(--ds-radius-lg);
   background: var(--ds-surface-panel);
-  box-shadow: var(--ds-shadow-sm);
   font-size: var(--fs-meta);
 }
 .execution-boundary strong {
@@ -174,7 +173,7 @@
   font-size: var(--fs-meta);
 }
 .result-verdict.is-invalid .result-symbol {
-  background: var(--ds-status-danger-soft);
+  border-color: var(--ds-status-danger-border);
   color: var(--ds-status-danger);
 }
 .result-symbol {
@@ -183,8 +182,8 @@
   flex: none;
   width: 28px;
   height: 28px;
+  border: 1px solid var(--ds-status-success-border);
   border-radius: var(--ds-radius-md);
-  background: var(--ds-status-success-soft);
   color: var(--ds-status-success);
   font-size: var(--fs-meta);
   font-weight: var(--fw-semibold);
@@ -197,16 +196,18 @@
 .result-meta {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
-// Metadata tiles: label over value, in a well.
+// Metadata cells: a term in the HUD voice over its value, in a line.
 .result-meta > div {
   padding: var(--ds-space-3) var(--ds-space-4);
-  border: 0;
+  border: 1px solid var(--ds-border-subtle);
   border-radius: var(--ds-radius-md);
-  background: var(--ds-surface-subtle);
 }
 .result-meta dt {
-  font-size: var(--fs-micro);
+  font-family: var(--ds-font-label);
+  font-size: var(--fs-pico);
+  letter-spacing: var(--ls-wider);
   line-height: var(--ds-line-snug);
+  text-transform: uppercase;
   color: var(--ds-text-faint);
 }
 .result-meta dd {
@@ -266,16 +267,16 @@
 .milestone-row,
 .command-row {
   padding: var(--ds-pad-card-tight);
-  border: 0;
+  border: 1px solid var(--ds-border-subtle);
   border-radius: var(--ds-radius-lg);
   background: var(--ds-surface-panel);
-  box-shadow: var(--ds-shadow-sm);
   font-size: var(--fs-meta);
 }
 .milestone-id {
   font-family: var(--ds-font-label);
-  font-size: var(--fs-micro);
-  font-weight: var(--fw-semibold);
+  font-size: var(--fs-pico);
+  font-weight: var(--fw-medium);
+  letter-spacing: var(--ls-wider);
   color: var(--ds-text-faint);
 }
 .audit-inspector,

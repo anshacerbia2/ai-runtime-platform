@@ -42,6 +42,7 @@
 | [ADR-0030](0030-encrypted-dispatch-envelope.md)            | Encrypted durable dispatch input, atomic admission promotion, and cross-store cleanup     | [DATA-MODEL](../data/DATA-MODEL.md)                        |
 | [ADR-0031](0031-pull-dispatch-and-scoped-runner-grants.md) | Pull placement and scoped durable runner grants                                           | [Execution lifecycle](../contracts/EXECUTION-LIFECYCLE.md) |
 | [ADR-0032](0032-runner-coordination-epoch.md)              | Pause, fence, and advance runner epoch after Redis marker loss                            | [Ownership recovery](../reliability/OWNERSHIP-RECOVERY.md) |
+| [ADR-0033](0033-ui-platform-scnx-platform.md)              | UI Platform packages and the scnx-platform theme as the visual source                     | [FRONTEND](../architecture/FRONTEND.md)                    |
 
 ## Otoritas dan traceability
 
