@@ -11,11 +11,13 @@ import { EmptyState } from '../../design-system/components/empty-state';
 import { MetricCard } from '../../design-system/components/metric-card';
 import { Panel, PanelHeader } from '../../design-system/components/panel';
 import { Button } from '../../design-system/primitives/button';
+import { AccountUsage, type UsageConnection } from './account-usage';
 
 type View =
   | 'overview'
   | 'applications'
   | 'connections'
+  | 'usage'
   | 'profiles'
   | 'budgets'
   | 'runners'
@@ -25,13 +27,17 @@ const views: readonly [View, string][] = [
   ['overview', 'Overview'],
   ['applications', 'Applications'],
   ['connections', 'Connections'],
+  ['usage', 'Account usage'],
   ['profiles', 'Profiles'],
   ['budgets', 'Budgets'],
   ['runners', 'Runner fleet'],
   ['audit', 'Audit'],
   ['outbox', 'Outbox'],
 ];
-const collections: Record<Exclude<View, 'overview'>, ResourceName[]> = {
+const collections: Record<
+  Exclude<View, 'overview' | 'usage'>,
+  ResourceName[]
+> = {
   applications: ['applications'],
   connections: ['connections', 'credentials', 'bindings'],
   profiles: ['profiles', 'aliases'],
@@ -167,7 +173,13 @@ function text(value: unknown): string {
   return String(value);
 }
 
-function ResourceCollection({ resource }: { resource: ResourceName }) {
+function ResourceCollection({
+  resource,
+  onViewUsage,
+}: {
+  resource: ResourceName;
+  onViewUsage?(connection: UsageConnection): void;
+}) {
   const [trail, setTrail] = useState<(string | undefined)[]>([undefined]);
   const cursor = trail.at(-1);
   const load = useCallback(
@@ -209,6 +221,7 @@ function ResourceCollection({ resource }: { resource: ResourceName }) {
               {columns[resource].map((key) => (
                 <th key={key}>{key}</th>
               ))}
+              {resource === 'connections' ? <th>Usage</th> : null}
             </tr>
           </thead>
           <tbody>
@@ -219,6 +232,18 @@ function ResourceCollection({ resource }: { resource: ResourceName }) {
                   {columns[resource].map((key) => (
                     <td key={key}>{text(row[key])}</td>
                   ))}
+                  {resource === 'connections' ? (
+                    <td>
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={loading || query.state.status !== 'success'}
+                        onClick={() => onViewUsage?.(item as UsageConnection)}
+                      >
+                        View usage for {text(row.displayName)}
+                      </Button>
+                    </td>
+                  ) : null}
                 </tr>
               );
             })}
@@ -320,6 +345,7 @@ function Overview() {
 }
 export function ControlPlanePage() {
   const [view, setView] = useState<View>('overview');
+  const [connection, setConnection] = useState<UsageConnection | null>(null);
   return (
     <div className="control-plane">
       <Panel className="control-plane-hero">
@@ -353,10 +379,22 @@ export function ControlPlanePage() {
       <div role="tabpanel">
         {view === 'overview' ? (
           <Overview />
+        ) : view === 'usage' ? (
+          <AccountUsage
+            connection={connection}
+            onChoose={() => setView('connections')}
+          />
         ) : (
           <div className="resource-stack">
             {collections[view].map((resource) => (
-              <ResourceCollection key={resource} resource={resource} />
+              <ResourceCollection
+                key={resource}
+                resource={resource}
+                onViewUsage={(selected) => {
+                  setConnection(selected);
+                  setView('usage');
+                }}
+              />
             ))}
           </div>
         )}

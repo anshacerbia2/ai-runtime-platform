@@ -3,8 +3,43 @@ import type {
   ResourceName,
   ResourcePages,
   PageInput,
+  ConnectionUsageInput,
 } from '@ai-runtime/contracts/http';
+import { ApiClientError } from './http-error';
+
+export async function readConnectionUsage(
+  connectionId: string,
+  query: ConnectionUsageInput,
+  signal?: AbortSignal,
+  client = api,
+) {
+  const result = successfulBody(
+    await client.resources.connections.usage({
+      params: { id: connectionId },
+      query,
+      fetchOptions: { signal },
+    }),
+  );
+  if (
+    result.connectionId !== connectionId ||
+    result.applicationId !== (query.applicationId ?? null) ||
+    Date.parse(result.from) !== Date.parse(query.from) ||
+    Date.parse(result.to) !== Date.parse(query.to) ||
+    (query.budgetAccountId
+      ? result.ledger?.accountId !== query.budgetAccountId
+      : result.ledger !== null)
+  ) {
+    throw new ApiClientError({
+      kind: 'invalid-response',
+      status: 200,
+      code: 'USAGE_SCOPE_MISMATCH',
+      message: 'Usage response did not match the selected account and filters.',
+    });
+  }
+  return result;
+}
 export const controlPlaneClient = {
+  usage: readConnectionUsage,
   overview: async (signal?: AbortSignal) =>
     successfulBody(await api.resources.overview({ fetchOptions: { signal } })),
   async list<R extends ResourceName>(

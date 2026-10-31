@@ -52,6 +52,12 @@
   padding: var(--ds-pad-card-tight) var(--ds-pad-card);
   border-bottom: 1px solid var(--ds-border-subtle);
 }
+.ds-panel-body {
+  display: grid;
+  gap: var(--ds-space-3);
+  padding: var(--ds-pad-card);
+  min-width: 0;
+}
 .ds-panel-header h2 {
   font-size: var(--ds-font-size-card);
   font-weight: var(--fw-semibold);
@@ -247,6 +253,15 @@
   border-collapse: separate;
   border-spacing: 0;
   min-width: 720px;
+}
+// A table that fits its container wraps its cells instead of scrolling.
+.ds-table-fit {
+  min-width: 0;
+}
+.ds-table.ds-table-fit th,
+.ds-table.ds-table-fit td {
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .ds-table th,
 .ds-table td {
