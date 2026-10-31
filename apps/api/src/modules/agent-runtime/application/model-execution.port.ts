@@ -52,10 +52,21 @@ export type ModelObservation =
   | { state: 'NO_EFFECT'; ref: InferenceRef; reason: string }
   | { state: 'UNKNOWN'; ref: InferenceRef };
 
+export interface ModelExecuteOptions {
+  // Run cancellation. The adapter turns it into a best-effort cancel of the
+  // in-flight inference; it never proves that nothing was charged.
+  signal?: AbortSignal;
+  // Called once Model & Inference has accepted the intent and named it.
+  onDispatched?: (ref: InferenceRef) => void;
+}
+
 export interface ModelExecution {
   // Dispatch one authorized intent. Call only after winning the dispatch CAS.
   // A missing reply leaves the operation ambiguous; it is not a rejection.
-  execute(intent: ModelIntent): Promise<ModelObservation>;
+  execute(
+    intent: ModelIntent,
+    options?: ModelExecuteOptions,
+  ): Promise<ModelObservation>;
 
   // Non-dispatching status read under the original identity. Its absence or
   // error must never trigger execute() as a fallback.

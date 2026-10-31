@@ -33,8 +33,12 @@ const exposedRoutes = contractRoutes(browserContract);
 const localRoutes = new Set(
   contractRoutes(apiContract.lab).map((route) => route.path),
 );
+// Application-scoped /v1 routes: the BFF strips its /api prefix upstream.
 const gatewayBrowserRoutes = new Set(
-  contractRoutes(browserContract.gateway).map((route) => route.path),
+  [
+    ...contractRoutes(browserContract.gateway),
+    ...contractRoutes(browserContract.agent),
+  ].map((route) => route.path),
 );
 const applicationBrowserRoutes = new Set([
   ...contractRoutes(browserContract.lab).map((route) => route.path),

@@ -3,8 +3,7 @@ import {
   GatewayExecution,
   GatewayStreamEvent,
 } from '@ai-runtime/contracts/http';
-import { ApiClientError, readApiError } from '../../shared/api/http-error';
-import { takeSseFrames } from './sse';
+import { readEventStream, responseFailure } from './sse';
 
 export interface PlaygroundMessage {
   role: 'user' | 'assistant';
@@ -26,8 +25,6 @@ export type ChatStreamUpdate =
   | { kind: 'completed'; finishReason: string | null }
   | { kind: 'failed'; code: string }
   | { kind: 'cancelled' };
-
-const maxStreamBytes = 4 * 1024 * 1024;
 
 export function chatRequestBody(request: Omit<ChatStreamRequest, 'signal'>) {
   const messages = [
@@ -69,14 +66,7 @@ export async function streamChat(
   });
   const type = response.headers.get('content-type')?.toLowerCase() ?? '';
   if (!response.ok) {
-    const payload = readApiError(await response.json().catch(() => null));
-    throw new ApiClientError({
-      kind: 'http',
-      status: response.status,
-      code: payload.code ?? 'HTTP_' + response.status,
-      message: payload.message ?? 'The gateway rejected the request.',
-      requestId: response.headers.get('x-request-id') ?? undefined,
-    });
+    throw await responseFailure(response, 'The gateway rejected the request.');
   }
   if (!type.startsWith('text/event-stream')) {
     // A JSON snapshot instead of a stream: report its terminal result.
@@ -104,50 +94,13 @@ export async function streamChat(
     );
     return;
   }
-  if (!response.body) {
-    throw new ApiClientError({
-      kind: 'invalid-response',
-      status: response.status,
-      code: 'EMPTY_STREAM',
-      message: 'The gateway returned an empty stream.',
-    });
-  }
-  const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
-  let buffer = '';
-  let received = 0;
-  for (;;) {
-    const { value, done } = await reader.read();
-    if (done) {
-      break;
+  await readEventStream(response, (data) => {
+    const parsed = GatewayStreamEvent.safeParse(data);
+    const update = parsed.success ? toUpdate(parsed.data) : null;
+    if (update) {
+      onUpdate(update);
     }
-    received += value.length;
-    if (received > maxStreamBytes) {
-      await reader.cancel();
-      throw new ApiClientError({
-        kind: 'invalid-response',
-        status: response.status,
-        code: 'STREAM_TOO_LARGE',
-        message: 'The stream exceeded the Playground limit.',
-      });
-    }
-    const { frames, rest } = takeSseFrames(buffer + value);
-    buffer = rest;
-    for (const frame of frames) {
-      let data: unknown;
-      try {
-        data = JSON.parse(frame.data);
-      } catch {
-        continue;
-      }
-      const parsed = GatewayStreamEvent.safeParse(data);
-      if (parsed.success) {
-        const update = toUpdate(parsed.data);
-        if (update) {
-          onUpdate(update);
-        }
-      }
-    }
-  }
+  });
 }
 
 function toUpdate(event: GatewayStreamEvent): ChatStreamUpdate | null {

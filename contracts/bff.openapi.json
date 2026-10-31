@@ -7931,6 +7931,359 @@
         }
       }
     },
+    "/api/v1/agent/runs": {
+      "post": {
+        "operationId": "post_api_v1_agent_runs",
+        "x-runtime-behavior": {
+          "transport": "unary-json",
+          "timeoutMs": 30000,
+          "maxResponseBytes": 8388608,
+          "maxErrorBytes": 65536,
+          "maxAttempts": 1,
+          "unknownResponseFields": "strip",
+          "replay": "none",
+          "automaticRetry": "never",
+          "ambiguousMutation": "unknown-until-reconciled"
+        },
+        "x-provider-unknown-fields": "project-declared-fields",
+        "x-consumer-unknown-fields": "ignore-additive-properties",
+        "x-response-mutation": "forbidden",
+        "x-streaming": "server-sent-events",
+        "security": [
+          {
+            "BrowserSession": []
+          }
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "profile": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,119}$"
+                  },
+                  "input": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 20000
+                  },
+                  "system": {
+                    "type": "string",
+                    "maxLength": 8000
+                  },
+                  "history": {
+                    "maxItems": 40,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "user",
+                            "assistant"
+                          ]
+                        },
+                        "text": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 20000
+                        }
+                      },
+                      "required": [
+                        "role",
+                        "text"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "tools": {
+                    "maxItems": 3,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "current_time",
+                        "calculate",
+                        "execution_lookup"
+                      ]
+                    }
+                  },
+                  "max_steps": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 8
+                  },
+                  "max_output_tokens": {
+                    "type": "integer",
+                    "minimum": 64,
+                    "maximum": 8192
+                  },
+                  "token_budget": {
+                    "type": "integer",
+                    "minimum": 1000,
+                    "maximum": 200000
+                  }
+                },
+                "required": [
+                  "profile",
+                  "input"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server correlation ID when available; not an idempotency key or authority token.",
+                "schema": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              }
+            },
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Normalized error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server correlation ID when available; not an idempotency key or authority token.",
+                "schema": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Normalized error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server correlation ID when available; not an idempotency key or authority token.",
+                "schema": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Normalized error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server correlation ID when available; not an idempotency key or authority token.",
+                "schema": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Normalized error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server correlation ID when available; not an idempotency key or authority token.",
+                "schema": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Normalized error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server correlation ID when available; not an idempotency key or authority token.",
+                "schema": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Normalized error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server correlation ID when available; not an idempotency key or authority token.",
+                "schema": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              }
+            }
+          },
+          "408": {
+            "description": "Normalized error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server correlation ID when available; not an idempotency key or authority token.",
+                "schema": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Normalized error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server correlation ID when available; not an idempotency key or authority token.",
+                "schema": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Normalized error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server correlation ID when available; not an idempotency key or authority token.",
+                "schema": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Normalized error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server correlation ID when available; not an idempotency key or authority token.",
+                "schema": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Normalized error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server correlation ID when available; not an idempotency key or authority token.",
+                "schema": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Normalized error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server correlation ID when available; not an idempotency key or authority token.",
+                "schema": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Normalized error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server correlation ID when available; not an idempotency key or authority token.",
+                "schema": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              },
+              "Retry-After": {
+                "description": "Optional minimum retry delay hint; does not grant replay permission.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Normalized error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server correlation ID when available; not an idempotency key or authority token.",
+                "schema": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Normalized error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server correlation ID when available; not an idempotency key or authority token.",
+                "schema": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Normalized error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server correlation ID when available; not an idempotency key or authority token.",
+                "schema": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              },
+              "Retry-After": {
+                "description": "Optional minimum retry delay hint; does not grant replay permission.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Normalized error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server correlation ID when available; not an idempotency key or authority token.",
+                "schema": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              },
+              "Retry-After": {
+                "description": "Optional minimum retry delay hint; does not grant replay permission.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applications": {
       "get": {
         "operationId": "get_api_v1_applications",

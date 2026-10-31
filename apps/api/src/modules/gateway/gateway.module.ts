@@ -202,5 +202,7 @@ const OWNER_INSTANCE_ID = Symbol('GatewayOwnerInstanceId');
         ),
     },
   ],
+  // The application boundary only; provider adapters stay private (ADR-0034).
+  exports: [GatewayService],
 })
 export class GatewayModule {}

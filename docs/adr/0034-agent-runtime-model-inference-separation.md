@@ -29,7 +29,7 @@ What this decision does not do:
 
 - It does not move SAD-011 or SAD-020 out of chartered status. Those documents live in the Scnehaux architecture repository, outside this repository's write scope. The governance path is to submit the proposal package there as downstream input through that repository's own workflow. Until that happens, this repository claims no Scnehaux physical-design conformance.
 - It does not dispose of the separate reviews the transition roadmap lists for accounting (O07, O13), identity and delegation (O05, O14, O16), data retention (O06, O12, O15), Tool and pilot eligibility (O08, O09) and isolated execution (O02, O03). The stage entries that depend on them stay closed until they are decided.
-- It does not activate any route, migration, provider call or runtime. `agent_execute` stays CONTRACT_ONLY.
+- It does not activate any migration or durable runtime. `agent_execute` stays CONTRACT_ONLY. The request-scoped preview route added later is described under stage A2-preview below.
 
 ### Stage A1 implementation
 
@@ -42,6 +42,17 @@ What this decision does not do:
   - The agent module may not import a provider SDK or a gateway provider adapter.
   - The agent module's domain and application layers may depend only on their own code, identity domain types and shared domain values.
   - An infrastructure adapter may later wrap the M2 application boundary.
+
+### Stage A2-preview: request-scoped agent runs (1 November 2026)
+
+The repository owner asked for a visible agent capability before the durable stages. The preview adds one route, `POST /v1/agent/runs` (`agent.run`; browser `/api/v1/agent/runs`), and the Playground's Agent mode. It does not change the decisions above, and the closed stages stay closed.
+
+- **What a run is:** a loop of model turn, at most one tool call, and observation, within a step limit (at most 8) and a run token cap. It lives for one request and streams typed `AgentRunEvent` frames over SSE. Closing the stream cancels the run. Nothing about the run is persisted, and a run cannot be resumed or replayed.
+- **Model calls:** `GatewayModelExecution` wraps the M2 `GatewayService` application boundary, the only thing `GatewayModule` now exports. Every model turn is a separately admitted, budget-checked and accounted gateway execution under the caller's own principal, keyed by `<runId>:model:<step>`. Tool use is a provider-neutral JSON reply protocol over the `chat` capability, so the gateway and provider adapters are unchanged.
+- **Tools:** three read-only built-ins, all running with the caller's own authority: `current_time`, `calculate` (a bounded parser with no eval) and `execution_lookup`, which reads one of the caller's executions through the gateway's `execution:read` check. The application principal has no `platform:read`, so the agent cannot read operator resources.
+- **Budget:** `InProcessRunBudget` only checks that each step fits the run envelope; it holds no account units. Unknown output is charged against the run cap at the step ceiling, never as zero. The durable whole-run reservation in Accounting is still stage A2 and still needs the accounting review (O07, O13).
+- **Unchanged:** `agent_execute` on `/v1/executions` stays CONTRACT_ONLY. No table, migration or provider adapter was added. Identity stays application-scoped with `tenantId` null.
+- **Evidence:** `apps/api/test/unit/agent-run.test.ts` covers the loop, step limit, token cap, cancel, unknown tools, refusal codes, reply parsing and the calculator. `apps/api/test/agent-run.integration.test.ts` runs the agent on real PostgreSQL with a scripted provider: two completed gateway executions, 100 tokens posted, 0 held. `apps/web/test/playground-agent.test.ts` and `tests/e2e/ai-playground.spec.ts` cover the browser side. No live provider call has been made from this repository.
 
 ## Alternatives considered
 

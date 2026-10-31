@@ -1,6 +1,6 @@
 # Documentation Index
 
-Try a model: the [AI Playground](development/AI-PLAYGROUND.md) streams a chat through the gateway from the console; one local provider key in `.env` provisions its profile.
+Try a model: the [AI Playground](development/AI-PLAYGROUND.md) streams a chat through the gateway from the console, and its Agent mode lets the model call read-only tools; one local provider key in `.env` provisions its profile.
 
 Operator monitoring: [account usage dashboard](development/ACCOUNT-USAGE-DASHBOARD.md) explains registry-backed selection, UTC/application/budget filters, precise unknown-aware totals, scoped request state and browser evidence.
 

@@ -52,6 +52,7 @@ for (const file of [
   'apps/api/src/modules/contract-lab/presentation/http',
   'apps/api/src/modules/control-plane/presentation/http',
   'apps/api/src/modules/gateway/presentation/http',
+  'apps/api/src/modules/agent-runtime/presentation/http',
 ]
   .flatMap(files)
   .filter((file) => file.endsWith('.controller.ts'))) {

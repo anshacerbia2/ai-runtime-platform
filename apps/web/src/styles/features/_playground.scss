@@ -110,3 +110,105 @@
   margin: 0;
   color: var(--ds-text-primary);
 }
+
+// Agent mode: mode toggle, tool choices and the per-step timeline.
+.playground-header-actions,
+.playground-mode {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+}
+.playground-header-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--ds-space-3);
+}
+.playground-tools {
+  display: grid;
+  gap: var(--ds-space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-size: var(--ds-font-size-sm);
+}
+// Same label treatment as .ds-field > span.
+.playground-tools legend {
+  margin-bottom: var(--ds-space-1);
+  padding: 0;
+  font-family: var(--ds-font-label);
+  font-size: var(--fs-pico);
+  font-weight: var(--fw-medium);
+  letter-spacing: var(--ls-wider);
+  text-transform: uppercase;
+  color: var(--ds-text-muted);
+}
+// The global input rule sizes text fields; a checkbox keeps its own size.
+.playground-tools input[type='checkbox'] {
+  width: auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--ds-border-accent);
+}
+.playground-tools label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-2);
+  color: var(--ds-text-body);
+}
+.playground-tools code {
+  color: var(--ds-text-muted);
+  font-family: var(--ds-font-mono);
+  font-size: var(--fs-pico);
+}
+.playground-steps {
+  display: grid;
+  gap: var(--ds-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.playground-step {
+  display: grid;
+  gap: var(--ds-space-1);
+  padding-left: var(--ds-space-3);
+  border-left: 2px solid var(--ds-border-accent);
+}
+.playground-step-label {
+  font-family: var(--ds-font-label);
+  font-size: var(--fs-pico);
+  letter-spacing: var(--ls-wider);
+  text-transform: uppercase;
+  color: var(--ds-text-muted);
+}
+.playground-message p.playground-thought {
+  color: var(--ds-text-muted);
+  font-style: italic;
+}
+.playground-tool {
+  display: grid;
+  gap: var(--ds-space-1);
+}
+.playground-tool-call {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-2);
+}
+.playground-tool code,
+.playground-tool pre {
+  font-family: var(--ds-font-mono);
+  font-size: var(--ds-font-size-sm);
+  overflow-wrap: anywhere;
+}
+.playground-tool pre {
+  max-height: 200px;
+  margin: 0;
+  padding: var(--ds-space-2) var(--ds-space-3);
+  overflow: auto;
+  border: 1px solid var(--ds-border-subtle);
+  background: var(--ds-surface-panel);
+  color: var(--ds-text-body);
+  white-space: pre-wrap;
+}

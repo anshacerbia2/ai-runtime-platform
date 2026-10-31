@@ -42,7 +42,7 @@ apps/
         infrastructure/         # Prisma mutation/receipt, paged reads, fencing, wire mappers
         presentation/http/      # legacy, resource and runner-authority controllers
         control-plane.module.ts
-      agent-runtime/            # ADR-0034 stage A1: not registered, no adapters/tables/routes
+      agent-runtime/            # ADR-0034: domain/ports (A1); request-scoped agent runs over GatewayService, built-in read-only tools, no tables (A2-preview)
         domain/                 # operation states, Run lifecycle, operation identity
         application/            # ModelExecution, BudgetAuthority, ToolExecution, IsolatedExecution ports
     cli/                        # seed/inspect entrypoints, not HTTP handlers

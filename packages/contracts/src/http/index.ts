@@ -28,4 +28,5 @@ export * from './connection-usage.js';
 
 export * from './runner.js';
 export * from './gateway.js';
+export * from './agent.js';
 export * from './tool-operations.js';

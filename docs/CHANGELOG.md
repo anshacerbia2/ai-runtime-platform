@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased — 1 November 2026 — Playground Agent mode (ADR-0034 A2-preview)
+
+The AI Playground has an Agent mode: the model may call read-only tools (`current_time`, `calculate`, `execution_lookup`) and then answer, with every step shown. The new route `POST /v1/agent/runs` (browser `/api/v1/agent/runs`) streams one request-scoped run as typed SSE events. Each model step is a separately admitted and accounted gateway execution under the caller's own principal. Runs have a step limit and a token cap, are cancelled when the stream closes, and are not persisted. `GatewayModule` now exports only `GatewayService`; provider adapters stay private. Tool use is a JSON reply protocol over `chat`, so providers and the gateway are unchanged. `agent_execute` stays CONTRACT_ONLY, and the durable run and whole-run accounting remain stage A2. [Agent mode](development/AI-PLAYGROUND.md#agent-mode), [ADR-0034](adr/0034-agent-runtime-model-inference-separation.md#stage-a2-preview-request-scoped-agent-runs-1-november-2026).
+
 ## Unreleased — 1 November 2026 — Agent Runtime boundaries (A0 disposition, A1)
 
 Recorded the repository owner's acceptance of AR-P01 to AR-P08 in [ADR-0034](adr/0034-agent-runtime-model-inference-separation.md): Model & Inference and Agent Runtime are separate authorities, kept as modules in this monorepo. Added `apps/api/src/modules/agent-runtime` with owned operation and Run lifecycle rules, plus `ModelExecution`, `BudgetAuthority`, `ToolExecution` and optional `IsolatedExecution` ports. New dependency rules stop any module other than the composition root from importing Agent Runtime, and stop Agent Runtime from importing provider SDKs or adapters. No adapter, table, route, migration or runtime is added; `agent_execute` stays CONTRACT_ONLY, and SAD-011 and SAD-020 stay chartered.

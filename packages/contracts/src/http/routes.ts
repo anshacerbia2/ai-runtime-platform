@@ -14,6 +14,7 @@ import { resourceContract } from './resources.js';
 import { runnerContract, assignmentContract } from './runner.js';
 import { gatewayContract, browserGatewayContract } from './gateway.js';
 import { toolOperationContract } from './tool-operations.js';
+import { agentContract, browserAgentContract } from './agent.js';
 
 const c = initContract();
 
@@ -64,6 +65,7 @@ export const HistoryQuery = z
 export const apiContract = c.router(
   {
     gateway: gatewayContract,
+    agent: agentContract,
     toolOperations: toolOperationContract,
     resources: resourceContract,
     runner: runnerContract,
@@ -237,6 +239,10 @@ export const browserContract = c.router({
   // responses explicitly; without them the BFF rejected every gateway error
   // (404 profile, 402 budget, 429 rate) as an invalid upstream response.
   gateway: c.router(browserGatewayContract, {
+    strictStatusCodes: true,
+    commonResponses: errorResponses,
+  }),
+  agent: c.router(browserAgentContract, {
     strictStatusCodes: true,
     commonResponses: errorResponses,
   }),
