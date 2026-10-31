@@ -2,6 +2,10 @@ import { createHash } from 'node:crypto';
 import { canonicalJson, profiles } from '@ai-runtime/contracts';
 import type { RuntimeConfig } from '../config/environment-config.js';
 import type { PrismaClient } from './generated/client.js';
+import {
+  playgroundProvisioning,
+  provisionPlayground,
+} from './local-playground.seed.js';
 
 const digest = (value: string) =>
   createHash('sha256').update(value).digest('hex');
@@ -9,7 +13,9 @@ const digest = (value: string) =>
 export async function seedDatabase(
   database: PrismaClient,
   config: RuntimeConfig,
+  options: { playground?: boolean } = {},
 ) {
+  const playground = options.playground ? playgroundProvisioning(config) : null;
   await database.$transaction(
     async (transaction) => {
       // One-time tooling coordination, not a periodic worker heartbeat.
@@ -65,6 +71,9 @@ export async function seedDatabase(
             );
           }
         }
+      }
+      if (playground) {
+        await provisionPlayground(transaction, playground);
       }
     },
     { maxWait: config.seedTxMaxWaitMs, timeout: config.seedTxTimeoutMs },

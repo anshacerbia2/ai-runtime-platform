@@ -142,6 +142,7 @@ export const runtimeEnvironmentSchema = z.object({
   M2_OPENROUTER_API_KEY: optStr(),
   M2_ANTHROPIC_API_KEY: optStr(),
   M2_PROVIDER_CREDENTIALS_JSON: z.string().optional(),
+  M2_PLAYGROUND_MODEL: optStr(),
   M2_REPLAY_REDIS_URL: optStr(),
   M3_COORDINATION_REDIS_URL: optStr(),
   OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: optStr(),
@@ -195,6 +196,7 @@ const apiEnvironmentSchema = runtimeEnvironmentSchema.pick({
   M2_OPENROUTER_API_KEY: true,
   M2_ANTHROPIC_API_KEY: true,
   M2_PROVIDER_CREDENTIALS_JSON: true,
+  M2_PLAYGROUND_MODEL: true,
   M2_REPLAY_REDIS_URL: true,
   M3_COORDINATION_REDIS_URL: true,
   OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: true,
@@ -323,6 +325,7 @@ function buildApiEnvironment(raw) {
         raw.M2_PROVIDER_CREDENTIALS_JSON,
       ),
       replayRedisUrl: raw.M2_REPLAY_REDIS_URL,
+      playgroundModel: raw.M2_PLAYGROUND_MODEL,
     }),
     runner: Object.freeze({
       coordinationRedisUrl: raw.M3_COORDINATION_REDIS_URL,

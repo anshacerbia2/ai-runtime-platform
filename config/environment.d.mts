@@ -41,6 +41,8 @@ export interface RuntimeEnvironment {
     readonly openrouterApiKey?: string;
     readonly anthropicApiKey?: string;
     readonly replayRedisUrl?: string;
+    /** m0-local only: model for the seeded `playground-chat` profile. */
+    readonly playgroundModel?: string;
     /** Programmatic test override; environment loader intentionally uses official endpoints. */
     readonly openrouterEndpoint?: string;
     readonly anthropicEndpoint?: string;

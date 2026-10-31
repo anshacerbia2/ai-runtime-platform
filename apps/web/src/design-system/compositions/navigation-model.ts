@@ -1,7 +1,13 @@
 import type { IconName } from '../components/icon';
 
 export type AppSection =
-  'playground' | 'control-plane' | 'contracts' | 'history' | 'phases' | 'docs';
+  | 'ai-playground'
+  | 'playground'
+  | 'control-plane'
+  | 'contracts'
+  | 'history'
+  | 'phases'
+  | 'docs';
 
 export interface NavItem {
   id: AppSection;
@@ -14,6 +20,12 @@ export const navigationGroups: Array<{ label: string; items: NavItem[] }> = [
   {
     label: 'Workbench',
     items: [
+      {
+        id: 'ai-playground',
+        label: 'AI Playground',
+        detail: 'Chat through the gateway',
+        icon: 'pulse',
+      },
       {
         id: 'playground',
         label: 'Contract Lab',
@@ -75,6 +87,7 @@ export const navigationGroups: Array<{ label: string; items: NavItem[] }> = [
 ];
 
 export const sectionPaths: Record<AppSection, string> = {
+  'ai-playground': '/playground',
   playground: '/contract-lab',
   'control-plane': '/control-plane',
   contracts: '/schemas',

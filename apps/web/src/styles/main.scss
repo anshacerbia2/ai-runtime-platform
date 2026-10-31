@@ -20,6 +20,7 @@
   @include meta.load-css('./components/forms');
   @include meta.load-css('./features/workbench');
   @include meta.load-css('./features/control-plane');
+  @include meta.load-css('./features/playground');
   @include meta.load-css('./features/entry-docs');
   @include meta.load-css('./features/sign-in');
 }

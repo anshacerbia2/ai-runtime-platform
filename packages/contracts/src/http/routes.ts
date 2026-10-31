@@ -233,7 +233,13 @@ export const apiContract = c.router(
 
 /** Explicit exposure policy: machine-only routes never become browser routes automatically. */
 export const browserContract = c.router({
-  gateway: browserGatewayContract,
+  // The browser gateway is a separate router, so it needs the shared error
+  // responses explicitly; without them the BFF rejected every gateway error
+  // (404 profile, 402 budget, 429 rate) as an invalid upstream response.
+  gateway: c.router(browserGatewayContract, {
+    strictStatusCodes: true,
+    commonResponses: errorResponses,
+  }),
   resources: apiContract.resources,
   lab: apiContract.lab,
   controlPlane: {
