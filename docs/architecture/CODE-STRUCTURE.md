@@ -42,6 +42,9 @@ apps/
         infrastructure/         # Prisma mutation/receipt, paged reads, fencing, wire mappers
         presentation/http/      # legacy, resource and runner-authority controllers
         control-plane.module.ts
+      agent-runtime/            # ADR-0034 stage A1: not registered, no adapters/tables/routes
+        domain/                 # operation states, Run lifecycle, operation identity
+        application/            # ModelExecution, BudgetAuthority, ToolExecution, IsolatedExecution ports
     cli/                        # seed/inspect entrypoints, not HTTP handlers
   web/                          # Next.js App Router + BFF (ADR-0026)
     next.config.mjs

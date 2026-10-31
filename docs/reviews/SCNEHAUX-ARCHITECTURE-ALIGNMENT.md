@@ -61,4 +61,10 @@ An alternative is to explicitly continue this repository as an independent exper
 
 The owner authorized preparation of a concrete alignment package. The [system design](../proposals/AGENT-RUNTIME-DESIGN.md), [technical design/test-first plan](../proposals/AGENT-RUNTIME-TDD.md), and [transition roadmap](../proposals/AGENT-RUNTIME-TRANSITION.md) now provide proposed authority/data boundaries, budget allocation and recovery semantics, compatible reuse and prospective acceptance tests. This is authorization to prepare a reviewable design, not disposition of its individual choices or a change to the external SAD status. The separate-prototype alternative above remains historical discussion context; the prepared package follows the recommended alignment direction.
 
+### Disposition — 1 November 2026
+
+The repository owner accepted AR-P01 to AR-P08 and chose the alignment direction over the separate-prototype alternative. [ADR-0034](../adr/0034-agent-runtime-model-inference-separation.md) records the decision, amends Architecture §13 and describes stage A1. The traceability gap noted above is closed for the local ADRs. SAD-011 and SAD-020 remain chartered in the Scnehaux repository, and this repository still claims no conformance with them.
+
+### Original checks
+
 Checked the merge/main commit, local worktree, source status/history in the sibling checkout, registered API composition, gateway/control-plane coupling, schema model inventory and the worker/native-host handoff. No runtime source, schema, production configuration, local ADR, plan or roadmap was changed. No provider call or native runtime was launched, and no fresh runtime-test result is claimed for this documentation review. The user-owned `docs/temp.md` was not read or modified.

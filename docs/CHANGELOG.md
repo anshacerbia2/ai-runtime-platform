@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased — 1 November 2026 — Agent Runtime boundaries (A0 disposition, A1)
+
+Recorded the repository owner's acceptance of AR-P01 to AR-P08 in [ADR-0034](adr/0034-agent-runtime-model-inference-separation.md): Model & Inference and Agent Runtime are separate authorities, kept as modules in this monorepo. Added `apps/api/src/modules/agent-runtime` with owned operation and Run lifecycle rules, plus `ModelExecution`, `BudgetAuthority`, `ToolExecution` and optional `IsolatedExecution` ports. New dependency rules stop any module other than the composition root from importing Agent Runtime, and stop Agent Runtime from importing provider SDKs or adapters. No adapter, table, route, migration or runtime is added; `agent_execute` stays CONTRACT_ONLY, and SAD-011 and SAD-020 stay chartered.
+
 ## Unreleased — 1 November 2026 — AI Playground
 
 Added the console AI Playground (`/playground`): a streaming chat through the real gateway path, showing execution ID, provider, model, tokens and finish reason, with Stop recorded as a durable cancel. In `m0-local`, seeding now provisions a ready `playground-chat` profile when `M2_ANTHROPIC_API_KEY` or `M2_OPENROUTER_API_KEY` is set (optional `M2_PLAYGROUND_MODEL`). Fixed the browser gateway contract: it lacked the shared error responses, so the BFF reported every gateway error (missing profile, budget, rate limit) as `502 INVALID_UPSTREAM_RESPONSE`; `contracts/bff.openapi.json` is regenerated with success responses unchanged. [Setup and evidence](development/AI-PLAYGROUND.md).

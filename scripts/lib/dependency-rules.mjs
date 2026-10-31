@@ -1,5 +1,39 @@
 const frameworks =
   /^(?:@nestjs\/|fastify(?:$|\/)|@prisma\/|pg$|react(?:$|\/)|node:)/;
+const providerSdks =
+  /^(?:@anthropic-ai\/|openai(?:$|\/)|@openrouter\/|@ai-sdk\/|ai$|@google\/(?:genai|generative-ai)|@mistralai\/|cohere-ai$)/;
+const modules = 'apps/api/src/modules/';
+const agentRuntime = `${modules}agent-runtime/`;
+
+// ADR-0034: Model & Inference and Agent Runtime are separate authorities.
+function agentRuntimeViolation(file, dependency, target, inner) {
+  const insideAgent = file.startsWith(agentRuntime);
+  if (
+    !insideAgent &&
+    target.startsWith(agentRuntime) &&
+    file !== 'apps/api/src/app.module.ts'
+  ) {
+    return 'Only the composition root may depend on Agent Runtime; Model & Inference and other modules never do.';
+  }
+  if (!insideAgent) {
+    return null;
+  }
+  if (providerSdks.test(dependency)) {
+    return 'Agent Runtime calls models through its model-execution port, never a provider SDK.';
+  }
+  if (target.startsWith(`${modules}gateway/infrastructure/`)) {
+    return 'Agent Runtime cannot reach provider adapters; wrap the M2 application boundary instead.';
+  }
+  if (
+    inner &&
+    target.startsWith(modules) &&
+    !target.startsWith(agentRuntime) &&
+    !target.startsWith(`${modules}identity/domain/`)
+  ) {
+    return 'Agent Runtime inner layers depend only on their own domain and ports.';
+  }
+  return null;
+}
 
 export function dependencyViolation(
   file,
@@ -9,6 +43,10 @@ export function dependencyViolation(
   clientDirective = false,
 ) {
   const inner = /\/(domain|application)\//.test(file);
+  const agent = agentRuntimeViolation(file, dependency, target, inner);
+  if (agent) {
+    return agent;
+  }
   const pluginPackage =
     dependency === '@ai-runtime/plugin-package' ||
     dependency.startsWith('@ai-runtime/plugin-package/') ||

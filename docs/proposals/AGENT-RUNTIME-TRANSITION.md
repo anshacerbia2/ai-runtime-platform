@@ -1,6 +1,8 @@
 # Agent Runtime alignment: proposed transition roadmap
 
-**Date:** 22 October 2026 (Asia/Jakarta). **Status:** draft for review. This sequence supplements discussion; it does not replace the adopted [plan](../PLAN.md), [roadmap](../ROADMAP.md) or local [ADRs](../adr/README.md). Merging documentation does not adopt AR-P01–08 or approve deployment.
+**Date:** 22 October 2026 (Asia/Jakarta). **Status:** A0 disposition recorded and A1 implemented locally on 1 November 2026 ([ADR-0034](../adr/0034-agent-runtime-model-inference-separation.md)); stages A2 to A6 remain proposals. This sequence supplements the adopted [plan](../PLAN.md) and [roadmap](../ROADMAP.md) and does not approve deployment.
+
+**Checkpoint 1 November 2026.** The repository owner accepted AR-P01 to AR-P08 without amendment and reconciled Architecture §13 through ADR-0034. The SAD-011/SAD-020 path is to submit this package to the Scnehaux architecture repository through its own workflow; their chartered status is unchanged and no Scnehaux conformance is claimed. A1 delivered the agent module's owned domain rules, the model, budget, Tool and optional isolated-execution ports, and AR-T01 dependency rules, with no adapter, table, route or migration. The separate reviews in the disposition table below remain open and gate A2 onward.
 
 ## Outcome and current checkpoint
 
@@ -52,7 +54,7 @@ This package recommends a direction; it does not invent reviewer approval or an 
 | Data/checkpoint/signature retention            | Scoped encrypted storage, no universal production TTL                                 | Data/security/runtime owners; O06/O12/O15    |
 | Optional isolated execution                    | AR-P07; preserve Linux VM/VPS preference and experimental evidence                    | Runtime/security/operations; O02/O03         |
 
-Individual reviewers and dates remain unassigned; document actual dispositions rather than filling them with fictional approvals. Discussion in `docs/reviews` can challenge the recommendation without itself adopting or rejecting architecture.
+Recorded so far: the product/module split and packaging (AR-P01 to AR-P04) and the positions AR-P05 to AR-P08 were accepted by Ansha Cerbia as repository owner on 1 November 2026 ([ADR-0034](../adr/0034-agent-runtime-model-inference-separation.md)). The SAD route is submission to the Scnehaux repository, not yet made. The accounting, recovery, identity, definition/pilot, retention and isolated-execution reviews and their open decisions remain unassigned; document actual dispositions rather than filling them with fictional approvals. Discussion in `docs/reviews` can challenge the recommendation without itself adopting or rejecting architecture.
 
 ## Immediate deliverable and acceptance
 

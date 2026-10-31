@@ -1,6 +1,6 @@
 # Agent Runtime: proposed technical design and test-first plan
 
-**Date:** 22 October 2026 (Asia/Jakarta). **Status:** draft technical proposal; not implemented. TDD here includes a technical design document and an ordered test-first development plan. The [system proposal](AGENT-RUNTIME-DESIGN.md) defines the authority boundaries; the [transition roadmap](AGENT-RUNTIME-TRANSITION.md) defines review and implementation gates.
+**Date:** 22 October 2026 (Asia/Jakarta). **Status:** draft technical proposal. Stage A1 is implemented locally: the `agent-runtime` domain and ports and the AR-T01 dependency rules ([ADR-0034](../adr/0034-agent-runtime-model-inference-separation.md)). Persistence, adapters, routes and AR-T02 onward are not implemented. TDD here includes a technical design document and an ordered test-first development plan. The [system proposal](AGENT-RUNTIME-DESIGN.md) defines the authority boundaries; the [transition roadmap](AGENT-RUNTIME-TRANSITION.md) defines review and implementation gates.
 
 ## First executable slice
 
