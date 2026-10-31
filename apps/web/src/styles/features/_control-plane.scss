@@ -3,8 +3,7 @@
   gap: var(--ds-space-6);
 }
 
-// Was a navy gradient hero. A control plane opens with its state, not a banner,
-// so this is now a plain summary panel.
+// A control plane opens with its state, not a banner: a plain summary panel.
 .control-plane-hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -32,8 +31,8 @@
 }
 
 // --- Resource tabs ----------------------------------------------------------
-// Underline tabs rather than a pill rail: they read as navigation within a
-// page, not as a segmented control that changes a setting.
+// Underline tabs in the HUD voice: navigation within a page, not a segmented control. The current
+// tab is here, so its 2px underline is the signal.
 .resource-tabs {
   display: flex;
   gap: var(--ds-space-6);
@@ -51,8 +50,11 @@
   border-radius: 0;
   background: transparent;
   color: var(--ds-text-muted);
-  font-size: var(--ds-font-size-sm);
+  font-family: var(--ds-font-label);
+  font-size: var(--fs-nav-value);
   font-weight: var(--fw-medium);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
   white-space: nowrap;
   transition: color var(--ds-transition-fast);
 }
@@ -70,10 +72,9 @@
 }
 .resource-tab.is-active {
   color: var(--ds-text-primary);
-  font-weight: var(--fw-semibold);
 }
 .resource-tab.is-active::after {
-  background: var(--ds-action-primary);
+  background: var(--ds-nav-marker);
 }
 
 .control-overview,
@@ -101,14 +102,15 @@
 }
 .privacy-note,
 .reference-note {
-  border: 0;
-  background: var(--ds-surface-subtle);
+  border: 1px solid var(--ds-border-subtle);
+  background: transparent;
   color: var(--ds-text-muted);
 }
+// A caution: the warning's line, the body's word.
 .notice {
-  border: 0;
-  background: var(--ds-status-warning-soft);
-  color: var(--ds-status-warning);
+  border: 1px solid var(--ds-status-warning-border);
+  background: transparent;
+  color: var(--ds-text-body);
 }
 .schema-banner {
   display: flex;
@@ -116,17 +118,16 @@
   justify-content: space-between;
   gap: var(--ds-space-4);
   padding: var(--ds-space-4) var(--ds-space-5);
-  border: 0;
+  border: 1px solid var(--ds-border-subtle);
   border-radius: var(--ds-radius-lg);
-  background: var(--ds-surface-subtle);
+  background: transparent;
   font-size: var(--fs-meta);
 }
 .issue-card {
   padding: var(--ds-pad-card-tight);
-  border: 0;
+  border: 1px solid var(--ds-border-subtle);
   border-radius: var(--ds-radius-lg);
   background: var(--ds-surface-panel);
-  box-shadow: var(--ds-shadow-sm);
 }
 .issue-card strong {
   color: var(--ds-text-primary);

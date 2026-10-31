@@ -1,11 +1,25 @@
-@use './tokens/ati';
-@use './tokens/semantic';
-@use './foundations/reset';
-@use './foundations/typography';
-@use './layouts/shell';
-@use './components/surfaces';
-@use './components/forms';
-@use './features/workbench';
-@use './features/control-plane';
-@use './features/entry-docs';
-@use './features/sign-in';
+@use 'sass:meta';
+
+// The one stylesheet entry. The UI Platform's stylesheets (the root layout imports them first) declare
+// their cascade layers; this file names the same order and adds this application's own after them
+// (ADR-0033), so an application rule never needs specificity to win, and no unlayered element rule
+// overrides a platform component's. This application's reset joins the platform's `reset`.
+@layer reset, tokens, base, components, recipes, utilities, overrides, app;
+
+@layer reset {
+  @include meta.load-css('./foundations/reset');
+}
+
+@layer app {
+  @include meta.load-css('./foundations/fonts');
+  @include meta.load-css('./tokens/platform');
+  @include meta.load-css('./tokens/semantic');
+  @include meta.load-css('./foundations/typography');
+  @include meta.load-css('./layouts/shell');
+  @include meta.load-css('./components/surfaces');
+  @include meta.load-css('./components/forms');
+  @include meta.load-css('./features/workbench');
+  @include meta.load-css('./features/control-plane');
+  @include meta.load-css('./features/entry-docs');
+  @include meta.load-css('./features/sign-in');
+}

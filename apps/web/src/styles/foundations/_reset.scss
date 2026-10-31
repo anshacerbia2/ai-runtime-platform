@@ -29,13 +29,20 @@ textarea {
 button {
   cursor: pointer;
 }
+// A link is the platform's link colour, and underlined at rest, so it is told from the words around it
+// by more than its colour (WCAG 2.2 SC 1.4.1). A link a component draws itself carries its own class
+// and is left alone.
 a {
-  color: var(--ds-action-primary);
+  color: inherit;
   text-decoration: none;
 }
-a:hover {
-  color: var(--ds-action-primary-hover);
+:where(a:not([class])) {
+  color: var(--ds-text-link);
   text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+:where(a:not([class])):hover {
+  text-decoration-thickness: 2px;
 }
 ::selection {
   background: var(--ds-action-soft);

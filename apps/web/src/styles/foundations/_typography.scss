@@ -11,6 +11,7 @@ h4 {
 }
 h1 {
   font-size: var(--ds-font-size-title);
+  font-weight: var(--fw-medium);
   letter-spacing: var(--ls-tight);
 }
 h2 {
@@ -32,14 +33,14 @@ code,
   font-size: 0.95em;
 }
 
-// Section kicker. Sentence case: uppercase tracking is the loudest way to say
-// something quiet, and it dates a console faster than anything else here.
+// Section kicker, in the HUD voice: IBM Plex Mono, upper case, spaced out (the brand book's 06 Type).
 .ds-eyebrow {
   display: block;
   font-family: var(--ds-font-label);
-  font-size: var(--fs-eyebrow);
+  font-size: var(--fs-pico);
   font-weight: var(--fw-medium);
-  letter-spacing: var(--ls-eyebrow);
+  letter-spacing: var(--ls-wider);
+  text-transform: uppercase;
   color: var(--ds-text-faint);
 }
 

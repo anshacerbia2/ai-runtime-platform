@@ -1,5 +1,8 @@
 // Application semantic contract. Components consume these, never the raw scale.
-:root {
+//
+// Each role is a UI Platform `scnx-platform` token (ADR-0033) or a mix of one in _platform.scss.
+// Declared on the theme root, so every role resolves against the mode in force there, dark or light.
+:where([data-scnx-theme]) {
   // --- Typography roles -----------------------------------------------------
   --ds-font-body: var(--font-body);
   --ds-font-display: var(--font-display);
@@ -21,81 +24,86 @@
   --ds-line-relaxed: var(--lh-relaxed);
 
   // --- Surfaces -------------------------------------------------------------
-  // canvas < subtle < panel. Panels are the lightest, so content reads forward.
-  // Neutral grey canvas under white panels: enough separation to give the
-  // cards structure, with no hue for the page to read as coloured.
-  --ds-surface-canvas: var(--ati-canvas);
-  --ds-surface-panel: var(--ati-white);
-  --ds-surface-subtle: var(--ati-tint);
-  --ds-surface-panel-muted: var(--ati-tint-strong);
-  --ds-surface-raised: var(--ati-white);
-  --ds-surface-accent: var(--ati-blue-50);
-  --ds-surface-accent-strong: var(--ati-blue-100);
-  --ds-surface-hover: var(--ati-tint);
-  --ds-surface-selected: var(--ati-tint-strong);
-  --ds-surface-code: var(--ati-code-bg);
-  --ds-surface-code-bar: var(--ati-code-bar);
+  // The brand book's drawing: one ground, and areas told apart by lines rather than by fills. A
+  // panel is the ground with a line round it; only what floats above the page is raised.
+  --ds-surface-canvas: var(--ds-color-neutral-surface-canvas-default);
+  --ds-surface-panel: var(--ds-color-neutral-surface-canvas-default);
+  --ds-surface-subtle: var(--ds-color-neutral-surface-sunken-default);
+  --ds-surface-panel-muted: var(--ds-color-neutral-surface-default-default);
+  --ds-surface-raised: var(--ds-color-neutral-surface-raised-default);
+  --ds-surface-accent: var(--ds-color-primary-surface-subtle-default);
+  --ds-surface-accent-strong: var(--ds-color-primary-surface-default-default);
+  --ds-surface-hover: var(--hover);
+  --ds-surface-selected: var(--current);
+  --ds-surface-code: var(--ds-color-neutral-surface-sunken-default);
+  --ds-surface-code-bar: var(--ds-color-neutral-surface-default-default);
 
   // --- Text -----------------------------------------------------------------
-  // Headings carry the brand: the ATI set maps text-strong to navy, not to ink.
-  --ds-text-primary: var(--ati-navy);
-  --ds-text-body: var(--ati-gray-700);
-  // Every text role clears WCAG AA on both white and the tinted canvas:
-  // body 7.8:1, muted 5.6:1, faint 5.1:1. gray-400 is not a text role.
-  --ds-text-muted: var(--ati-gray-600);
-  --ds-text-faint: var(--ati-gray-500);
-  --ds-text-inverse: var(--ati-white);
-  --ds-text-inverse-muted: var(--ati-gray-300);
-  --ds-text-code: var(--ati-code-text);
-  --ds-text-code-muted: var(--ati-code-muted);
+  // Every text role is a platform text token, each 4.5:1 or more on the ground in both modes.
+  --ds-text-primary: var(--ds-color-neutral-text-strong-default);
+  --ds-text-body: var(--ds-color-neutral-text-default-default);
+  --ds-text-muted: var(--ds-color-neutral-text-subtle-default);
+  --ds-text-faint: var(--ds-color-neutral-text-subtle-default);
+  --ds-text-inverse: var(--ds-color-neutral-text-contrast-default);
+  --ds-text-inverse-muted: var(--ds-color-neutral-text-contrast-default);
+  --ds-text-code: var(--ds-color-neutral-text-default-default);
+  --ds-text-code-muted: var(--ds-color-neutral-text-subtle-default);
+  // Blue text: a link, the current place.
+  --ds-text-link: var(--ds-color-primary-text-default-default);
 
   // --- Borders --------------------------------------------------------------
-  --ds-border-subtle: var(--ati-line);
-  --ds-border-default: var(--ati-line-strong);
-  --ds-border-strong: var(--ati-line-stronger);
-  --ds-border-accent: var(--ati-blue);
+  --ds-border-subtle: var(--line);
+  --ds-border-default: var(--line-strong);
+  --ds-border-strong: var(--ds-color-neutral-border-strong-default);
+  --ds-border-accent: var(--ds-color-primary-border-default-default);
 
   // --- Action ---------------------------------------------------------------
-  --ds-action-primary: var(--ati-blue);
-  --ds-action-primary-hover: var(--ati-blue-600);
-  --ds-action-primary-active: var(--ati-blue-deep);
-  --ds-action-soft: var(--ati-blue-100);
-  --ds-action-soft-hover: var(--ati-blue-200);
+  // The primary action is ink, the neutral solid fill: near-white in the dark mode, near-black in the
+  // light one. Blue means here and is never a button's fill (the brand book's 02 Principles).
+  --ds-action-primary: var(--ds-color-neutral-surface-solid-default);
+  --ds-action-primary-hover: var(--ds-color-neutral-surface-solid-hover);
+  --ds-action-primary-active: var(--ds-color-neutral-surface-solid-pressed);
+  --ds-action-soft: var(--current);
+  --ds-action-soft-hover: var(--hover);
 
-  // The signature gradient, reserved for the brand mark.
-  --ds-brand-gradient: var(--ati-gradient-blue);
+  // The brand mark is drawn in the ink role.
+  --ds-brand-gradient: var(--ds-color-neutral-surface-solid-default);
 
   // --- Brand field ----------------------------------------------------------
-  // Full-navy surfaces, used only by the sign-in page. The console rail is
-  // white, so this is the one place the brand owns the whole viewport.
-  --ds-surface-brand: var(--ati-navy);
-  --ds-surface-brand-deep: var(--ati-navy-900);
-  --ds-brand-accent: var(--ati-blue);
-  --ds-brand-accent-hover: var(--ati-blue-600);
-  --ds-brand-accent-bright: var(--ati-blue-300);
-  --ds-brand-line: rgba(255, 255, 255, 0.14);
-  --ds-brand-line-strong: rgba(255, 255, 255, 0.28);
-  --ds-brand-grid: rgba(255, 255, 255, 0.05);
-  --ds-brand-alert: rgba(212, 59, 59, 0.16);
-  --ds-brand-alert-line: rgba(255, 255, 255, 0.24);
-  --ds-text-inverse-faint: rgba(255, 255, 255, 0.58);
+  // The sign-in page's field: the ground, its lines and its signal, as every page.
+  --ds-surface-brand: var(--ds-color-neutral-surface-canvas-default);
+  --ds-surface-brand-deep: var(--ds-color-neutral-surface-sunken-default);
+  --ds-brand-accent: var(--ds-color-neutral-surface-solid-default);
+  --ds-brand-accent-hover: var(--ds-color-neutral-surface-solid-hover);
+  --ds-brand-accent-bright: var(--ds-color-primary-surface-solid-default);
+  --ds-brand-line: var(--line);
+  --ds-brand-line-strong: var(--line-strong);
+  --ds-brand-grid: color-mix(
+    in oklab,
+    var(--ds-color-neutral-text-default-default) 5%,
+    transparent
+  );
+  --ds-brand-alert: var(--ds-color-danger-surface-subtle-default);
+  --ds-brand-alert-line: var(--ds-color-danger-border-default-default);
+  --ds-text-inverse-faint: var(--ds-color-neutral-text-subtle-default);
 
   // --- Status ---------------------------------------------------------------
-  --ds-status-success: var(--ati-success);
-  --ds-status-success-soft: var(--ati-success-bg);
-  --ds-status-success-border: var(--ati-success-border);
-  --ds-status-warning: var(--ati-warning);
-  --ds-status-warning-soft: var(--ati-warning-bg);
-  --ds-status-warning-border: var(--ati-warning-border);
-  --ds-status-danger: var(--ati-danger);
-  --ds-status-danger-soft: var(--ati-danger-bg);
-  --ds-status-danger-border: var(--ati-danger-border);
-  --ds-status-info: var(--ati-info);
-  --ds-status-info-soft: var(--ati-info-bg);
-  --ds-status-info-border: var(--ati-info-border);
+  --ds-status-success: var(--ds-color-success-text-default-default);
+  --ds-status-success-soft: var(--ds-color-success-surface-subtle-default);
+  --ds-status-success-border: var(--ds-color-success-border-default-default);
+  --ds-status-warning: var(--ds-color-warning-text-default-default);
+  --ds-status-warning-soft: var(--ds-color-warning-surface-subtle-default);
+  --ds-status-warning-border: var(--ds-color-warning-border-default-default);
+  --ds-status-danger: var(--ds-color-danger-text-default-default);
+  --ds-status-danger-soft: var(--ds-color-danger-surface-subtle-default);
+  --ds-status-danger-border: var(--ds-color-danger-border-default-default);
+  --ds-status-info: var(--ds-color-info-text-default-default);
+  --ds-status-info-soft: var(--ds-color-info-surface-subtle-default);
+  --ds-status-info-border: var(--ds-color-info-border-default-default);
 
   // --- Spacing --------------------------------------------------------------
   --ds-space-px: var(--space-px);
+  --ds-space-0-5: var(--space-0-5);
   --ds-space-1: var(--space-1);
   --ds-space-2: var(--space-2);
   --ds-space-3: var(--space-3);
@@ -116,7 +124,6 @@
   --ds-radius-pill: var(--radius-pill);
 
   // --- Elevation ------------------------------------------------------------
-  // Panels are lifted, not outlined, so the base step is a real shadow.
   --ds-shadow-xs: var(--shadow-xs);
   --ds-shadow-sm: var(--shadow-sm);
   --ds-shadow-md: var(--shadow-md);
@@ -127,53 +134,47 @@
   // --- Motion ---------------------------------------------------------------
   --ds-transition-fast: var(--dur-fast) var(--ease-standard);
   --ds-transition-base: var(--dur-normal) var(--ease-standard);
-  // Shell geometry moves on a longer curve than control feedback does.
-  --ds-transition-shell: 300ms var(--ease-standard);
+  --ds-transition-shell: var(--dur-slow) var(--ease-standard);
 
   // --- Layout ---------------------------------------------------------------
-  // Generous rather than compact: the previous 48px bar and 16px gutter are
-  // what made the page feel cramped regardless of colour.
-  // Reference rail: 240px from lg, 280px from xl, 80px collapsed.
-  --ds-sidebar-width: 240px;
-  --ds-sidebar-collapsed: 80px;
-  --ds-topbar-height: 80px;
+  // The documentation site's geometry: a 48px bar, a 248px rail, the brand book's 40px inner pad.
+  --ds-sidebar-width: 248px;
+  --ds-sidebar-collapsed: 64px;
+  --ds-topbar-height: 48px;
   --ds-content-max: 1440px;
-  --ds-content-gutter: clamp(var(--space-5), 3vw, var(--space-10));
+  --ds-content-gutter: clamp(var(--space-4), 3vw, var(--space-10));
 
   // One card-padding value, so every surface breathes identically.
   --ds-pad-card: var(--space-6);
   --ds-pad-card-tight: var(--space-5);
   // Leading inset that clears the search field's inline icon.
-  --ds-search-inset: 44px;
+  --ds-search-inset: 36px;
 
   // --- Navigation -----------------------------------------------------------
-  // White rail against the tinted canvas; the active row is accent-tinted
-  // rather than grey, which is what keeps the nav from reading as chrome.
-  --ds-nav-surface: var(--ati-navy-900);
-  --ds-nav-border: rgba(255, 255, 255, 0.1);
-  // Navy rail, matching the ATI portal's own NavRail. Text values are solid
-  // ramp steps rather than white-alpha so contrast on navy is predictable:
-  // body 8.1:1, captions 5.7:1, active row 16.9:1.
-  --ds-nav-text: var(--ati-gray-300);
-  --ds-nav-text-active: var(--ati-white);
-  --ds-nav-hover: rgba(255, 255, 255, 0.07);
-  --ds-nav-active: rgba(255, 255, 255, 0.11);
+  // The documentation site's sidebar: the ground, a line beside it, items muted until the pointer is
+  // over them, the current one a faint ink fill with a 2px marker in the signal.
+  --ds-nav-surface: var(--ds-color-neutral-surface-canvas-default);
+  --ds-nav-border: var(--line);
+  --ds-nav-text: var(--ds-color-neutral-text-subtle-default);
+  --ds-nav-text-active: var(--ds-color-neutral-text-strong-default);
+  --ds-nav-hover: var(--hover);
+  --ds-nav-active: var(--current);
   --ds-nav-active-border: transparent;
-  --ds-nav-label: var(--ati-gray-400);
-  --ds-nav-detail: var(--ati-gray-400);
-  --ds-nav-eyebrow: var(--ati-gray-400);
-  // Brand accent lifted a step so it reads against the navy field.
-  --ds-nav-marker: var(--ati-blue-300);
+  --ds-nav-label: var(--ds-color-neutral-text-subtle-default);
+  --ds-nav-detail: var(--ds-color-neutral-text-subtle-default);
+  --ds-nav-eyebrow: var(--ds-color-neutral-text-subtle-default);
+  --ds-nav-marker: var(--ds-color-primary-surface-solid-default);
 
   // --- Composite treatments -------------------------------------------------
-  // Solid white bar, not glass: over a navy rail a translucent header shows
-  // the rail through it at the seam.
-  --ds-topbar-glass: var(--ati-white);
-  --ds-scrim: rgba(10, 37, 64, 0.2);
-  --ds-ring-success: 0 0 0 3px var(--ds-status-success-soft);
-  --ds-inset-accent: inset 0 0 0 1px var(--ati-blue);
-  --ds-inset-accent-soft: inset 0 0 0 1px var(--ati-blue-200);
-  --ds-inset-nav: inset 2px 0 0 var(--ati-blue);
-  --ds-inset-nav-mobile: inset 0 -2px 0 var(--ati-blue);
+  // The bar is opaque: what scrolls beneath it never shows through.
+  --ds-topbar-glass: var(--ds-color-neutral-surface-canvas-default);
+  --ds-scrim: var(--scrim);
+  --ds-ring-success: 0 0 0 2px var(--ds-status-success-border);
+  --ds-inset-accent: inset 0 0 0 1px
+    var(--ds-color-primary-border-default-default);
+  --ds-inset-accent-soft: inset 0 0 0 1px var(--line-strong);
+  --ds-inset-nav: inset 2px 0 0 var(--ds-color-primary-surface-solid-default);
+  --ds-inset-nav-mobile: inset 0 -2px 0
+    var(--ds-color-primary-surface-solid-default);
   --ds-visually-hidden-offset: -1px;
 }

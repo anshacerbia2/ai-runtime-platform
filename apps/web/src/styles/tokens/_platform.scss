@@ -1,0 +1,124 @@
+// Visual primitive source. Raw values are permitted ONLY in this directory.
+//
+// ADR-0033 makes the UI Platform's `scnx-platform` theme the source: `@scnx/system`'s token stylesheet,
+// loaded once by the root layout, defines the `--ds-color-*`, `--ds-dimension-*`, `--ds-typography-*`,
+// `--ds-effect-*` and `--ds-motion-*` tokens on the theme root (<html>, which carries
+// `data-scnx-theme` and `data-scnx-resolved-mode`). This file keeps the console's own scale names,
+// which the stylesheets read, and points each at a platform token. The platform has no spacing scale,
+// only roles, so the spacing steps stay this console's own values.
+//
+// Declared on the theme root, so a value resolves against the mode in force there.
+:where([data-scnx-theme]) {
+  // --- Spacing --------------------------------------------------------------
+  --space-px: 1px;
+  --space-0-5: 2px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+  --space-24: 96px;
+  --space-32: 128px;
+
+  // --- Radius ---------------------------------------------------------------
+  // scnx-platform is square: every radius role is 0, save the pill, kept where a round shape means
+  // something (a status dot, a radio).
+  --radius-xs: var(--ds-dimension-radius-element);
+  --radius-sm: var(--ds-dimension-radius-element);
+  --radius-md: var(--ds-dimension-radius-control);
+  --radius-lg: var(--ds-dimension-radius-panel);
+  --radius-xl: var(--ds-dimension-radius-container);
+  --radius-2xl: var(--ds-dimension-radius-container);
+  --radius-pill: var(--ds-dimension-radius-pill);
+
+  // --- Elevation ------------------------------------------------------------
+  // On the page a surface is a line, not a shadow (the brand book's 03 Lines): the flat steps are
+  // none. What floats above the page, a menu or a drawer, keeps the platform's overlay shadow.
+  --shadow-xs: none;
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: var(--ds-effect-shadow-overlay);
+  // Focus is the platform's focus colour, as a 2px ring.
+  --shadow-focus: 0 0 0 2px var(--ds-color-primary-border-default-focus);
+
+  // --- Motion ---------------------------------------------------------------
+  --ease-standard: var(--ds-motion-feedback-easing);
+  --ease-out: var(--ds-motion-enter-easing);
+  --dur-fast: var(--ds-motion-feedback-duration);
+  --dur-normal: var(--ds-motion-feedback-duration);
+  --dur-slow: var(--ds-motion-enter-duration);
+
+  // --- Typography -----------------------------------------------------------
+  // Inter speaks the content; IBM Plex Mono, served from this origin (foundations/fonts), is the
+  // instrument's voice: labels, figures and identifiers.
+  --font-body: var(--ds-typography-body-default-font-family);
+  --font-display: var(--ds-typography-heading-large-font-family);
+  --font-label: 'IBM Plex Mono', var(--ds-typography-code-default-font-family);
+  --font-mono: 'IBM Plex Mono', var(--ds-typography-code-default-font-family);
+
+  // The type scale, the platform's sizes where it has one; the brand book's literals where it does
+  // not (its 10 to 11px HUD voice, and its section heading).
+  --fs-title: clamp(1.875rem, 3.2vw, 2.5rem);
+  --fs-section: var(--ds-typography-heading-xsmall-font-size);
+  --fs-card: 15px;
+  --fs-body: var(--ds-typography-body-small-font-size);
+  --fs-sm: var(--ds-typography-body-small-font-size);
+  --fs-meta: 13px;
+  --fs-micro: var(--ds-typography-label-small-font-size);
+  --fs-nano: 10px;
+  --fs-pico: 10px;
+  --fs-nav-value: 11px;
+  --fs-eyebrow: 11px;
+  --fs-metric: 30px;
+  --fs-display: clamp(2.5rem, 5vw, 4rem);
+
+  --fw-regular: var(--ds-typography-weight-regular);
+  --fw-medium: var(--ds-typography-weight-medium);
+  --fw-semibold: var(--ds-typography-weight-semibold);
+  --fw-bold: var(--ds-typography-weight-bold);
+
+  --lh-tight: 1.1;
+  --lh-snug: 1.4;
+  --lh-normal: 1.55;
+  --lh-relaxed: 1.65;
+
+  --ls-tight: -0.035em;
+  --ls-snug: -0.012em;
+  --ls-normal: 0;
+  --ls-eyebrow: 0.15em;
+  --ls-label: 0.12em;
+  // The HUD voice's tracking: upper case, spaced out (the brand book's 06 Type).
+  --ls-wide: 0.15em;
+  --ls-wider: 0.15em;
+
+  // --- Lines ----------------------------------------------------------------
+  // The brand book's drawing (03 Lines): every divider is text at 16%, mixed in OKLab (the neutral
+  // tokens have so little chroma that an OKLCH mix loses their hue and turns a grey warm).
+  --line: color-mix(
+    in oklab,
+    var(--ds-color-neutral-text-default-default) 16%,
+    transparent
+  );
+  --line-strong: color-mix(
+    in oklab,
+    var(--ds-color-neutral-text-default-default) 28%,
+    transparent
+  );
+  --hover: color-mix(
+    in oklab,
+    var(--ds-color-neutral-text-default-default) 6%,
+    transparent
+  );
+  --current: color-mix(
+    in oklab,
+    var(--ds-color-neutral-text-default-default) 8%,
+    transparent
+  );
+  --scrim: color-mix(in oklab, black 45%, transparent);
+}

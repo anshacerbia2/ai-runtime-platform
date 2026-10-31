@@ -13,7 +13,9 @@ export type IconName =
   | 'search'
   | 'bell'
   | 'menu'
-  | 'check';
+  | 'check'
+  | 'sun'
+  | 'moon';
 
 const paths: Record<IconName, string> = {
   flask:
@@ -31,6 +33,8 @@ const paths: Record<IconName, string> = {
   bell: 'M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0',
   menu: 'M4 6h16M4 12h16M4 18h16',
   check: 'm5 13 4 4L19 7',
+  sun: 'M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4',
+  moon: 'M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5Z',
 };
 
 export function Icon({

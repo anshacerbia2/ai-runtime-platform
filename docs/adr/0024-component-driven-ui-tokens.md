@@ -1,7 +1,7 @@
 # ADR-0024 — Component-Driven Frontend and ATI Portal Design Tokens
 
 **Date:** 21 September 2026
-**Status:** implemented locally; external ATI One visual/integration evidence remains separate
+**Status:** implemented locally; external ATI One visual/integration evidence remains separate. Visual primitive source superseded by [ADR-0033](0033-ui-platform-scnx-platform.md) (31 October 2026); the CDD and semantic-token contract stays in force.
 **Scope:** AI Runtime Platform frontend architecture and visual-system consumption
 
 ## Implementation reconciliation — 24 September 2026

@@ -1,5 +1,7 @@
-// Shell mirrored from the new-cms reference, measurement for measurement.
-// Tailwind source values are noted so any later drift is checkable.
+// The console's frame, drawn as the UI Platform documentation site and the Identity and Organization
+// consoles draw theirs (ADR-0033; scnehaux-design scnx-platform/Brand-Book.html, 03 Lines): one line
+// between any two areas, never a box in a box. The rail and the bar share their lines; the brand's
+// cell is as tall as the bar, so the line under it runs on as the bar's.
 .ds-app-shell {
   --ds-rail: var(--ds-sidebar-width);
   min-height: 100vh;
@@ -11,7 +13,6 @@
 }
 
 // --- Sidebar ---------------------------------------------------------------
-// aside: fixed left-0 top-0 h-screen border-r flex flex-col py-8 z-50
 .ds-sidebar {
   position: fixed;
   top: 0;
@@ -21,13 +22,11 @@
   flex-direction: column;
   width: var(--ds-rail);
   height: 100vh;
-  padding: var(--ds-space-8) 0;
   border-right: 1px solid var(--ds-nav-border);
   background: var(--ds-nav-surface);
   user-select: none;
   transition: width var(--ds-transition-shell);
 }
-// Inner wrapper: flex flex-col h-full w-full overflow-hidden
 .ds-sidebar-inner {
   display: flex;
   flex-direction: column;
@@ -36,12 +35,14 @@
   overflow: hidden;
 }
 
-// Brand slot: mb-10 flex items-center px-4
+// The brand's cell: as tall as the bar, its line the bar's.
 .ds-brand-slot {
   display: flex;
+  flex: none;
   align-items: center;
-  margin-bottom: var(--ds-space-10);
-  padding: 0 var(--ds-space-4);
+  height: var(--ds-topbar-height);
+  padding: 0 var(--ds-space-5);
+  border-bottom: 1px solid var(--ds-nav-border);
 }
 .ds-brand {
   display: flex;
@@ -50,28 +51,22 @@
   width: 100%;
   border: 0;
   background: transparent;
-  color: inherit;
+  color: var(--ds-nav-text-active);
   text-align: left;
 }
-// The one place the ATI logo-crossbar gradient is used.
+// The two-bar mark, wider than tall (21:9), in the ink role.
 .ds-brand-mark {
-  display: grid;
-  place-items: center;
   flex: none;
-  width: 40px;
-  height: 40px;
-  border-radius: var(--ds-radius-lg);
-  background: var(--ds-brand-gradient);
-  color: var(--ds-text-inverse);
-  font-size: var(--ds-font-size-sm);
-  font-weight: var(--fw-bold);
-  letter-spacing: var(--ls-tight);
+  width: 36px;
+  height: auto;
+  aspect-ratio: 21 / 9;
+  fill: var(--ds-brand-gradient);
 }
 .ds-brand-name {
   min-width: 0;
   color: var(--ds-nav-text-active);
-  font-size: var(--ds-font-size-card);
-  font-weight: var(--fw-bold);
+  font-size: var(--ds-font-size-sm);
+  font-weight: var(--fw-semibold);
   letter-spacing: var(--ls-snug);
   white-space: nowrap;
   overflow: hidden;
@@ -81,10 +76,11 @@
 }
 
 // --- Navigation ------------------------------------------------------------
-// nav: flex-1 space-y-6 px-4 overflow-y-auto overflow-x-hidden no-scrollbar
+// The documentation site's sidebar: group labels in the HUD voice, items in Inter, muted until the
+// pointer is over them, the current one a faint ink fill with a 2px marker in the signal.
 .ds-navigation {
   flex: 1;
-  padding: 0 var(--ds-space-4);
+  padding: var(--ds-space-6) var(--ds-space-3);
   overflow-x: hidden;
   overflow-y: auto;
   scrollbar-width: none;
@@ -96,15 +92,13 @@
   margin-top: var(--ds-space-6);
 }
 
-// Group caption: text-[9px] font-bold uppercase tracking-[0.25em] mb-2 px-3.
-// A plain block, exactly as in the reference — not a grid item, which is what
-// lets it collapse cleanly (grid items keep an automatic minimum size).
+// A plain block, not a grid item, so it collapses cleanly (a grid item keeps an automatic minimum).
 .ds-nav-label {
   margin-bottom: var(--ds-space-2);
   padding: 0 var(--ds-space-3);
   font-family: var(--ds-font-label);
   font-size: var(--fs-pico);
-  font-weight: var(--fw-bold);
+  font-weight: var(--fw-medium);
   letter-spacing: var(--ls-wider);
   text-transform: uppercase;
   color: var(--ds-nav-label);
@@ -113,27 +107,27 @@
   transition: opacity var(--ds-transition-shell);
 }
 
-// Item list: space-y-0.5
+// 2px between items, so two fills, under the pointer or current, never touch.
 .ds-nav-items > * + * {
   margin-top: var(--ds-space-0-5);
 }
 
-// Item: flex items-center rounded-xl overflow-hidden relative w-full py-2
 .ds-nav-item {
   position: relative;
   display: flex;
   align-items: center;
   width: 100%;
-  padding: var(--ds-space-2) 0;
+  min-height: 36px;
   overflow: hidden;
   border: 0;
-  border-radius: var(--ds-radius-lg);
+  border-radius: var(--ds-radius-sm);
   background: transparent;
   color: var(--ds-nav-text);
   text-align: left;
+  text-decoration: none;
   transition:
-    background var(--ds-transition-shell),
-    color var(--ds-transition-shell);
+    background var(--ds-transition-fast),
+    color var(--ds-transition-fast);
 }
 .ds-nav-item:hover {
   background: var(--ds-nav-hover);
@@ -142,38 +136,35 @@
 .ds-nav-item.is-active {
   background: var(--ds-nav-active);
   color: var(--ds-nav-text-active);
+  font-weight: var(--fw-medium);
+}
+.ds-nav-item:focus-visible {
+  outline: 2px solid var(--ds-color-primary-border-default-focus);
+  outline-offset: -2px;
 }
 
-// Icon column: w-12 flex-shrink-0 justify-center
+// The icon's column: as wide as the collapsed rail's room for it, so the glyphs do not move when the
+// rail folds.
 .ds-nav-icon {
   display: grid;
   place-items: center;
   flex: none;
-  width: 48px;
+  width: 40px;
 }
 .ds-nav-icon svg {
-  width: 18px;
-  height: 18px;
-  opacity: 0.6;
-  transition:
-    opacity var(--ds-transition-shell),
-    transform var(--ds-transition-shell);
+  width: 16px;
+  height: 16px;
+  opacity: 0.7;
+  transition: opacity var(--ds-transition-fast);
 }
-.ds-nav-item:hover .ds-nav-icon svg {
-  opacity: 1;
-}
+.ds-nav-item:hover .ds-nav-icon svg,
 .ds-nav-item.is-active .ds-nav-icon svg {
   opacity: 1;
-  transform: scale(1.1);
 }
 
-// Label: font-bold text-[10px] tracking-[0.15em] uppercase whitespace-nowrap
 .ds-nav-text {
   min-width: 0;
-  font-size: var(--fs-nano);
-  font-weight: var(--fw-bold);
-  letter-spacing: var(--ls-wide);
-  text-transform: uppercase;
+  font-size: var(--ds-font-size-sm);
   white-space: nowrap;
   overflow: hidden;
   transition:
@@ -181,25 +172,18 @@
     transform var(--ds-transition-shell);
 }
 
-// Active indicator: absolute left-0 w-1 h-4 rounded-r-full, h-6 on hover
+// The current page's marker: 2px in the signal, so position is shown by more than a fill.
 .ds-nav-rail {
   position: absolute;
-  top: 50%;
+  top: 8px;
+  bottom: 8px;
   left: 0;
-  width: 4px;
-  height: 16px;
-  border-radius: 0 var(--ds-radius-pill) var(--ds-radius-pill) 0;
+  width: 2px;
   background: var(--ds-nav-marker);
-  transform: translateY(-50%);
-  transition: height var(--ds-transition-shell);
-}
-.ds-nav-item.is-active:hover .ds-nav-rail {
-  height: 24px;
 }
 
 // --- Collapsed rail --------------------------------------------------------
-// Captions fade but keep their box, exactly as the reference does: the empty
-// band is what preserves the group rhythm between icon clusters.
+// The labels fade but keep their box: the empty band is what keeps the groups' rhythm.
 .ds-sidebar.is-collapsed .ds-brand-slot {
   justify-content: center;
   padding-inline: 0;
@@ -207,8 +191,7 @@
 .ds-sidebar.is-collapsed .ds-brand {
   justify-content: center;
   width: auto;
-  // A zero-width flex item still earns its gap, which would offset the mark
-  // by half the gap and leave the logo visibly off-centre in the rail.
+  // A zero-width flex item still earns its gap, which would set the mark off centre.
   gap: 0;
 }
 .ds-sidebar.is-collapsed .ds-brand-name {
@@ -226,33 +209,28 @@
   transform: translateX(var(--ds-space-4));
 }
 
-// Floating toggle: absolute -right-3.5 w-8 h-8 rounded-full shadow border
+// The fold: a square on the rail's line, half over it.
 .ds-sidebar-toggle {
   position: absolute;
   top: 50%;
-  right: -14px;
+  right: -12px;
   z-index: 60;
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
-  border: 1px solid var(--ds-nav-border);
-  border-radius: var(--ds-radius-pill);
-  background: var(--ds-nav-surface);
-  box-shadow: var(--ds-shadow-lg);
-  color: var(--ds-nav-text-active);
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--ds-border-default);
+  border-radius: var(--ds-radius-sm);
+  background: var(--ds-surface-canvas);
+  color: var(--ds-text-muted);
   transform: translateY(-50%);
 }
+.ds-sidebar-toggle:hover {
+  color: var(--ds-text-primary);
+}
 .ds-sidebar-toggle svg {
-  width: 16px;
-  height: 16px;
-  transition: transform var(--ds-transition-shell);
-}
-.ds-sidebar-toggle:hover svg {
-  transform: translateX(-2px);
-}
-.ds-sidebar.is-collapsed .ds-sidebar-toggle:hover svg {
-  transform: translateX(2px);
+  width: 14px;
+  height: 14px;
 }
 .ds-sidebar-scrim {
   display: none;
@@ -274,7 +252,8 @@
   margin-top: var(--ds-topbar-height);
 }
 
-// header: fixed top-0 right-0 h-20 bg-background/80 backdrop-blur-xl border-b
+// The bar: a strip of cells across the page, one line between any two, as the documentation site's
+// nav strip. Opaque, so what scrolls beneath it never shows through.
 .ds-topbar {
   position: fixed;
   top: 0;
@@ -284,235 +263,244 @@
   height: var(--ds-topbar-height);
   border-bottom: 1px solid var(--ds-border-subtle);
   background: var(--ds-topbar-glass);
-  backdrop-filter: blur(20px);
   transition: left var(--ds-transition-shell);
 }
-// inner: h-full px-4 md:px-10 flex justify-between items-center
 .ds-topbar-inner {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: space-between;
   height: 100%;
-  padding: 0 var(--ds-space-4);
 }
 .ds-topbar-left {
   display: flex;
-  align-items: center;
-  gap: var(--ds-space-4);
+  align-items: stretch;
   min-width: 0;
 }
-// right: flex items-center gap-5
 .ds-topbar-right {
   display: flex;
-  align-items: center;
-  gap: var(--ds-space-5);
+  align-items: stretch;
+}
+// Every cell after the left group draws the line before it.
+.ds-topbar-right > * {
+  border-left: 1px solid var(--ds-border-subtle);
 }
 
-// Mobile trigger: lg:hidden p-2 rounded-xl
+// The menu cell, below the wide layout.
 .ds-topbar-menu {
   display: grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
+  width: var(--ds-topbar-height);
   border: 0;
-  border-radius: var(--ds-radius-lg);
+  border-right: 1px solid var(--ds-border-subtle);
+  border-radius: var(--ds-radius-sm);
   background: transparent;
   color: var(--ds-text-primary);
 }
 .ds-topbar-menu:hover {
-  background: var(--ds-surface-subtle);
+  background: var(--ds-surface-hover);
 }
 .ds-topbar-menu svg {
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
 }
 
-// Search: rounded-full py-2.5 pl-11 pr-6 text-[13px] w-72
+// The search: a field in its cell, its edge a line.
 .ds-search {
   position: relative;
+  display: flex;
   flex: none;
+  align-items: center;
+  padding: 0 var(--ds-space-4) 0 var(--ds-space-6);
 }
 .ds-search-icon {
   position: absolute;
   top: 50%;
-  left: var(--ds-space-4);
-  width: 18px;
-  height: 18px;
+  left: calc(var(--ds-space-6) + var(--ds-space-3));
+  width: 14px;
+  height: 14px;
   color: var(--ds-text-muted);
   transform: translateY(-50%);
   pointer-events: none;
 }
 .ds-search input {
-  width: 288px;
-  min-height: 42px;
-  padding: 0 var(--ds-space-6) 0 var(--ds-search-inset);
-  border: 1px solid var(--ds-border-subtle);
-  border-radius: var(--ds-radius-pill);
-  background: var(--ds-surface-subtle);
+  width: 280px;
+  min-height: 32px;
+  padding: 0 var(--ds-space-4) 0 var(--ds-search-inset);
+  border: 1px solid var(--ds-border-default);
+  border-radius: var(--ds-radius-sm);
+  background: transparent;
   box-shadow: none;
   font-size: var(--fs-meta);
-  font-weight: var(--fw-medium);
 }
 .ds-search input:focus {
-  background: var(--ds-surface-panel);
+  border-color: var(--ds-border-strong);
 }
 
-// Access level: 9px caption over an 11px uppercase value
+// Access level: a readout in the HUD voice, a term over its value.
 .ds-access-level {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: flex-start;
+  justify-content: center;
   gap: var(--ds-space-0-5);
+  padding: 0 var(--ds-space-5);
 }
 .ds-access-caption {
+  font-family: var(--ds-font-label);
   font-size: var(--fs-pico);
-  font-weight: var(--fw-bold);
+  font-weight: var(--fw-medium);
   letter-spacing: var(--ls-wider);
   text-transform: uppercase;
   color: var(--ds-text-muted);
 }
 .ds-access-value {
+  font-family: var(--ds-font-label);
   font-size: var(--fs-nav-value);
-  font-weight: var(--fw-bold);
-  letter-spacing: var(--ls-tight);
+  font-weight: var(--fw-medium);
+  letter-spacing: var(--ls-label);
   text-transform: uppercase;
   color: var(--ds-text-primary);
 }
 
-// Bell: p-2.5 rounded-xl border shadow-sm
+// An icon in a square cell as tall as the bar.
 .ds-icon-button {
   position: relative;
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
-  border: 1px solid var(--ds-border-subtle);
-  border-radius: var(--ds-radius-lg);
-  background: var(--ds-surface-panel);
-  box-shadow: var(--ds-shadow-xs);
+  width: var(--ds-topbar-height);
+  border: 0;
+  border-radius: var(--ds-radius-sm);
+  background: transparent;
+  box-shadow: none;
   color: var(--ds-text-muted);
   transition:
     background var(--ds-transition-fast),
     color var(--ds-transition-fast);
 }
 .ds-icon-button:hover {
-  background: var(--ds-surface-subtle);
+  background: var(--ds-surface-hover);
   color: var(--ds-text-primary);
 }
 .ds-icon-button svg {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
 }
 .ds-bell-dot {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: 14px;
+  right: 14px;
   width: 6px;
   height: 6px;
-  border: 1px solid var(--ds-surface-panel);
-  border-radius: var(--ds-radius-pill);
+  border-radius: var(--ds-radius-sm);
   background: var(--ds-status-danger);
 }
 
-// Account: pl-4 border-l, avatar w-10 h-10 rounded-xl
+// The mode switch shows the mode it would switch to: the sun on the dark mode, the moon on the light.
+[data-scnx-resolved-mode='dark'] .ds-theme-to-dark,
+[data-scnx-resolved-mode='light'] .ds-theme-to-light {
+  display: none;
+}
+
+// Account: the person's initial on an ink square, in its own cell.
 .ds-account {
   position: relative;
-  padding-left: var(--ds-space-4);
-  border-left: 1px solid var(--ds-border-subtle);
+  display: grid;
+  place-items: center;
+  padding: 0 var(--ds-space-3);
 }
 .ds-avatar {
   display: grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
+  width: 28px;
+  height: 28px;
   border: 0;
-  border-radius: var(--ds-radius-lg);
+  border-radius: var(--ds-radius-sm);
   background: var(--ds-action-primary);
-  box-shadow: var(--ds-shadow-sm);
+  box-shadow: none;
   color: var(--ds-text-inverse);
-  font-size: var(--ds-font-size-sm);
-  font-weight: var(--fw-bold);
+  font-family: var(--ds-font-label);
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-semibold);
 }
 .ds-account-menu {
   position: absolute;
-  top: calc(100% + var(--ds-space-2));
+  top: calc(100% + 1px);
   right: 0;
   z-index: 60;
   display: grid;
-  gap: var(--ds-space-px);
-  width: 224px;
-  padding: var(--ds-space-1);
-  border-radius: var(--ds-radius-lg);
-  background: var(--ds-surface-panel);
+  width: 240px;
+  border: 1px solid var(--ds-border-default);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-surface-raised);
   box-shadow: var(--ds-shadow-overlay);
 }
 .ds-account-identity {
   display: grid;
-  gap: var(--ds-space-px);
-  padding: var(--ds-space-2) var(--ds-space-3);
+  gap: var(--ds-space-1);
+  padding: var(--ds-space-4);
+  border-bottom: 1px solid var(--ds-border-subtle);
 }
 .ds-account-identity strong {
   color: var(--ds-text-primary);
   font-size: var(--fs-meta);
-  font-weight: var(--fw-bold);
+  font-weight: var(--fw-semibold);
 }
 .ds-account-identity span {
   color: var(--ds-text-muted);
-  font-size: var(--fs-micro);
-  font-weight: var(--fw-medium);
+  font-family: var(--ds-font-label);
+  font-size: var(--fs-pico);
+  letter-spacing: var(--ls-wider);
+  text-transform: uppercase;
 }
 .ds-account-item {
-  padding: var(--ds-space-3);
+  display: block;
+  width: 100%;
+  padding: var(--ds-space-3) var(--ds-space-4);
   border: 0;
-  border-radius: var(--ds-radius-md);
+  border-radius: var(--ds-radius-sm);
   background: transparent;
   color: var(--ds-text-muted);
-  font-size: var(--fs-micro);
-  font-weight: var(--fw-bold);
+  font-family: var(--ds-font-label);
+  font-size: var(--fs-nav-value);
+  font-weight: var(--fw-medium);
   letter-spacing: var(--ls-label);
   text-align: left;
+  text-decoration: none;
   text-transform: uppercase;
 }
 .ds-account-item:hover {
-  background: var(--ds-surface-subtle);
+  background: var(--ds-surface-hover);
   color: var(--ds-text-primary);
 }
 
 // --- Page region -----------------------------------------------------------
-// main: py-6 md:py-10, inner px-6 md:px-12
 .ds-page-region {
   width: min(100%, var(--ds-content-max));
   margin: 0 auto;
-  padding: var(--ds-space-6) var(--ds-content-gutter) var(--ds-space-12);
+  padding: var(--ds-space-10) var(--ds-content-gutter) var(--ds-space-16);
 }
+// The page's title block, as a drawing's.
 .ds-page-footer {
   display: flex;
   justify-content: space-between;
   gap: var(--ds-space-4);
   margin-top: var(--ds-space-12);
-  padding-top: var(--ds-space-6);
+  padding-top: var(--ds-space-5);
   border-top: 1px solid var(--ds-border-subtle);
-  color: var(--ds-text-faint);
+  color: var(--ds-text-muted);
+  font-family: var(--ds-font-label);
   font-size: var(--fs-pico);
-  font-weight: var(--fw-bold);
+  font-weight: var(--fw-medium);
   letter-spacing: var(--ls-wider);
   text-transform: uppercase;
 }
 
 // --- Breakpoints -----------------------------------------------------------
-// md: 768px — wider page gutters and header padding
-@media (min-width: 768px) {
-  .ds-topbar-inner {
-    padding-inline: var(--ds-space-10);
-  }
-  .ds-page-region {
-    padding-top: var(--ds-space-10);
-  }
-}
-
-// lg: 1024px — the rail becomes a rail; below this it is an off-canvas drawer
+// lg: 1024px — the rail becomes a rail; below this it is an off-canvas drawer.
 @media (max-width: 1023px) {
-  .ds-app-shell {
+  // Both states: the drawer floats over the page, so the page never makes room for it.
+  .ds-app-shell,
+  .ds-app-shell.is-collapsed {
     --ds-rail: 0px;
   }
   .ds-sidebar {
@@ -527,7 +515,7 @@
   // Off-canvas, not narrow: the drawer keeps its full labels.
   .ds-sidebar.is-collapsed .ds-brand-slot {
     justify-content: flex-start;
-    padding-inline: var(--ds-space-4);
+    padding-inline: var(--ds-space-5);
   }
   .ds-sidebar.is-collapsed .ds-brand {
     justify-content: flex-start;
@@ -553,14 +541,6 @@
     z-index: 45;
     display: block;
     background: var(--ds-scrim);
-    backdrop-filter: blur(4px);
-  }
-}
-
-// xl: 1280px — the reference widens the rail here
-@media (min-width: 1280px) {
-  .ds-app-shell {
-    --ds-sidebar-width: 280px;
   }
 }
 

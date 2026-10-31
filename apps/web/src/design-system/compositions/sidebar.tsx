@@ -1,3 +1,4 @@
+import { BrandMark } from '../components/brand-mark';
 import { Icon } from '../components/icon';
 import {
   navigationGroups,
@@ -25,9 +26,7 @@ export function Sidebar({
             onClick={() => onNavigate('playground')}
             aria-label="AI Runtime Platform home"
           >
-            <span className="ds-brand-mark" aria-hidden="true">
-              AI
-            </span>
+            <BrandMark />
             <span className="ds-brand-name">AI Runtime</span>
           </button>
         </div>
