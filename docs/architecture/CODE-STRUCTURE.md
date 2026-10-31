@@ -65,6 +65,7 @@ apps/
         workspace/              # catalogue orchestration + console shell
         contract-lab/           # engineering workbench
         control-plane/          # M1 operator resource console
+        playground/             # AI Playground: streaming chat through the gateway
         history/                # persisted validation audit surface
         schemas/                # technical schema catalogue
         roadmap/                # delivery reference
